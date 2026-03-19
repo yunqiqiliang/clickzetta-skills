@@ -1,0 +1,35 @@
+{
+  "skill_name": "clickzetta-data-recovery",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "我的表 production.orders 被误删了，怎么恢复？",
+      "expected_output": "使用 UNDROP TABLE production.orders; 恢复，先用 SHOW TABLES HISTORY 确认删除记录，恢复后验证数据",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "昨天下午3点我执行了 DELETE FROM analytics.events WHERE date < '2025-01-01'，现在想把数据恢复回来",
+      "expected_output": "使用 TIMESTAMP AS OF 查询历史数据，通过 RESTORE TABLE 或 INSERT INTO ... SELECT ... TIMESTAMP AS OF 恢复被删除的数据，包含时区换算说明",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "我想查询 sales.transactions 表在 2025-03-15 09:00:00 时金额超过 10000 的交易记录",
+      "expected_output": "使用 SELECT * FROM sales.transactions TIMESTAMP AS OF '2025-03-15 09:00:00' WHERE amount > 10000 语法，说明这是只读查询，提示确认保留周期是否覆盖该时间点",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "如何查看一张表的所有历史变更记录？我想知道什么时候有人修改过数据",
+      "expected_output": "使用 DESC HISTORY table_name; 命令，说明返回字段含义（version、time、user、operation），可结合 TIMESTAMP AS OF 查询特定版本数据",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "我想把表的数据保留周期从默认的1天改成30天，怎么操作？有什么注意事项？",
+      "expected_output": "使用 ALTER TABLE table_name SET PROPERTIES ('data_retention_days'='30'); 修改，说明默认1天、最长90天、修改会增加存储成本",
+      "files": []
+    }
+  ]
+}
