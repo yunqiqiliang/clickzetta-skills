@@ -1,0 +1,5 @@
+# IDE / tool configs
+.claude/
+
+# macOS
+.DS_Store
