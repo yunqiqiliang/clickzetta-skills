@@ -7,7 +7,7 @@ description: >
   仅涉及 SQL 命令操作，不涉及 Lakehouse Studio 图形化界面。
 
   当用户说"创建动态表"、"创建物化视图"、"创建 Pipe"、"创建表流"、
-  "暂停/恢复动态表"、"查看刷新历史"、"修改 TARGET_LAG"、"接入 Kafka"、
+  "暂停/恢复动态表"、"查看刷新历史"、"修改刷新频率"、"接入 Kafka"、
   "从对象存储持续导入"、"CDC 变更捕获"、"增量计算"、"实时 ETL"、
   "数据管道"、"pipeline"、"流式处理"、"动态表刷新失败"、
   "帮我设计 ETL"、"构建数据管道"、"数据接入方案"、
@@ -23,7 +23,8 @@ description: >
 
 | 功能 | ❌ 错误写法（Snowflake/标准SQL） | ✅ ClickZetta 正确写法 |
 |---|---|---|
-| 动态表计算集群 | `WAREHOUSE = compute_wh` | `VCLUSTER = default_ap` |
+| 动态表计算集群 | `WAREHOUSE = compute_wh` | `VCLUSTER default_ap`（直接跟名称，不带等号） |
+| 动态表刷新调度 | `TARGET_LAG = '1 minutes'` | `REFRESH interval 1 MINUTE VCLUSTER default_ap` |
 | Kafka 读取函数 | `KAFKA_SOURCE(...)` | `READ_KAFKA(KAFKA_BROKER => ..., KAFKA_DATA_FORMAT => 'json')` |
 | 物化视图定时刷新 | `REFRESH EVERY 1 HOUR` | `REFRESH AUTO EVERY '1 hours'`（带引号，带 AUTO 关键字） |
 | 物化视图手动刷新 | `REFRESH MATERIALIZED VIEW` 放在 CREATE 里 | 单独执行 `REFRESH MATERIALIZED VIEW <name>;` |
@@ -69,8 +70,8 @@ description: >
 1. Schema 创建（CREATE SCHEMA IF NOT EXISTS，使用用户指定的层次名称）
 2. 入口层建表（如果是外部摄入）
 3. 数据入口（Pipe 或 Table Stream，根据来源选择）
-4. 中间层动态表（清洗/过滤，TARGET_LAG = 用户指定频率，VCLUSTER）
-5. 服务层动态表（聚合/维度，TARGET_LAG = DOWNSTREAM，VCLUSTER）
+4. 中间层动态表（清洗/过滤，REFRESH interval N MINUTE VCLUSTER name）
+5. 服务层动态表（聚合/维度，REFRESH interval N MINUTE VCLUSTER name）
 6. 验证命令（SHOW + REFRESH HISTORY）
 7. 运维操作（SUSPEND/RESUME）
 ```
@@ -81,9 +82,9 @@ description: >
 - 已有表 + 有 UPDATE/DELETE → `CREATE TABLE STREAM ... WITH PROPERTIES ('TABLE_STREAM_MODE' = 'STANDARD')`，中间层过滤 `__change_type IN ('INSERT', 'UPDATE_AFTER', 'DELETE')`
 - 已有表 + 仅 INSERT → Dynamic Table 直接 `FROM` 源表
 
-**TARGET_LAG 规则：**
-- 第一个转换层（Bronze→Silver 或 ODS→DWD）设置用户指定的刷新频率（如 `'1 minutes'`、`'1 hours'`）
-- 所有下游层一律设置 `TARGET_LAG = DOWNSTREAM`，跟随上游自动触发
+**刷新频率规则：**
+- 第一个转换层（Bronze→Silver 或 ODS→DWD）设置用户指定的刷新频率（如 `REFRESH interval 1 MINUTE VCLUSTER default_ap`）
+- 下游层根据业务需求设置各自的刷新频率（如 `REFRESH interval 5 MINUTE VCLUSTER default_ap`）
 
 ---
 
@@ -108,7 +109,7 @@ description: >
 ├── 固定聚合，不要求实时
 │   └── → Materialized View
 └── 多层 ETL（ODS→DWD→DWS 或 Bronze→Silver→Gold）
-    └── → 多个 Dynamic Table 级联（TARGET_LAG = DOWNSTREAM）
+    └── → 多个 Dynamic Table 级联（各层设置独立 REFRESH interval）
 ```
 
 ## 步骤 0：确认连接
@@ -131,7 +132,7 @@ description: >
 阅读对应参考文件后，根据用户提供的参数生成完整可运行 SQL。
 
 **必填参数检查：**
-- Dynamic Table / Materialized View：`TARGET_LAG`（或 REFRESH 策略）、`VCLUSTER`、AS 查询
+- Dynamic Table：`REFRESH interval N MINUTE VCLUSTER name`、AS 查询
 - Table Stream：源表名、MODE（STANDARD 或 APPEND_ONLY）
 - Pipe（Kafka）：`KAFKA_BROKER`、`KAFKA_TOPIC`、`KAFKA_GROUP_ID`、目标表
 - Pipe（对象存储）：Volume 路径、文件格式、目标表
@@ -184,8 +185,8 @@ FROM TABLE(
 
 -- Step 2: 动态表做 DWD 层清洗（每分钟增量刷新）
 CREATE OR REPLACE DYNAMIC TABLE dwd.orders_clean
-  TARGET_LAG = '1 minutes'
-  VCLUSTER = default_ap
+  REFRESH interval 1 MINUTE
+  VCLUSTER default_ap
 AS
 SELECT
   order_id,
@@ -197,10 +198,10 @@ SELECT
 FROM ods.orders
 WHERE amount > 0;
 
--- Step 3: 动态表做 DWS 层聚合（跟随上游刷新）
+-- Step 3: 动态表做 DWS 层聚合（每 5 分钟刷新）
 CREATE OR REPLACE DYNAMIC TABLE dws.order_hourly
-  TARGET_LAG = DOWNSTREAM
-  VCLUSTER = default_ap
+  REFRESH interval 5 MINUTE
+  VCLUSTER default_ap
 AS
 SELECT
   DATE_TRUNC('hour', created_at) AS hour,
@@ -217,12 +218,12 @@ GROUP BY 1, 2;
 -- Step 1: 在源表上创建 Stream 捕获变更
 CREATE TABLE STREAM ods.orders_stream
   ON TABLE ods.orders
-  MODE = STANDARD;
+  WITH PROPERTIES ('TABLE_STREAM_MODE' = 'STANDARD');
 
 -- Step 2: 动态表消费 Stream，过滤出最新状态
 CREATE OR REPLACE DYNAMIC TABLE dwd.orders_latest
-  TARGET_LAG = '2 minutes'
-  VCLUSTER = default_ap
+  REFRESH interval 2 MINUTE
+  VCLUSTER default_ap
 AS
 SELECT order_id, user_id, amount, status, created_at
 FROM ods.orders_stream
