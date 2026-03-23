@@ -2,9 +2,9 @@
 
 > **⚠️ ClickZetta 特有语法**
 > - 创建语法是 `CREATE TABLE STREAM`（不是 `CREATE STREAM`）
-> - `_change_type` 字段值：`insert` / `update_preimage` / `update_postimage` / `delete`
-> - UPDATE 产生两条记录：`update_preimage`（更新前）和 `update_postimage`（更新后）
-> - 通常只需要 `update_postimage`（更新后的值）
+> - 元数据字段是 `__change_type`（双下划线），值：`UPDATE_BEFORE` / `UPDATE_AFTER` / `DELETE`（大写）
+> - UPDATE 产生两条记录：`UPDATE_BEFORE`（更新前）和 `UPDATE_AFTER`（更新后）
+> - 通常只需要 `UPDATE_AFTER`（更新后的值）
 
 Table Stream 捕获源表的变更数据（INSERT / UPDATE / DELETE），是构建 CDC 管道的核心对象。通常与 Dynamic Table 或 SQL 任务配合消费变更数据。
 
@@ -18,7 +18,7 @@ CREATE [ OR REPLACE ] TABLE STREAM [ IF NOT EXISTS ] <stream_name>
 ```
 
 **关键参数：**
-- `MODE = STANDARD`（默认）：捕获 INSERT、UPDATE、DELETE 所有变更，每行附带 `_change_type` 字段（`insert` / `update_preimage` / `update_postimage` / `delete`）
+- `MODE = STANDARD`（默认）：捕获 INSERT、UPDATE、DELETE 所有变更，每行附带 `__change_type` 字段（`UPDATE_BEFORE` / `UPDATE_AFTER` / `DELETE`）
 - `MODE = APPEND_ONLY`：只捕获 INSERT，性能更好，适合仅追加写入的源表
 
 **示例：**
@@ -45,26 +45,28 @@ Table Stream 是一次性消费的：**每次 SELECT 后，已读取的数据会
 SELECT * FROM orders_stream;
 
 -- 变更数据包含的系统字段
--- _change_type: insert | update_preimage | update_postimage | delete
--- _change_timestamp: 变更发生时间
+-- __change_type: UPDATE_BEFORE | UPDATE_AFTER | DELETE
+-- __commit_version: 变更版本号
+-- __commit_timestamp: 变更发生时间
 
 -- 典型用法：将变更数据 MERGE 到目标表
 MERGE INTO dw.orders_dim AS target
 USING (
-  SELECT * FROM orders_stream WHERE _change_type IN ('insert', 'update_postimage')
+  SELECT * FROM orders_stream WHERE __change_type IN ('UPDATE_AFTER', 'DELETE')
 ) AS src
 ON target.order_id = src.order_id
-WHEN MATCHED THEN UPDATE SET target.status = src.status, target.amount = src.amount
-WHEN NOT MATCHED THEN INSERT (order_id, status, amount) VALUES (src.order_id, src.status, src.amount);
+WHEN MATCHED AND src.__change_type = 'DELETE' THEN DELETE
+WHEN MATCHED AND src.__change_type = 'UPDATE_AFTER' THEN UPDATE SET target.status = src.status, target.amount = src.amount
+WHEN NOT MATCHED AND src.__change_type = 'UPDATE_AFTER' THEN INSERT (order_id, status, amount) VALUES (src.order_id, src.status, src.amount);
 
 -- 配合 Dynamic Table 自动消费（推荐）
 CREATE OR REPLACE DYNAMIC TABLE dw.orders_processed
   TARGET_LAG = '1 minutes'
   VCLUSTER = default_ap
 AS
-SELECT order_id, status, amount, _change_type, _change_timestamp
+SELECT order_id, status, amount, __change_type, __commit_timestamp
 FROM orders_stream
-WHERE _change_type IN ('insert', 'update_postimage');
+WHERE __change_type = 'UPDATE_AFTER';
 ```
 
 ## DROP TABLE STREAM
@@ -93,7 +95,7 @@ DESC TABLE STREAM <stream_name>;
 
 - Stream 数据**只能消费一次**，SELECT 后即标记为已读
 - 若长时间不消费，超出源表的 `data_retention_days` 后数据会丢失
-- `STANDARD` 模式下 UPDATE 会产生两条记录：`update_preimage`（更新前）和 `update_postimage`（更新后）
+- `STANDARD` 模式下 UPDATE 会产生两条记录：`UPDATE_BEFORE`（更新前）和 `UPDATE_AFTER`（更新后）
 - 推荐用 Dynamic Table 消费 Stream，避免手动管理消费状态
 
 ## 参考文档

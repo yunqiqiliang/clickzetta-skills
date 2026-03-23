@@ -78,7 +78,7 @@ description: >
 **来源 → 入口对象的选择规则：**
 - Kafka → `CREATE PIPE ... AS INSERT INTO ... FROM TABLE(READ_KAFKA(...))`
 - 对象存储（OSS/S3/COS）→ `CREATE PIPE ... AS COPY INTO ... FROM '@volume/path/'`
-- 已有表 + 有 UPDATE/DELETE → `CREATE TABLE STREAM ... MODE = STANDARD`，中间层过滤 `_change_type IN ('insert', 'update_postimage')`
+- 已有表 + 有 UPDATE/DELETE → `CREATE TABLE STREAM ... MODE = STANDARD`，中间层过滤 `__change_type IN ('UPDATE_AFTER', 'DELETE')`
 - 已有表 + 仅 INSERT → Dynamic Table 直接 `FROM` 源表
 
 **TARGET_LAG 规则：**
@@ -226,7 +226,7 @@ CREATE OR REPLACE DYNAMIC TABLE dwd.orders_latest
 AS
 SELECT order_id, user_id, amount, status, created_at
 FROM ods.orders_stream
-WHERE _change_type IN ('insert', 'update_postimage');
+WHERE __change_type IN ('UPDATE_AFTER', 'DELETE');
 ```
 
 ### 场景 C：物化视图加速 BI 查询
