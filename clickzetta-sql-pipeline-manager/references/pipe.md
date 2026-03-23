@@ -1,5 +1,11 @@
 # Pipe SQL 参考
 
+> **⚠️ ClickZetta 特有语法**
+> - Kafka 读取函数是 `READ_KAFKA(...)`，不是 `KAFKA_SOURCE(...)` 或其他写法
+> - 参数使用 `=>` 命名参数语法：`KAFKA_BROKER => 'host:port'`
+> - JSON 字段提取用 `$1:field_name::TYPE` 语法（`$1` 表示整行 JSON）
+> - Pipe 创建后默认自动启动，无需手动 RESUME
+
 Pipe 是 ClickZetta Lakehouse 的持续数据导入对象，通过 SQL 定义从 Kafka 或对象存储（OSS/S3/COS）自动、持续地将数据导入目标表，无需外部调度。
 
 ## CREATE PIPE — 从 Kafka 导入

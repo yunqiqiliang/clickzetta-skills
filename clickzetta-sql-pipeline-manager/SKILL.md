@@ -9,10 +9,83 @@ description: >
   当用户说"创建动态表"、"创建物化视图"、"创建 Pipe"、"创建表流"、
   "暂停/恢复动态表"、"查看刷新历史"、"修改 TARGET_LAG"、"接入 Kafka"、
   "从对象存储持续导入"、"CDC 变更捕获"、"增量计算"、"实时 ETL"、
-  "数据管道"、"pipeline"、"流式处理"、"动态表刷新失败"时触发。
+  "数据管道"、"pipeline"、"流式处理"、"动态表刷新失败"、
+  "帮我设计 ETL"、"构建数据管道"、"数据接入方案"、
+  "Medallion Architecture"、"Bronze Silver Gold"、"奖章架构"、
+  "湖仓分层"、"Bronze 层"、"Silver 层"、"Gold 层"时触发。
 ---
 
 # ClickZetta SQL 数据管道管理
+
+## ⚠️ ClickZetta 与标准 SQL / Snowflake 的关键语法差异
+
+这些是最容易写错的地方，必须使用 ClickZetta 特有语法：
+
+| 功能 | ❌ 错误写法（Snowflake/标准SQL） | ✅ ClickZetta 正确写法 |
+|---|---|---|
+| 动态表计算集群 | `WAREHOUSE = compute_wh` | `VCLUSTER = default_ap` |
+| Kafka 读取函数 | `KAFKA_SOURCE(...)` | `READ_KAFKA(KAFKA_BROKER => ..., KAFKA_DATA_FORMAT => 'json')` |
+| 物化视图定时刷新 | `REFRESH EVERY 1 HOUR` | `REFRESH AUTO EVERY '1 hours'`（带引号，带 AUTO 关键字） |
+| 物化视图手动刷新 | `REFRESH MATERIALIZED VIEW` 放在 CREATE 里 | 单独执行 `REFRESH MATERIALIZED VIEW <name>;` |
+| 修改动态表 SQL | `ALTER DYNAMIC TABLE ... AS ...` | `CREATE OR REPLACE DYNAMIC TABLE ...`（ALTER 不支持修改 AS 子句） |
+
+---
+
+## Pipeline Wizard（管道设计向导）
+
+当用户想设计或构建一个完整的数据管道时，这是最高优先级的模式。触发词包括：
+"帮我设计/构建 ETL"、"完整的数据管道"、"从 Kafka/OSS 接入数据"、"ODS→DWD→DWS"、"端到端 pipeline"、
+"Medallion Architecture"、"Bronze/Silver/Gold"、"奖章架构"、"湖仓分层"。
+
+### 层次命名约定
+
+用户可能使用不同的分层命名，含义相同，按用户偏好保留原始命名：
+
+| 用户说的 | 含义 | Schema 命名建议 |
+|---|---|---|
+| Bronze / Silver / Gold | Medallion Architecture | `bronze` / `silver` / `gold` |
+| ODS / DWD / DWS | 国内数仓分层惯例 | `ods` / `dwd` / `dws` |
+| Raw / Cleansed / Aggregated | 通用英文描述 | `raw` / `cleansed` / `agg` |
+
+**不要把 Bronze 映射成 ODS、Silver 映射成 DWD 等——保留用户选择的命名，在 SQL 中直接使用对应的 schema 和表名前缀。**
+
+### 需求收集
+
+**如果用户已经提供了足够信息（数据来源、字段、层次需求），直接生成完整 SQL，不要再问。**
+
+如果信息不完整，一次性问清楚以下 4 点（合并成一个问题，不要逐一追问）：
+
+> 为了生成完整的 pipeline SQL，需要确认几个信息：
+> 1. **数据来源**：Kafka（broker/topic）/ 对象存储（Volume 路径/格式）/ 已有表（是否有 UPDATE/DELETE）？
+> 2. **字段结构**：目标表的字段名和类型？
+> 3. **层次需求**：需要几层？每层做什么处理（清洗/聚合/维度建模）？
+> 4. **刷新频率**：实时（秒级）/ 近实时（分钟级）/ 低频（小时/天）？
+
+### 生成完整 SQL
+
+收到回答后，生成完整的端到端 SQL，包含以下所有部分：
+
+```
+1. Schema 创建（CREATE SCHEMA IF NOT EXISTS，使用用户指定的层次名称）
+2. 入口层建表（如果是外部摄入）
+3. 数据入口（Pipe 或 Table Stream，根据来源选择）
+4. 中间层动态表（清洗/过滤，TARGET_LAG = 用户指定频率，VCLUSTER）
+5. 服务层动态表（聚合/维度，TARGET_LAG = DOWNSTREAM，VCLUSTER）
+6. 验证命令（SHOW + REFRESH HISTORY）
+7. 运维操作（SUSPEND/RESUME）
+```
+
+**来源 → 入口对象的选择规则：**
+- Kafka → `CREATE PIPE ... AS INSERT INTO ... FROM TABLE(READ_KAFKA(...))`
+- 对象存储（OSS/S3/COS）→ `CREATE PIPE ... AS COPY INTO ... FROM '@volume/path/'`
+- 已有表 + 有 UPDATE/DELETE → `CREATE TABLE STREAM ... MODE = STANDARD`，中间层过滤 `_change_type IN ('insert', 'update_postimage')`
+- 已有表 + 仅 INSERT → Dynamic Table 直接 `FROM` 源表
+
+**TARGET_LAG 规则：**
+- 第一个转换层（Bronze→Silver 或 ODS→DWD）设置用户指定的刷新频率（如 `'1 minutes'`、`'1 hours'`）
+- 所有下游层一律设置 `TARGET_LAG = DOWNSTREAM`，跟随上游自动触发
+
+---
 
 ## 对象类型速查
 
@@ -34,7 +107,7 @@ description: >
 │   └── 只需 INSERT 追加 → Dynamic Table（直接查源表）
 ├── 固定聚合，不要求实时
 │   └── → Materialized View
-└── 多层 ETL（ODS → DWD → DWS）
+└── 多层 ETL（ODS→DWD→DWS 或 Bronze→Silver→Gold）
     └── → 多个 Dynamic Table 级联（TARGET_LAG = DOWNSTREAM）
 ```
 
@@ -146,7 +219,7 @@ CREATE TABLE STREAM ods.orders_stream
   ON TABLE ods.orders
   MODE = STANDARD;
 
--- Step 2: 动态表消费 Stream，MERGE 到目标表
+-- Step 2: 动态表消费 Stream，过滤出最新状态
 CREATE OR REPLACE DYNAMIC TABLE dwd.orders_latest
   TARGET_LAG = '2 minutes'
   VCLUSTER = default_ap
@@ -218,5 +291,4 @@ ALTER PIPE kafka_orders_pipe RESUME;
 - [物化视图](https://www.yunqi.tech/documents/materialized_ddl)
 - [Pipe 简介](https://www.yunqi.tech/documents/pipe-summary)
 - [使用 Dynamic Table 开展实时 ETL](https://www.yunqi.tech/documents/tutorials-streaming-data-pipeline-with_dynamic-table)
-- [通过流和任务实现 SCD](https://www.yunqi.tech/documents/SlowlyChangingDimensionsInLakehouseUsingStreamsandTasks)
 - [LLM 全量文档索引](https://yunqi.tech/llms-full.txt)

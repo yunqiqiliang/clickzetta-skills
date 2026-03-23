@@ -1,5 +1,10 @@
 # Dynamic Table（动态表）SQL 参考
 
+> **⚠️ ClickZetta 特有语法**
+> - 计算集群参数是 `VCLUSTER`，不是 `WAREHOUSE`（Snowflake 写法）
+> - 修改 SQL 逻辑必须用 `CREATE OR REPLACE`，`ALTER` 不支持修改 AS 子句
+> - `TARGET_LAG = DOWNSTREAM` 表示由上游动态表驱动刷新，不独立调度
+
 动态表是 ClickZetta Lakehouse 的核心增量计算对象。通过 SQL 查询定义，自动增量刷新，无需手动调度。
 
 ## CREATE DYNAMIC TABLE

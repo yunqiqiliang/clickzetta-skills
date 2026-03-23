@@ -1,5 +1,11 @@
 # Table Stream（表流）SQL 参考
 
+> **⚠️ ClickZetta 特有语法**
+> - 创建语法是 `CREATE TABLE STREAM`（不是 `CREATE STREAM`）
+> - `_change_type` 字段值：`insert` / `update_preimage` / `update_postimage` / `delete`
+> - UPDATE 产生两条记录：`update_preimage`（更新前）和 `update_postimage`（更新后）
+> - 通常只需要 `update_postimage`（更新后的值）
+
 Table Stream 捕获源表的变更数据（INSERT / UPDATE / DELETE），是构建 CDC 管道的核心对象。通常与 Dynamic Table 或 SQL 任务配合消费变更数据。
 
 ## CREATE TABLE STREAM

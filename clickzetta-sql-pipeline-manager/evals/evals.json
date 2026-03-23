@@ -1,0 +1,166 @@
+{
+  "skill_name": "clickzetta-sql-pipeline-manager",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "帮我创建一个动态表 dwd.orders_clean，每分钟刷新一次，从 ods.orders 表过滤 amount > 0 的数据，计算集群用 default_ap。",
+      "expected_output": "生成 CREATE OR REPLACE DYNAMIC TABLE dwd.orders_clean，包含 TARGET_LAG = '1 minutes'、VCLUSTER = default_ap、AS SELECT ... FROM ods.orders WHERE amount > 0",
+      "files": [],
+      "assertions": [
+        {"text": "包含 CREATE DYNAMIC TABLE 或 CREATE OR REPLACE DYNAMIC TABLE"},
+        {"text": "包含 dwd.orders_clean 作为表名"},
+        {"text": "包含 TARGET_LAG = '1 minutes' 或等效写法"},
+        {"text": "包含 VCLUSTER = default_ap"},
+        {"text": "包含 WHERE amount > 0 过滤条件"},
+        {"text": "包含 FROM ods.orders"}
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "我有一个动态表 dws.order_hourly 刷新失败了，怎么排查？",
+      "expected_output": "使用 SHOW DYNAMIC TABLE REFRESH HISTORY dws.order_hourly 查看失败详情，说明常见原因（SQL 报错、源表结构变更、集群不可用），提供排查步骤",
+      "files": [],
+      "assertions": [
+        {"text": "包含 SHOW DYNAMIC TABLE REFRESH HISTORY 命令"},
+        {"text": "包含 dws.order_hourly 表名"},
+        {"text": "提到至少一种常见失败原因（SQL报错/源表变更/集群不可用）"},
+        {"text": "提供具体的排查步骤或命令"}
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "我想从 Kafka 持续导入订单数据到 ods.orders 表，broker 是 kafka.prod.com:9092，topic 是 orders，数据是 JSON 格式。",
+      "expected_output": "生成 CREATE OR REPLACE PIPE 语句，使用 READ_KAFKA 函数，包含 KAFKA_BROKER、KAFKA_TOPIC、KAFKA_GROUP_ID、KAFKA_DATA_FORMAT = 'json'，以及 INSERT INTO ods.orders 的字段映射",
+      "files": [],
+      "assertions": [
+        {"text": "包含 CREATE PIPE 语句"},
+        {"text": "包含 READ_KAFKA 函数"},
+        {"text": "包含 kafka.prod.com:9092 作为 broker 地址"},
+        {"text": "包含 KAFKA_TOPIC 设置为 orders"},
+        {"text": "包含 KAFKA_DATA_FORMAT = 'json' 或等效写法"},
+        {"text": "包含 INSERT INTO ods.orders"}
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "我需要捕获 ods.orders 表的 UPDATE 和 DELETE 变更，然后同步到 dwd.orders_dim 表，怎么做？",
+      "expected_output": "先 CREATE TABLE STREAM ON TABLE ods.orders MODE = STANDARD，再创建 Dynamic Table 或用 MERGE INTO 消费 stream，说明 _change_type 字段含义（update_postimage / delete）",
+      "files": [],
+      "assertions": [
+        {"text": "包含 CREATE TABLE STREAM"},
+        {"text": "包含 ON TABLE ods.orders"},
+        {"text": "包含 MODE = STANDARD 或说明标准模式"},
+        {"text": "提到 _change_type 字段"},
+        {"text": "提到 update_postimage 或 delete 变更类型"},
+        {"text": "提供消费 stream 的方案（MERGE INTO 或 Dynamic Table）"}
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "帮我创建一个物化视图 dws.mv_daily_revenue，每小时自动刷新，统计每天每个 region 的 revenue 总和，数据来自 dwd.orders_clean。",
+      "expected_output": "生成 CREATE OR REPLACE MATERIALIZED VIEW，包含 REFRESH AUTO EVERY '1 hours'、VCLUSTER、AS SELECT DATE(created_at), region, SUM(amount) FROM dwd.orders_clean GROUP BY 1,2",
+      "files": [],
+      "assertions": [
+        {"text": "包含 CREATE MATERIALIZED VIEW"},
+        {"text": "包含 dws.mv_daily_revenue 作为视图名"},
+        {"text": "包含 REFRESH AUTO EVERY '1 hours' 或等效写法"},
+        {"text": "包含 FROM dwd.orders_clean"},
+        {"text": "包含 SUM 聚合 revenue 或 amount"},
+        {"text": "包含 GROUP BY 包括日期和 region"}
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "我要做一个三层 ETL：ODS 原始层 → DWD 清洗层 → DWS 聚合层，都用动态表，希望 DWD 每分钟刷新，DWS 跟着 DWD 刷新。怎么设计？",
+      "expected_output": "DWD 动态表设置 TARGET_LAG = '1 minutes'，DWS 动态表设置 TARGET_LAG = DOWNSTREAM，给出完整的两层 CREATE DYNAMIC TABLE 示例，说明 DOWNSTREAM 的含义",
+      "files": [],
+      "assertions": [
+        {"text": "包含两个 CREATE DYNAMIC TABLE 语句（DWD 和 DWS 层）"},
+        {"text": "DWD 层包含 TARGET_LAG = '1 minutes'"},
+        {"text": "DWS 层包含 TARGET_LAG = DOWNSTREAM"},
+        {"text": "解释 DOWNSTREAM 的含义（跟随上游刷新）"},
+        {"text": "DWS 层查询来自 DWD 层表"}
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "我需要暂停所有动态表的刷新，明天维护结束后再恢复，怎么操作？",
+      "expected_output": "使用 ALTER DYNAMIC TABLE <name> SUSPEND 暂停，ALTER DYNAMIC TABLE <name> RESUME 恢复，提示可先用 SHOW TABLES WHERE is_dynamic=true 列出所有动态表",
+      "files": [],
+      "assertions": [
+        {"text": "包含 ALTER DYNAMIC TABLE ... SUSPEND"},
+        {"text": "包含 ALTER DYNAMIC TABLE ... RESUME"},
+        {"text": "提到 SHOW TABLES WHERE is_dynamic=true 或等效方式列出动态表"}
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "动态表和物化视图有什么区别？我的场景是每天凌晨跑一次聚合报表，用哪个更合适？",
+      "expected_output": "说明动态表适合实时/增量场景，物化视图适合低频全量刷新；对于每天一次的报表场景推荐物化视图（REFRESH MANUAL 或 AUTO EVERY '1 days'），成本更低",
+      "files": [],
+      "assertions": [
+        {"text": "说明动态表适合实时或增量计算场景"},
+        {"text": "说明物化视图适合低频或手动刷新场景"},
+        {"text": "明确推荐物化视图用于每天一次的报表场景"},
+        {"text": "提到 REFRESH MANUAL 或 REFRESH AUTO EVERY '1 days' 等具体语法"}
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "帮我设计一个完整的数据管道：从 Kafka（broker: kafka.prod.com:9092，topic: user_events，JSON 格式）接入用户行为数据，字段有 user_id、event_type、page_id、ts（时间戳）。需要做到三层：ODS 原始层、DWD 清洗层（过滤无效 event_type）、DWS 聚合层（按天统计每个 page 的 UV 和 PV）。DWD 每 2 分钟刷新，DWS 跟随 DWD。",
+      "expected_output": "生成完整的端到端 SQL：1) ODS 建表，2) Kafka Pipe（使用 READ_KAFKA），3) DWD 动态表（TARGET_LAG='2 minutes'，VCLUSTER，过滤无效 event_type），4) DWS 动态表（TARGET_LAG=DOWNSTREAM，按天+page_id 聚合 UV/PV）",
+      "files": [],
+      "assertions": [
+        {"text": "包含 ODS 层建表语句（CREATE TABLE）"},
+        {"text": "包含 CREATE PIPE 使用 READ_KAFKA 从 kafka.prod.com:9092 摄入数据"},
+        {"text": "包含 DWD 层 CREATE DYNAMIC TABLE，TARGET_LAG = '2 minutes'，VCLUSTER"},
+        {"text": "包含 DWS 层 CREATE DYNAMIC TABLE，TARGET_LAG = DOWNSTREAM"},
+        {"text": "DWS 层包含 COUNT(DISTINCT user_id) 统计 UV 或 COUNT(*) 统计 PV"},
+        {"text": "DWS 层按日期和 page_id 分组（GROUP BY）"},
+        {"text": "包含验证命令（SHOW 或 DESC）"}
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "我有一个业务数据库的订单表会持续有 INSERT 和 UPDATE，已经同步到了 ClickZetta 的 ods.orders 表（字段：order_id, customer_id, amount, status, updated_at）。我需要构建一个完整的数仓管道：DWD 层保留最新状态的订单，DWS 层按天统计每个 status 的订单数和金额。要求近实时，延迟在 1 分钟以内。",
+      "expected_output": "使用 Table Stream（MODE=STANDARD）捕获 UPDATE 变更，DWD 动态表消费 stream 过滤 update_postimage，TARGET_LAG='1 minutes'，DWS 动态表 TARGET_LAG=DOWNSTREAM 做聚合",
+      "files": [],
+      "assertions": [
+        {"text": "包含 CREATE TABLE STREAM ON TABLE ods.orders，MODE = STANDARD"},
+        {"text": "DWD 层动态表消费 stream，过滤 _change_type IN ('insert', 'update_postimage')"},
+        {"text": "DWD 层包含 TARGET_LAG = '1 minutes'，VCLUSTER"},
+        {"text": "DWS 层包含 TARGET_LAG = DOWNSTREAM"},
+        {"text": "DWS 层按日期和 status 分组，包含 COUNT 和 SUM 聚合"},
+        {"text": "包含验证命令（SHOW DYNAMIC TABLE REFRESH HISTORY 或 SHOW TABLE STREAMS）"}
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "我想在 ClickZetta 上实现 Medallion Architecture，数据来自 S3（Volume 名称 s3_raw_vol，路径 /events/，JSON 格式），字段有 event_id、user_id、event_name、properties（JSON 嵌套）、created_at。Bronze 层直接落地原始数据，Silver 层做清洗（过滤 event_name 为空的记录，展开 properties 里的 page_url 和 referrer 字段），Gold 层按天统计每个 event_name 的次数和独立用户数。Silver 每 5 分钟刷新，Gold 跟随 Silver。",
+      "expected_output": "使用 bronze/silver/gold schema 命名（不映射到 ODS/DWD/DWS），生成完整 SQL：Bronze 建表 + OSS Pipe（COPY INTO FROM '@s3_raw_vol/events/'），Silver 动态表（TARGET_LAG='5 minutes'，过滤 event_name IS NULL，展开 properties:page_url 和 properties:referrer），Gold 动态表（TARGET_LAG=DOWNSTREAM，按天+event_name 聚合 COUNT 和 COUNT DISTINCT user_id）",
+      "files": [],
+      "assertions": [
+        {"text": "使用 bronze/silver/gold schema 命名（不使用 ods/dwd/dws）"},
+        {"text": "包含 CREATE PIPE 使用 COPY INTO FROM '@s3_raw_vol/events/'，FILE_FORMAT TYPE = 'json'"},
+        {"text": "Silver 层包含 CREATE DYNAMIC TABLE，TARGET_LAG = '5 minutes'，VCLUSTER，过滤 event_name IS NULL"},
+        {"text": "Silver 层展开 JSON 嵌套字段（properties:page_url 或 $1:page_url 等语法）"},
+        {"text": "Gold 层包含 CREATE DYNAMIC TABLE，TARGET_LAG = DOWNSTREAM"},
+        {"text": "Gold 层包含 COUNT(DISTINCT user_id) 和 COUNT(*) 或 COUNT(event_id)，按日期和 event_name 分组"}
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "我们有日志文件每小时上传到 OSS（Volume 名称 my_oss_vol，路径 /logs/app/，Parquet 格式），字段是 log_id、user_id、action、duration_ms、log_time。帮我构建完整的数据管道：自动导入到 ODS，然后做 DWD 清洗（过滤 duration_ms <= 0），最后做 DWS 层按天统计每个 action 的平均耗时和次数。不需要实时，每小时刷新一次就够。",
+      "expected_output": "使用对象存储 Pipe（COPY INTO from @my_oss_vol/logs/app/，TYPE=parquet），DWD 动态表 TARGET_LAG='1 hours'，DWS 动态表 TARGET_LAG=DOWNSTREAM，DWS 聚合 AVG(duration_ms) 和 COUNT(*)",
+      "files": [],
+      "assertions": [
+        {"text": "包含 CREATE PIPE 使用 COPY INTO FROM '@my_oss_vol/logs/app/'"},
+        {"text": "包含 FILE_FORMAT = (TYPE = 'parquet') 或等效写法"},
+        {"text": "DWD 层包含 CREATE DYNAMIC TABLE，TARGET_LAG = '1 hours'，VCLUSTER，过滤 duration_ms <= 0"},
+        {"text": "DWS 层包含 TARGET_LAG = DOWNSTREAM"},
+        {"text": "DWS 层包含 AVG(duration_ms) 统计平均耗时"},
+        {"text": "DWS 层按日期和 action 分组"}
+      ]
+    }
+  ]
+}

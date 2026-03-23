@@ -1,5 +1,11 @@
 # Materialized View（物化视图）SQL 参考
 
+> **⚠️ ClickZetta 特有语法**
+> - 定时刷新写法：`REFRESH AUTO EVERY '1 hours'`（必须带引号，必须有 `AUTO` 关键字）
+> - 错误写法：`REFRESH EVERY 1 HOUR`（无引号，无 AUTO）
+> - 手动刷新是单独的语句：`REFRESH MATERIALIZED VIEW <name>;`
+> - 修改注释用 `ALTER TABLE`，不是 `ALTER MATERIALIZED VIEW`
+
 物化视图将查询结果预计算并物理存储，适合固定维度的聚合加速场景。与动态表的区别：物化视图支持手动或定时刷新，不支持增量刷新。
 
 ## CREATE MATERIALIZED VIEW
