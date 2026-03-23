@@ -57,9 +57,10 @@ FROM TABLE(
 ## CREATE PIPE — 从对象存储导入
 
 ```sql
-CREATE [ OR REPLACE ] PIPE <pipe_name>
-  [ AUTO_INGEST = TRUE ]
-  [ COMMENT = '<comment>' ]
+CREATE [ OR REPLACE ] PIPE [ IF NOT EXISTS ] <pipe_name>
+  VIRTUAL_CLUSTER = <virtual_cluster_name>
+  INGEST_MODE = { LIST_PURGE | EVENT_NOTIFICATION }
+  [ COPY_JOB_HINT = '<hint>' ]
 AS
 COPY INTO <target_table>
 FROM '@<volume_name>/<path>/'
@@ -67,11 +68,17 @@ FILE_FORMAT = ( TYPE = '<csv | parquet | orc | json>' )
 [ PATTERN = '<regex>' ];
 ```
 
+**关键参数：**
+- `VIRTUAL_CLUSTER`：指定虚拟集群名称（OSS Pipe 必填）
+- `INGEST_MODE = LIST_PURGE`：通用模式，定期扫描文件列表
+- `INGEST_MODE = EVENT_NOTIFICATION`：事件通知模式，低延迟（仅阿里云 OSS + AWS S3）
+
 **示例：**
 ```sql
--- 从 OSS Volume 持续导入 Parquet 文件（LIST_PURGE 模式）
+-- 从 OSS Volume 持续导入 Parquet 文件
 CREATE OR REPLACE PIPE oss_events_pipe
-  AUTO_INGEST = TRUE
+  VIRTUAL_CLUSTER = default_ap
+  INGEST_MODE = LIST_PURGE
 AS
 COPY INTO ods.events
 FROM '@my_oss_volume/events/'
@@ -83,10 +90,10 @@ PATTERN = '.*\.parquet';
 
 ```sql
 -- 暂停 Pipe
-ALTER PIPE <pipe_name> PAUSE;
+ALTER PIPE <pipe_name> SET PIPE_EXECUTION_PAUSED = true;
 
 -- 恢复 Pipe
-ALTER PIPE <pipe_name> RESUME;
+ALTER PIPE <pipe_name> SET PIPE_EXECUTION_PAUSED = false;
 ```
 
 ## DROP PIPE

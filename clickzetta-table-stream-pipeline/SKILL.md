@@ -25,10 +25,14 @@ SHOW CREATE TABLE <source_table>;
 ### 步骤 2：创建 Table Stream
 使用 `write_query` 创建 Stream：
 ```sql
-CREATE TABLE STREAM <stream_name> ON TABLE <source_table>
-  TABLE_STREAM_MODE = <STANDARD | APPEND_ONLY>
-  SHOW_INITIAL_ROWS = <TRUE | FALSE>
-  COMMENT '<描述>';
+CREATE [ OR REPLACE ] TABLE STREAM <stream_name>
+  ON TABLE <source_table>
+  [ TIMESTAMP AS OF '<timestamp>' ]
+  [ COMMENT = '<描述>' ]
+  WITH PROPERTIES (
+    'TABLE_STREAM_MODE' = 'STANDARD | APPEND_ONLY',
+    'SHOW_INITIAL_ROWS' = 'TRUE | FALSE'
+  );
 ```
 关键参数选择：
 - **STANDARD 模式**：捕获 INSERT/UPDATE/DELETE，反映表当前状态 → 适用于数据同步、增量 ETL
@@ -37,9 +41,10 @@ CREATE TABLE STREAM <stream_name> ON TABLE <source_table>
 - **SHOW_INITIAL_ROWS = FALSE**（默认）：首次消费仅返回建 Stream 后的新变更
 - 可选：指定起始时间点
 ```sql
-CREATE TABLE STREAM <stream_name> ON TABLE <source_table>
-  TABLE_STREAM_MODE = STANDARD
-  AT (TIMESTAMP => '<timestamp>');
+CREATE TABLE STREAM <stream_name>
+  ON TABLE <source_table>
+  TIMESTAMP AS OF '<timestamp>'
+  WITH PROPERTIES ('TABLE_STREAM_MODE' = 'STANDARD');
 ```
 
 ### 步骤 3：准备目标表
@@ -54,8 +59,8 @@ SELECT *, __change_type, __commit_version, __commit_timestamp
 FROM <stream_name>;
 ```
 - 仅 SELECT 不会移动 offset
-- 元数据字段：`__change_type`（值：`UPDATE_BEFORE` / `UPDATE_AFTER` / `DELETE`）、`__commit_version`、`__commit_timestamp`
-- UPDATE 产生两条记录：`UPDATE_BEFORE`（更新前旧值）和 `UPDATE_AFTER`（更新后新值），通常只需要 `UPDATE_AFTER`
+- 元数据字段：`__change_type`（值：`INSERT` / `UPDATE_BEFORE` / `UPDATE_AFTER` / `DELETE`）、`__commit_version`、`__commit_timestamp`
+- UPDATE 产生两条记录：`UPDATE_BEFORE`（更新前旧值）和 `UPDATE_AFTER`（更新后新值），消费时通常忽略 `UPDATE_BEFORE`
 
 ### 步骤 5：消费 Stream 数据（移动 offset）
 使用 `write_query` 执行 DML 操作消费数据：
@@ -73,7 +78,7 @@ USING <stream_name> s
 ON t.<pk_column> = s.<pk_column>
 WHEN MATCHED AND s.__change_type = 'DELETE' THEN DELETE
 WHEN MATCHED AND s.__change_type = 'UPDATE_AFTER' THEN UPDATE SET t.col1 = s.col1, t.col2 = s.col2
-WHEN NOT MATCHED AND s.__change_type = 'UPDATE_AFTER' THEN INSERT (<columns>) VALUES (s.<columns>);
+WHEN NOT MATCHED AND s.__change_type = 'INSERT' THEN INSERT (<columns>) VALUES (s.<columns>);
 ```
 - DML 操作（INSERT/UPDATE/MERGE）会移动 offset
 - 即使使用 WHERE 条件过滤，所有数据的 offset 仍会移动
@@ -109,7 +114,7 @@ SELECT COUNT(*) FROM <stream_name>;
 ### 示例 1：订单表实时同步
 ```
 1. write_query("ALTER TABLE orders SET PROPERTIES ('change_tracking' = 'true')")
-2. write_query("CREATE TABLE STREAM orders_stream ON TABLE orders TABLE_STREAM_MODE = STANDARD SHOW_INITIAL_ROWS = FALSE COMMENT '订单表变更捕获'")
+2. write_query("CREATE TABLE STREAM orders_stream ON TABLE orders WITH PROPERTIES ('TABLE_STREAM_MODE' = 'STANDARD', 'SHOW_INITIAL_ROWS' = 'FALSE')")
 3. write_query("CREATE TABLE orders_sync LIKE orders")  -- 或手动建表
 4. read_query("SELECT *, __commit_version, __commit_timestamp FROM orders_stream")  -- 预览
 5. write_query("MERGE INTO orders_sync t USING orders_stream s ON t.order_id = s.order_id WHEN MATCHED THEN UPDATE SET t.status = s.status, t.amount = s.amount WHEN NOT MATCHED THEN INSERT (order_id, status, amount) VALUES (s.order_id, s.status, s.amount)")
@@ -119,7 +124,7 @@ SELECT COUNT(*) FROM <stream_name>;
 ### 示例 2：用户行为审计（保留全部插入历史）
 ```
 1. write_query("ALTER TABLE user_actions SET PROPERTIES ('change_tracking' = 'true')")
-2. write_query("CREATE TABLE STREAM user_actions_audit_stream ON TABLE user_actions TABLE_STREAM_MODE = APPEND_ONLY SHOW_INITIAL_ROWS = TRUE COMMENT '用户行为审计流'")
+2. write_query("CREATE TABLE STREAM user_actions_audit_stream ON TABLE user_actions WITH PROPERTIES ('TABLE_STREAM_MODE' = 'APPEND_ONLY', 'SHOW_INITIAL_ROWS' = 'TRUE')")
 3. read_query("SELECT *, __commit_version, __commit_timestamp FROM user_actions_audit_stream")
 4. write_query("INSERT INTO user_actions_audit SELECT *, __commit_version AS audit_version, __commit_timestamp AS audit_time FROM user_actions_audit_stream")
 ```
