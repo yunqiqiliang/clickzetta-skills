@@ -50,6 +50,18 @@ description: >
 
 **不要把 Bronze 映射成 ODS、Silver 映射成 DWD 等——保留用户选择的命名，在 SQL 中直接使用对应的 schema 和表名前缀。**
 
+**Schema 命名必须加业务/项目前缀，避免与其他项目冲突。** 如果用户未提供前缀，询问项目名称或业务域名称，然后生成带前缀的 Schema 名：
+
+```sql
+-- ❌ 容易重名，不要这样生成
+CREATE SCHEMA IF NOT EXISTS bronze;
+
+-- ✅ 加项目前缀
+CREATE SCHEMA IF NOT EXISTS ecommerce_bronze;
+CREATE SCHEMA IF NOT EXISTS ecommerce_silver;
+CREATE SCHEMA IF NOT EXISTS ecommerce_gold;
+```
+
 ### 需求收集
 
 **如果用户已经提供了足够信息（数据来源、字段、层次需求），直接生成完整 SQL，不要再问。**
