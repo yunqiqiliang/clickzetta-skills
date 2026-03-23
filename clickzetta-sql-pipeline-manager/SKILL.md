@@ -70,7 +70,11 @@ CREATE SCHEMA IF NOT EXISTS ecommerce_gold;
 
 > 为了生成完整的 pipeline SQL，需要确认几个信息：
 > 1. **项目/业务前缀**：Schema 名称的前缀是什么（如 `ecommerce`、`risk`、`ads`）？多个项目共用 Workspace 时必须加前缀避免冲突。
-> 2. **数据来源**：Kafka（broker/topic）/ 对象存储（Volume 路径/格式）/ 已有表（是否有 UPDATE/DELETE）？
+> 2. **数据来源**：
+>    - Kafka（broker/topic）→ Pipe 持续导入
+>    - 对象存储 OSS/S3/COS（Volume 路径/格式）→ Pipe 持续导入
+>    - MySQL / PostgreSQL 等数据库 → **不支持直接用 Pipe**，需先通过 Studio 同步任务接入，再做增量处理
+>    - 已有 Lakehouse 表（是否有 UPDATE/DELETE）→ Table Stream + Dynamic Table
 > 3. **字段结构**：目标表的字段名和类型？
 > 4. **层次需求**：需要几层？每层做什么处理（清洗/聚合/维度建模）？
 > 5. **刷新频率**：实时（秒级）/ 近实时（分钟级）/ 低频（小时/天）？
@@ -89,11 +93,14 @@ CREATE SCHEMA IF NOT EXISTS ecommerce_gold;
 7. 运维操作（SUSPEND/RESUME）
 ```
 
-**来源 → 入口对象的选择规则：**
+**来源 → 入口对象的选择规则（由数据来源唯一决定，不由用户选择）：**
 - Kafka → `CREATE PIPE ... AS INSERT INTO ... FROM TABLE(READ_KAFKA(...))`
 - 对象存储（OSS/S3/COS）→ `CREATE PIPE ... VIRTUAL_CLUSTER = name INGEST_MODE = LIST_PURGE AS COPY INTO ... FROM VOLUME <volume_name> USING <format>`
-- 已有表 + 有 UPDATE/DELETE → `CREATE TABLE STREAM ... WITH PROPERTIES ('TABLE_STREAM_MODE' = 'STANDARD')`，中间层过滤 `__change_type IN ('INSERT', 'UPDATE_AFTER', 'DELETE')`
-- 已有表 + 仅 INSERT → Dynamic Table 直接 `FROM` 源表
+- MySQL / PostgreSQL / SQL Server 等关系型数据库 → **不支持 Pipe**，必须先通过 Studio 同步任务（参考 `clickzetta-cdc-sync-pipeline` 或 `clickzetta-batch-sync-pipeline`）将数据同步到 Lakehouse 表，再用 Table Stream + Dynamic Table 做增量处理
+- 已有 Lakehouse 表 + 有 UPDATE/DELETE → `CREATE TABLE STREAM ... WITH PROPERTIES ('TABLE_STREAM_MODE' = 'STANDARD')`，中间层过滤 `__change_type IN ('INSERT', 'UPDATE_AFTER', 'DELETE')`
+- 已有 Lakehouse 表 + 仅 INSERT → Dynamic Table 直接 `FROM` 源表
+
+如果用户说"从 MySQL 用 Pipe 导入"或类似组合，需纠正：Pipe 只支持 Kafka 和对象存储，MySQL/PG 等数据库需要走 Studio 同步任务。
 
 **刷新频率规则：**
 - 第一个转换层（Bronze→Silver 或 ODS→DWD）设置用户指定的刷新频率（如 `REFRESH interval 1 MINUTE VCLUSTER default_ap`）
@@ -113,16 +120,18 @@ CREATE SCHEMA IF NOT EXISTS ecommerce_gold;
 ## 决策树
 
 ```
-用户需求
-├── 持续从外部摄入数据（Kafka / OSS / S3）
-│   └── → Pipe
-├── 对已有表做实时/增量转换
-│   ├── 需要感知 UPDATE/DELETE → Table Stream + Dynamic Table
-│   └── 只需 INSERT 追加 → Dynamic Table（直接查源表）
-├── 固定聚合，不要求实时
-│   └── → Materialized View
-└── 多层 ETL（ODS→DWD→DWS 或 Bronze→Silver→Gold）
-    └── → 多个 Dynamic Table 级联（各层设置独立 REFRESH interval）
+数据来源
+├── Kafka / 对象存储（OSS/S3/COS）
+│   └── → Pipe（持续摄入到 Lakehouse 表）
+│       └── 需要多层 ETL → Pipe + Dynamic Table 级联
+├── MySQL / PostgreSQL / SQL Server 等关系型数据库
+│   └── → 先用 Studio 同步任务接入（参考 cdc-sync 或 batch-sync skill）
+│       └── 数据落到 Lakehouse 表后 → Table Stream + Dynamic Table 做增量处理
+├── 已有 Lakehouse 表
+│   ├── 有 UPDATE/DELETE → Table Stream + Dynamic Table
+│   └── 仅 INSERT 追加 → Dynamic Table（直接查源表）
+└── 固定聚合加速查询（不要求实时）
+    └── → Materialized View
 ```
 
 ## 步骤 0：确认连接
