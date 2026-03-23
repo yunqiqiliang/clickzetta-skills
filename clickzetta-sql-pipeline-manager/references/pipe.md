@@ -63,27 +63,38 @@ CREATE [ OR REPLACE ] PIPE [ IF NOT EXISTS ] <pipe_name>
   [ COPY_JOB_HINT = '<hint>' ]
 AS
 COPY INTO <target_table>
-FROM '@<volume_name>/<path>/'
-FILE_FORMAT = ( TYPE = '<csv | parquet | orc | json>' )
-[ PATTERN = '<regex>' ];
+FROM VOLUME <volume_name>
+USING <csv | parquet | orc | json>
+[ OPTIONS ('<key>' = '<value>', ...) ];
 ```
 
 **关键参数：**
 - `VIRTUAL_CLUSTER`：指定虚拟集群名称（OSS Pipe 必填）
 - `INGEST_MODE = LIST_PURGE`：通用模式，定期扫描文件列表
 - `INGEST_MODE = EVENT_NOTIFICATION`：事件通知模式，低延迟（仅阿里云 OSS + AWS S3）
+- `FROM VOLUME <volume_name>`：引用已创建的 External Volume（不是 `FROM '@path/'`）
+- PIPE 中的 COPY 语句不支持 `files`、`regexp`、`subdirectory` 参数
 
 **示例：**
 ```sql
--- 从 OSS Volume 持续导入 Parquet 文件
+-- 从 OSS Volume 持续导入 Parquet 文件（LIST_PURGE 模式）
 CREATE OR REPLACE PIPE oss_events_pipe
   VIRTUAL_CLUSTER = default_ap
   INGEST_MODE = LIST_PURGE
 AS
 COPY INTO ods.events
-FROM '@my_oss_volume/events/'
-FILE_FORMAT = ( TYPE = 'parquet' )
-PATTERN = '.*\.parquet';
+FROM VOLUME my_oss_volume
+USING PARQUET;
+
+-- EVENT_NOTIFICATION 模式（仅阿里云 OSS + AWS S3）
+CREATE OR REPLACE PIPE oss_events_event_pipe
+  VIRTUAL_CLUSTER = default_ap
+  INGEST_MODE = EVENT_NOTIFICATION
+  ALICLOUD_MNS_QUEUE = 'my-mns-queue-name'
+AS
+COPY INTO ods.events
+FROM VOLUME my_oss_event_volume
+USING PARQUET;
 ```
 
 ## 启停 Pipe
