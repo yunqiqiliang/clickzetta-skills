@@ -112,11 +112,25 @@ description: >
     └── → 多个 Dynamic Table 级联（各层设置独立 REFRESH interval）
 ```
 
-## 步骤 0：确认连接
+## 步骤 0：获取最新语法文档（必须先执行）
+
+在生成任何 SQL 之前，fetch 官方文档以获取最新语法，避免使用 Snowflake 或其他平台的错误写法：
+
+```
+https://yunqi.tech/llms-full.txt
+```
+
+重点核对以下 ClickZetta 特有语法（与 Snowflake 差异最大的地方）：
+- Dynamic Table：`REFRESH interval 5 MINUTE VCLUSTER default_ap`（不是 `TARGET_LAG`）
+- OSS Pipe：`FROM VOLUME <name> USING <format>`（不是 `FROM '@path/'`）
+- Table Stream：`WITH PROPERTIES ('TABLE_STREAM_MODE' = 'STANDARD')`
+- `__change_type` 值：`INSERT / UPDATE_BEFORE / UPDATE_AFTER / DELETE`
+
+## 步骤 1：确认连接
 
 操作前先确认已连接到 ClickZetta Lakehouse。参考 `clickzetta-lakehouse-connect` skill 获取连接参数。
 
-## 步骤 1：选择对象类型
+## 步骤 2：选择对象类型
 
 根据决策树选择对象类型，阅读对应参考文件：
 
@@ -127,7 +141,7 @@ description: >
 | Table Stream | [references/table-stream.md](references/table-stream.md) |
 | Pipe | [references/pipe.md](references/pipe.md) |
 
-## 步骤 2：生成并执行 SQL
+## 步骤 3：生成并执行 SQL
 
 阅读对应参考文件后，根据用户提供的参数生成完整可运行 SQL。
 
@@ -139,7 +153,7 @@ description: >
 
 若用户未提供 VCLUSTER，默认使用 `default_ap`。
 
-## 步骤 3：验证
+## 步骤 4：验证
 
 ```sql
 -- 验证动态表

@@ -9,6 +9,16 @@ description: |
 
 # Table Stream 变更数据捕获工作流
 
+## 步骤 0：获取最新语法文档（必须先执行）
+
+在生成任何 SQL 之前，fetch 官方文档以获取最新语法：
+
+```
+https://yunqi.tech/llms-full.txt
+```
+
+重点核对：`CREATE TABLE STREAM` 语法、`WITH PROPERTIES` 参数、`__change_type` 字段值（`INSERT / UPDATE_BEFORE / UPDATE_AFTER / DELETE`）。
+
 ## 指令
 
 ### 步骤 1：开启源表变更跟踪（必需前置）
