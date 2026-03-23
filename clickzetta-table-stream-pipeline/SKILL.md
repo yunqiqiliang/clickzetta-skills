@@ -54,9 +54,8 @@ SELECT *, __change_type, __commit_version, __commit_timestamp
 FROM <stream_name>;
 ```
 - 仅 SELECT 不会移动 offset
-- 元数据字段：`__change_type`、`__commit_version`、`__commit_timestamp`
-- ⚠️ 已知行为：`__change_type` 可能全部标记为 "INSERT"，不可靠区分操作类型
-- 推荐通过 `__commit_version` 变化判断更新，通过记录是否存在判断删除
+- 元数据字段：`__change_type`（值：`UPDATE_BEFORE` / `UPDATE_AFTER` / `DELETE`）、`__commit_version`、`__commit_timestamp`
+- UPDATE 产生两条记录：`UPDATE_BEFORE`（更新前旧值）和 `UPDATE_AFTER`（更新后新值），通常只需要 `UPDATE_AFTER`
 
 ### 步骤 5：消费 Stream 数据（移动 offset）
 使用 `write_query` 执行 DML 操作消费数据：
@@ -72,8 +71,9 @@ SELECT <columns> FROM <stream_name>;
 MERGE INTO <target_table> t
 USING <stream_name> s
 ON t.<pk_column> = s.<pk_column>
-WHEN MATCHED THEN UPDATE SET t.col1 = s.col1, t.col2 = s.col2
-WHEN NOT MATCHED THEN INSERT (<columns>) VALUES (s.<columns>);
+WHEN MATCHED AND s.__change_type = 'DELETE' THEN DELETE
+WHEN MATCHED AND s.__change_type = 'UPDATE_AFTER' THEN UPDATE SET t.col1 = s.col1, t.col2 = s.col2
+WHEN NOT MATCHED AND s.__change_type = 'UPDATE_AFTER' THEN INSERT (<columns>) VALUES (s.<columns>);
 ```
 - DML 操作（INSERT/UPDATE/MERGE）会移动 offset
 - 即使使用 WHERE 条件过滤，所有数据的 offset 仍会移动
@@ -130,9 +130,9 @@ Stream 不捕获变更：
 原因：源表未开启 change_tracking
 解决方案：执行 `ALTER TABLE <table> SET PROPERTIES ('change_tracking' = 'true')`，确认 DML 在 Stream 创建后执行
 
-无法区分变更类型（全部显示 INSERT）：
-原因：`__change_type` 字段已知行为不一致
-解决方案：使用 `__commit_version` 变化判断更新；STANDARD 模式下通过记录是否存在判断删除；记录前一状态做对比
+无法区分变更类型：
+原因：未在 MERGE/INSERT 中过滤 `__change_type`，导致 `UPDATE_BEFORE` 旧值也被写入目标表
+解决方案：MERGE 时过滤 `__change_type IN ('UPDATE_AFTER', 'DELETE')`，忽略 `UPDATE_BEFORE` 记录
 
 消费后 offset 未移动：
 原因：仅使用 SELECT 查询，未执行 DML
