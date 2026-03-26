@@ -60,6 +60,20 @@ CREATE TABLE IF NOT EXISTS orders (id INT, amount DECIMAL);
 | `SMALLINT` | `NUMBER(5,0)` | 2字节整数 |
 | 无 `NUMBER` | `NUMBER(p,s)` | ClickZetta 用 `DECIMAL(p,s)` |
 
+### ⚠️ 写入时隐式类型转换（重要差异）
+
+Snowflake 允许写入时字符串隐式转换为日期/布尔等类型，ClickZetta **不允许**：
+
+| 操作 | Snowflake | ClickZetta |
+|---|---|---|
+| INSERT 字符串→DATE | ✅ 允许 | ❌ 报错，需 `CAST` 或 `DATE '...'` |
+| INSERT 字符串→TIMESTAMP | ✅ 允许 | ❌ 报错，需 `CAST` 或 `TIMESTAMP '...'` |
+| INSERT 字符串→BOOLEAN | ✅ 允许 | ❌ 报错，需 `TRUE`/`FALSE` 或 `CAST` |
+| INSERT 字符串→INT | ✅ 允许 | ❌ 报错，需 `CAST('123' AS INT)` |
+| INSERT 字符串→JSON | ✅ 允许 | ❌ 报错，需 `PARSE_JSON(...)` 或 `CAST` |
+| UPDATE 字符串→DATE | ✅ 允许 | ❌ 报错，需 `CAST` |
+| WHERE 字符串=DATE | ✅ 允许 | ✅ 允许（查询中可隐式比较） |
+
 ### 建表语法差异
 
 ```sql

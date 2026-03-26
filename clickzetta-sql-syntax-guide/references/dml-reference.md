@@ -4,41 +4,79 @@
 
 ---
 
-## ⚠️ 日期/时间类型写入规则
+## ⚠️ 隐式类型转换规则（INSERT / UPDATE 通用）
 
-**ClickZetta 不允许字符串隐式转换为 DATE/TIMESTAMP 类型（INSERT 时）。**
-必须显式转换，否则报错：`implicit cast not allowed`
+**ClickZetta 对写入操作（INSERT/UPDATE）严格禁止隐式类型转换，必须显式 CAST。**
+但 SELECT/WHERE/表达式中允许隐式转换。
+
+### 完整规则表（已验证）
+
+| 目标列类型 | 写入值 | INSERT/UPDATE | WHERE/SELECT |
+|---|---|---|---|
+| `DATE` | `'2024-01-15'`（字符串） | ❌ 报错 | ✅ 允许 |
+| `TIMESTAMP` | `'2024-01-15 12:00:00'`（字符串） | ❌ 报错 | ✅ 允许 |
+| `BOOLEAN` | `'true'` / `'false'`（字符串） | ❌ 报错 | ✅ 允许 |
+| `BOOLEAN` | `1` / `0`（整数） | ❌ 报错 | ✅ 允许 |
+| `JSON` | `'{"k":1}'`（字符串） | ❌ 报错 | ✅ 允许 |
+| `INT` / `BIGINT` | `'123'`（字符串） | ❌ 报错 | ✅ 允许 |
+| `BIGINT` | `100`（INT） | ✅ 允许 | ✅ 允许 |
+| `DOUBLE` | `1.5`（FLOAT） | ✅ 允许 | ✅ 允许 |
+| `BIGINT` | `1.5`（FLOAT） | ✅ 允许（截断） | ✅ 允许 |
+
+### 各类型正确写法
 
 ```sql
--- ❌ 错误：字符串不能隐式转为 DATE/TIMESTAMP
-INSERT INTO orders VALUES (1, '2024-01-15', '2024-01-15 12:30:00');
+-- DATE
+INSERT INTO t VALUES (CAST('2024-01-15' AS DATE));
+INSERT INTO t VALUES (DATE '2024-01-15');
+INSERT INTO t VALUES (TO_DATE('2024-01-15'));
 
--- ✅ 正确方式 1：CAST 显式转换
-INSERT INTO orders VALUES (1, CAST('2024-01-15' AS DATE), CAST('2024-01-15 12:30:00' AS TIMESTAMP));
+-- TIMESTAMP
+INSERT INTO t VALUES (CAST('2024-01-15 12:00:00' AS TIMESTAMP));
+INSERT INTO t VALUES (TIMESTAMP '2024-01-15 12:00:00');
+INSERT INTO t VALUES (TO_TIMESTAMP('2024-01-15 12:00:00'));
+INSERT INTO t VALUES (CURRENT_TIMESTAMP());
+INSERT INTO t VALUES (CURRENT_DATE() - INTERVAL 7 DAY);
 
--- ✅ 正确方式 2：TO_DATE / TO_TIMESTAMP 函数
-INSERT INTO orders VALUES (1, TO_DATE('2024-01-15'), TO_TIMESTAMP('2024-01-15 12:30:00'));
+-- BOOLEAN（只接受 TRUE/FALSE 字面量或 CAST）
+INSERT INTO t VALUES (TRUE);
+INSERT INTO t VALUES (FALSE);
+INSERT INTO t VALUES (CAST(1 AS BOOLEAN));
+INSERT INTO t VALUES (CAST('true' AS BOOLEAN));
 
--- ✅ 正确方式 3：DATE / TIMESTAMP 字面量
-INSERT INTO orders VALUES (1, DATE '2024-01-15', TIMESTAMP '2024-01-15 12:30:00');
+-- JSON（必须用 PARSE_JSON 或 CAST）
+INSERT INTO t VALUES (PARSE_JSON('{"key":"value"}'));
+INSERT INTO t VALUES (CAST('{"key":"value"}' AS JSON));
 
--- ✅ 正确方式 4：当前时间函数
-INSERT INTO orders VALUES (1, CURRENT_DATE(), CURRENT_TIMESTAMP());
-
--- ✅ 正确方式 5：INTERVAL 运算
-INSERT INTO orders VALUES (1, CURRENT_DATE() - INTERVAL 7 DAY, CURRENT_TIMESTAMP() - INTERVAL 1 HOUR);
+-- INT/BIGINT（字符串必须 CAST）
+INSERT INTO t VALUES (CAST('123' AS INT));
+INSERT INTO t VALUES (CAST('456' AS BIGINT));
 ```
 
-**注意：WHERE 条件中字符串可以与日期比较（隐式转换允许）：**
+### UPDATE 同样适用
+
 ```sql
--- ✅ WHERE 中字符串可以与 DATE 比较
+-- ❌ UPDATE 也不允许字符串隐式转换
+UPDATE orders SET dt = '2024-06-01' WHERE id = 1;       -- 报错
+UPDATE orders SET flag = 0 WHERE id = 1;                 -- 报错
+
+-- ✅ 必须显式转换
+UPDATE orders SET dt = CAST('2024-06-01' AS DATE) WHERE id = 1;
+UPDATE orders SET flag = CAST(0 AS BOOLEAN) WHERE id = 1;
+```
+
+### WHERE 中字符串可以隐式比较
+
+```sql
+-- ✅ WHERE 中允许字符串与日期/数字比较
 SELECT * FROM orders WHERE dt = '2024-01-15';
 SELECT * FROM orders WHERE dt >= '2024-01-01' AND dt < '2025-01-01';
+SELECT * FROM orders WHERE id = '123';
 ```
 
 **与 Snowflake / Spark 差异：**
-- Snowflake / Spark：INSERT 时字符串可隐式转为日期类型
-- ClickZetta：INSERT 时**必须显式转换**，WHERE 中可隐式比较
+- Snowflake / Spark：INSERT/UPDATE 时字符串可隐式转为日期/布尔/数字类型
+- ClickZetta：写入时**必须显式转换**，查询时可隐式比较
 
 ---
 

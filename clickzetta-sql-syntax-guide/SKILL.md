@@ -55,6 +55,11 @@ description: |
 | 临时表 | `CREATE TEMPORARY TABLE` (SF) | 不支持，用 CTE 替代 |
 | 日期字符串写入 | `INSERT ... VALUES (..., '2024-01-15', ...)` | `CAST('2024-01-15' AS DATE)` 或 `DATE '2024-01-15'` 或 `TO_DATE(...)` |
 | 时间字符串写入 | `INSERT ... VALUES (..., '2024-01-15 12:00:00', ...)` | `CAST(... AS TIMESTAMP)` 或 `TIMESTAMP '...'` 或 `TO_TIMESTAMP(...)` |
+| BOOLEAN 写入 | `INSERT ... VALUES (..., 'true', ...)` 或 `..., 1, ...` | `TRUE` / `FALSE` 或 `CAST(1 AS BOOLEAN)` |
+| JSON 写入 | `INSERT ... VALUES (..., '{"k":1}', ...)` | `PARSE_JSON('{"k":1}')` 或 `CAST(... AS JSON)` |
+| 字符串写入数字列 | `INSERT ... VALUES (..., '123', ...)` | `CAST('123' AS INT)` |
+| UPDATE 同样限制 | `UPDATE t SET dt = '2024-01-01'` | `UPDATE t SET dt = CAST('2024-01-01' AS DATE)` |
+| WHERE 中可以 | 不适用 | `WHERE dt = '2024-01-01'` ✅ WHERE 中字符串可隐式比较 |
 | 索引语法关键字 | `USING BLOOM_FILTER` | `BLOOMFILTER`（无 USING） |
 | DROP INDEX | `DROP INDEX idx ON table` | `DROP INDEX idx`（无 ON table） |
 | TRUNCATE IF EXISTS | `TRUNCATE TABLE IF EXISTS t` | `TRUNCATE TABLE t`（不支持 IF EXISTS） |
