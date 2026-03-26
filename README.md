@@ -2,6 +2,36 @@
 
 [云器 Lakehouse](https://www.yunqi.tech) 的 Claude Code Skills 集合，帮助开发者在 AI 编程助手中更高效地使用 ClickZetta Lakehouse。
 
+## Skills 总览
+
+| 类别 | Skill | 说明 |
+|---|---|---|
+| 连接与基础 | [clickzetta-lakehouse-connect](./clickzetta-lakehouse-connect/) | Python SDK / ZettaPark / SQLAlchemy / JDBC 连接 |
+| 连接与基础 | [clickzetta-manage-comments](./clickzetta-manage-comments/) | 管理表、字段、Schema 等对象的注释 |
+| 数据导入同步 | [clickzetta-data-ingest-pipeline](./clickzetta-data-ingest-pipeline/) | 数据导入方案路由与决策 |
+| 数据导入同步 | [clickzetta-batch-sync-pipeline](./clickzetta-batch-sync-pipeline/) | 离线批量同步（MySQL/PG 等 → Lakehouse） |
+| 数据导入同步 | [clickzetta-cdc-sync-pipeline](./clickzetta-cdc-sync-pipeline/) | 多表实时 CDC 同步（整库镜像/分库分表） |
+| 数据导入同步 | [clickzetta-realtime-sync-pipeline](./clickzetta-realtime-sync-pipeline/) | 单表实时同步（Kafka/MySQL/PG） |
+| 数据导入同步 | [clickzetta-oss-ingest-pipeline](./clickzetta-oss-ingest-pipeline/) | 对象存储（OSS/S3/COS）数据导入管道 |
+| 数据导入同步 | [clickzetta-file-import-pipeline](./clickzetta-file-import-pipeline/) | 本地文件 / URL 导入 |
+| 数据导入同步 | [clickzetta-sql-pipeline-manager](./clickzetta-sql-pipeline-manager/) | SQL 管道对象（动态表/物化视图/Pipe/Stream） |
+| 数据导入同步 | [clickzetta-table-stream-pipeline](./clickzetta-table-stream-pipeline/) | Table Stream CDC 变更捕获管道 |
+| 计算集群 | [clickzetta-vcluster-manager](./clickzetta-vcluster-manager/) | VCluster 创建/启停/扩缩容/缓存管理 |
+| 数据湖 | [clickzetta-volume-manager](./clickzetta-volume-manager/) | Volume 挂载、文件查询、导入导出 |
+| 数据湖 | [clickzetta-external-catalog](./clickzetta-external-catalog/) | Hive/Iceberg/Databricks 联邦查询 |
+| Python | [clickzetta-zettapark](./clickzetta-zettapark/) | ZettaPark DataFrame API 数据工程 |
+| BI 工具 | [clickzetta-bi-connect](./clickzetta-bi-connect/) | Superset/Tableau/Metabase/DBeaver 连接 |
+| 查询优化 | [clickzetta-query-optimizer](./clickzetta-query-optimizer/) | EXPLAIN/Result Cache/OPTIMIZE/Hints |
+| 索引管理 | [clickzetta-index-manager](./clickzetta-index-manager/) | Bloom Filter/倒排/向量索引管理 |
+| 访问控制 | [clickzetta-access-control](./clickzetta-access-control/) | 用户/角色/GRANT/REVOKE/动态脱敏 |
+| 监控 | [clickzetta-monitoring](./clickzetta-monitoring/) | SHOW JOBS / information_schema 作业分析 |
+| AI | [clickzetta-ai-vector-search](./clickzetta-ai-vector-search/) | VECTOR 类型、HNSW 索引、语义检索、RAG |
+| AI | [clickzetta-external-function](./clickzetta-external-function/) | External Function / AI_COMPLETE / AI_EMBEDDING |
+| 数据共享 | [clickzetta-data-sharing](./clickzetta-data-sharing/) | 跨账户/跨实例无复制数据分享 |
+| 数据恢复 | [clickzetta-data-recovery](./clickzetta-data-recovery/) | Time Travel / UNDROP / RESTORE TABLE |
+
+---
+
 ## Skills 列表
 
 ### 连接与基础管理
