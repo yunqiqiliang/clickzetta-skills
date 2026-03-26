@@ -76,8 +76,8 @@ SELECT <columns> FROM <stream_name>;
 MERGE INTO <target_table> t
 USING <stream_name> s
 ON t.<pk_column> = s.<pk_column>
-WHEN MATCHED AND s.__change_type = 'DELETE' THEN DELETE
 WHEN MATCHED AND s.__change_type = 'UPDATE_AFTER' THEN UPDATE SET t.col1 = s.col1, t.col2 = s.col2
+WHEN MATCHED AND s.__change_type = 'DELETE' THEN DELETE
 WHEN NOT MATCHED AND s.__change_type = 'INSERT' THEN INSERT (<columns>) VALUES (s.<columns>);
 ```
 - DML 操作（INSERT/UPDATE/MERGE）会移动 offset
@@ -148,5 +148,5 @@ Stream 不捕获变更：
 解决方案：改用 MERGE 语句；记录最后消费的 `__commit_version` 和 `__commit_timestamp` 用于断点恢复
 
 COMMENT 语法错误：
-原因：使用了 `COMMENT = '...'` 而非 `COMMENT '...'`
-解决方案：正确语法为 `COMMENT '注释内容'`，不带等号
+原因：使用了 `COMMENT '...'`（不带等号）而非 `COMMENT = '...'`
+解决方案：正确语法为 `COMMENT = '注释内容'`，必须带等号

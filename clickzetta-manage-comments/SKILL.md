@@ -116,7 +116,7 @@ ALTER WORKSPACE <ws_name> SET COMMENT '';
 
 | 对象 | 说明 |
 |---|---|
-| VIEW（普通视图） | 无 ALTER VIEW 命令，注释只能在 `CREATE VIEW ... COMMENT '...' AS ...` 时设置 |
+| VIEW（普通视图） | 无 `ALTER VIEW SET COMMENT` 语法；可用 `CREATE OR REPLACE VIEW ... COMMENT '...' AS ...` 更新注释，无需 DROP |
 | FUNCTION / PROCEDURE | 只能在 CREATE 时指定，无 ALTER 修改注释的语法 |
 | VOLUME | 无 ALTER VOLUME SET COMMENT 语法 |
 | PIPE | 无 ALTER PIPE SET COMMENT 语法 |
@@ -124,7 +124,9 @@ ALTER WORKSPACE <ws_name> SET COMMENT '';
 | USER | `ALTER USER` 只支持 `DEFAULT_VCLUSTER` / `DEFAULT_SCHEMA`，不支持 COMMENT |
 | ROLE | 只能在 `CREATE ROLE ... COMMENT '...'` 时设置 |
 
-如果用户需要修改这些对象的注释，需要 DROP 后重新 CREATE（注意评估影响）。
+如果用户需要修改这些对象的注释：
+- **VIEW**：使用 `CREATE OR REPLACE VIEW view_name COMMENT '新注释' AS <原查询>` 直接替换，无需 DROP
+- **其他对象**：需要 DROP 后重新 CREATE（注意评估影响）
 
 ---
 

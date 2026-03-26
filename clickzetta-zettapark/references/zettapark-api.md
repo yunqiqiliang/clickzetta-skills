@@ -210,7 +210,7 @@ df.write.save_as_table("my_table", mode="append")
 df.write.save_as_table("my_table", mode="overwrite")
 
 # 自动建表并写入（overwrite 会重建表）
-df.write.save_as_table("new_table", mode="overwrite", table_type="transient")
+df.write.save_as_table("new_table", mode="overwrite")
 
 # 写入指定 Schema 下的表
 df.write.save_as_table("my_schema.my_table", mode="append")

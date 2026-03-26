@@ -69,14 +69,14 @@ USING (
   WHERE __change_type IN ('INSERT', 'UPDATE_AFTER', 'DELETE')
 ) AS src
 ON target.order_id = src.order_id
-WHEN MATCHED AND src.__change_type = 'DELETE' THEN DELETE
 WHEN MATCHED AND src.__change_type = 'UPDATE_AFTER' THEN UPDATE SET target.status = src.status, target.amount = src.amount
+WHEN MATCHED AND src.__change_type = 'DELETE' THEN DELETE
 WHEN NOT MATCHED AND src.__change_type = 'INSERT' THEN INSERT (order_id, status, amount) VALUES (src.order_id, src.status, src.amount);
 
 -- 配合 Dynamic Table 自动消费（推荐）
 CREATE OR REPLACE DYNAMIC TABLE dw.orders_processed
-  TARGET_LAG = '1 minutes'
-  VCLUSTER = default_ap
+  REFRESH interval 1 MINUTE
+  VCLUSTER default_ap
 AS
 SELECT order_id, status, amount, __change_type, __commit_timestamp
 FROM orders_stream

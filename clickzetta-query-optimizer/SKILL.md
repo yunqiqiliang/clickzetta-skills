@@ -125,6 +125,9 @@ ALTER TABLE schema.table_name SET PROPERTIES("hint.sort.columns"="column_name");
 
 -- 开启自动收集 Sort Key 推荐
 ALTER WORKSPACE my_workspace SET PROPERTIES (auto_index='day');
+
+-- 收集表统计信息（Sort Key 推荐为空时先执行）
+ANALYZE TABLE schema.table_name;
 ```
 
 ---

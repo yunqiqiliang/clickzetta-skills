@@ -94,7 +94,7 @@ SELECT COUNT(*) FROM production.orders;
 > 支持：普通表（TABLE）、动态表（DYNAMIC TABLE）、物化视图（MATERIALIZED VIEW）
 > 限制：若已存在同名表，需先 DROP 新表再 UNDROP
 
-### 6. 配置数据保留周期
+### 6. 配置数据保留周期（Time Travel）
 ```sql
 -- 查看当前保留周期
 DESC EXTENDED table_name;
@@ -107,6 +107,11 @@ CREATE TABLE orders (id INT, amount DECIMAL(10,2))
 PROPERTIES ('data_retention_days'='30');
 ```
 > 默认保留周期：**1 天（24小时）**，最长 **90 天**
+
+> ⚠️ **`data_retention_days` vs `data_lifecycle` 区别：**
+> - `data_retention_days`：控制 **Time Travel 保留期**，即可以回溯查询/恢复的历史时长。增大此值会增加存储成本，但不会自动删除数据。
+> - `data_lifecycle`：控制**数据 TTL（生命周期）**，到期后自动删除数据（可选同时删除表结构）。适用于日志、临时数据等有明确过期需求的场景。
+> - 两者相互独立，可同时设置。
 
 ### 7. 数据生命周期（TTL）管理
 ```sql

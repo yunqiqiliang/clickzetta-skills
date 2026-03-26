@@ -37,12 +37,12 @@ JDBC 驱动下载：
 ## SQLAlchemy URL 格式
 
 ```
-clickzetta://<username>:<password>@<instance_name>.<region_id>.api.clickzetta.com/<workspace_name>?schema=<schema>&virtualcluster=<vc_name>
+clickzetta://<username>:<password>@<instance_name>.<region_id>.api.clickzetta.com/<workspace_name>?schema=<schema>&vcluster=<vc_name>
 ```
 
 示例：
 ```
-clickzetta://alice:xxxx@f8866243.cn-shanghai-alicloud.api.clickzetta.com/quick_start?schema=public&virtualcluster=default_ap
+clickzetta://alice:xxxx@f8866243.cn-shanghai-alicloud.api.clickzetta.com/quick_start?schema=public&vcluster=default_ap
 ```
 
 安装：

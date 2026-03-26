@@ -121,7 +121,7 @@ result = orders.join(
 df.write.save_as_table("result_table", mode="append")
 
 # 覆盖写入（自动建表）
-df.write.save_as_table("result_table", mode="overwrite", table_type="transient")
+df.write.save_as_table("result_table", mode="overwrite")
 ```
 
 ### 获取结果
@@ -216,7 +216,7 @@ with gzip.open('data.json.gz', 'rt', encoding='utf-8') as f:
 
 # 创建 DataFrame 并写入
 df = session.create_dataframe(data)
-df.write.save_as_table("my_table", mode="overwrite", table_type="transient")
+df.write.save_as_table("my_table", mode="overwrite")
 
 session.close()
 ```

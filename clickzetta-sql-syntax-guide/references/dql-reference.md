@@ -127,14 +127,41 @@ LATERAL VIEW EXPLODE(meta_map) m AS k, v;
 ### TABLESAMPLE
 
 ```sql
--- 按行数采样
+-- ✅ 按行数采样（只支持实体表，不支持子查询）
 SELECT * FROM orders TABLESAMPLE (100 ROWS);
 
--- 按百分比采样
-SELECT * FROM orders TABLESAMPLE (10 PERCENT);
+-- ⚠️ 按百分比采样语法不支持
+-- SELECT * FROM orders TABLESAMPLE (10 PERCENT);  -- 报错
+-- 替代：用 RAND() 过滤
+SELECT * FROM orders WHERE RAND() < 0.1;
 ```
 
----
+### SEQUENCE（生成序列）
+
+```sql
+-- 生成整数序列（返回 ARRAY）
+SELECT SEQUENCE(1, 5);                -- [1,2,3,4,5]
+SELECT SEQUENCE(0, 10, 2);            -- [0,2,4,6,8,10]
+
+-- 展开为行（替代 GENERATE_SERIES）
+SELECT EXPLODE(SEQUENCE(1, 5)) AS n;  -- 5行：1,2,3,4,5
+
+-- ⚠️ GENERATE_SERIES 不支持，用 EXPLODE(SEQUENCE(...)) 替代
+```
+
+### EXPLODE 直接在 SELECT 中使用
+
+```sql
+-- Spark 风格：EXPLODE 直接在 SELECT 中
+SELECT EXPLODE(ARRAY(1, 2, 3)) AS val;
+SELECT POSEXPLODE(ARRAY('a', 'b', 'c')) AS (pos, val);
+
+-- 等价的 LATERAL VIEW 写法
+SELECT val FROM (SELECT ARRAY(1,2,3) AS arr) t
+LATERAL VIEW EXPLODE(arr) lv AS val;
+```
+
+
 
 ## WHERE 子句
 
@@ -380,7 +407,8 @@ SELECT FLATTEN(nested_array) FROM t;               -- 展平嵌套数组
 -- 高阶函数
 SELECT TRANSFORM(skills, x -> UPPER(x)) FROM employees;
 SELECT FILTER(scores, x -> x > 90) FROM students;
-SELECT AGGREGATE(amounts, 0, (acc, x) -> acc + x) FROM t;
+-- ⚠️ AGGREGATE(arr, init, (acc,x)->...) 不支持，用 ARRAY_AGG + SUM 替代
+-- ⚠️ REDUCE(arr, init, (acc,x)->...) 不支持（Spark 名称）
 SELECT EXISTS(scores, x -> x > 100) FROM students;
 SELECT FORALL(scores, x -> x >= 0) FROM students;
 SELECT ZIP_WITH(a, b, (x, y) -> x + y) FROM t;

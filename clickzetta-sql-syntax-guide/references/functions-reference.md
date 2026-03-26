@@ -28,11 +28,11 @@ SIN(x) / COS(x) / TAN(x)       -- 三角函数
 ASIN(x) / ACOS(x) / ATAN(x)    -- 反三角函数
 ATAN2(y, x)                     -- 反正切
 DEGREES(x) / RADIANS(x)        -- 角度/弧度转换
-FACTORIAL(n)                    -- 阶乘
-BIN(x)                          -- 转二进制字符串
+-- ⚠️ FACTORIAL 不支持，用 EXP(SUM(LN(n))) 替代
+-- ⚠️ BIN(x) 不支持，用 CONV(x, 10, 2) 替代
 HEX(x)                          -- 转十六进制字符串
 UNHEX(s)                        -- 十六进制转字符串
-CONV(x, from_base, to_base)     -- 进制转换
+CONV(x, from_base, to_base)     -- 进制转换（如 CONV(10,10,2) 得 '1010'）
 ```
 
 **与 Snowflake 差异：**
@@ -72,13 +72,13 @@ MID(s, pos, len)                -- 同 SUBSTR
 INSTR(s, substr)                -- 查找位置（1-based，0表示未找到）
 LOCATE(substr, s)               -- 同 INSTR，参数顺序不同
 LOCATE(substr, s, pos)          -- 从pos开始查找
-POSITION(substr IN s)           -- 标准SQL语法
+-- ⚠️ POSITION(substr IN s) 语法不支持，用 LOCATE(substr, s) 替代
 FIND_IN_SET(s, list)            -- 在逗号分隔列表中查找
 
 -- 替换
 REPLACE(s, old, new)            -- 替换所有
 TRANSLATE(s, from_chars, to_chars)  -- 字符级替换
-OVERLAY(s PLACING new FROM pos FOR len)  -- 覆盖替换
+-- ⚠️ OVERLAY 语法不支持，用 CONCAT(LEFT(s,pos-1), new, SUBSTR(s,pos+len)) 替代
 
 -- 正则
 REGEXP_EXTRACT(s, pattern, group)   -- 提取匹配组
@@ -95,8 +95,9 @@ SPLIT(s, delimiter)             -- 按分隔符分割，返回 ARRAY
 SPLIT_PART(s, delimiter, n)     -- 取第n个分割部分（1-based）
 
 -- 格式化
-FORMAT(x, d)                    -- 数字格式化（千分位）
-PRINTF(fmt, args...)            -- printf 风格格式化
+FORMAT(fmt, args...)            -- printf 风格（如 FORMAT('%d items', 5) → '5 items'）
+-- ⚠️ FORMAT(number, decimals) 数字千分位格式化不支持，用 ROUND + CAST 替代
+-- ⚠️ PRINTF 不支持，用 FORMAT 替代
 
 -- 编码
 BASE64(s) / UNBASE64(s)         -- Base64 编解码
@@ -108,16 +109,16 @@ ENCODE(s, charset) / DECODE(s, charset)  -- 字符集编解码
 -- 其他
 ASCII(s)                        -- 首字符 ASCII 码
 CHAR(n)                         -- ASCII 码转字符
-SOUNDEX(s)                      -- 语音相似度编码
-LEVENSHTEIN(s1, s2)             -- 编辑距离
+-- ⚠️ SOUNDEX 不支持
+-- ⚠️ LEVENSHTEIN 不支持，用 Python UDF 或 ZettaPark 替代
 HAMMING_DISTANCE(s1, s2)        -- 汉明距离（字符串）
 ```
 
 **与 Snowflake 差异：**
 - Snowflake `CHARINDEX(substr, s)` → ClickZetta `INSTR(s, substr)` 或 `LOCATE(substr, s)`（参数顺序不同！）
-- Snowflake `EDITDISTANCE(s1, s2)` → ClickZetta `LEVENSHTEIN(s1, s2)`
+- Snowflake `EDITDISTANCE(s1, s2)` → ClickZetta 不支持 LEVENSHTEIN，需用 Python UDF
 - Snowflake `STRTOK(s, delim, n)` → ClickZetta `SPLIT_PART(s, delim, n)`
-- Snowflake `ILIKE(s, pattern)` → ClickZetta `LOWER(s) LIKE LOWER(pattern)`
+- Snowflake `ILIKE(s, pattern)` → ClickZetta `ILIKE` ✅ 也支持！
 - Snowflake `CONTAINS(s, substr)` → ClickZetta `INSTR(s, substr) > 0`
 - Snowflake `STARTSWITH(s, prefix)` → ClickZetta `s LIKE 'prefix%'` 或 `STARTSWITH(s, prefix)`
 - Snowflake `ENDSWITH(s, suffix)` → ClickZetta `s LIKE '%suffix'` 或 `ENDSWITH(s, suffix)`
@@ -142,7 +143,7 @@ DAYOFYEAR(dt)                   -- 年中第几天
 WEEKOFYEAR(dt)                  -- 年中第几周
 QUARTER(dt)                     -- 季度（1-4）
 EXTRACT(YEAR FROM dt)           -- 标准SQL提取
-DATE_PART('year', dt)           -- 同 EXTRACT
+-- ⚠️ DATE_PART('year', dt) 不支持，用 EXTRACT 或 YEAR(dt) 替代
 
 -- 日期加减
 DATE_ADD(dt, n)                 -- 加n天
@@ -188,10 +189,15 @@ UNIX_TIMESTAMP(s, fmt)          -- 字符串转Unix时间戳
 -- 其他
 LAST_DAY(dt)                    -- 月末日期
 NEXT_DAY(dt, 'Monday')          -- 下一个指定星期几
-MAKEDATE(year, dayofyear)       -- 构造日期
-MAKETIME(h, m, s)               -- 构造时间
-PERIOD_ADD(period, n)           -- 期间加减
-PERIOD_DIFF(p1, p2)             -- 期间差
+MAKE_DATE(year, month, day)     -- 构造日期（注意：是 MAKE_DATE 不是 MAKEDATE）
+ADD_MONTHS(dt, n)               -- 加n个月
+MONTHS_BETWEEN(dt1, dt2)        -- 月份差
+TIMESTAMPDIFF(unit, dt1, dt2)   -- 指定单位的差值（如 TIMESTAMPDIFF(MONTH, ...)）
+FROM_UTC_TIMESTAMP(ts, tz)      -- UTC 转指定时区
+TO_UTC_TIMESTAMP(ts, tz)        -- 指定时区转 UTC
+-- ⚠️ CONVERT_TZ(dt, from_tz, to_tz) 不支持，用 FROM_UTC_TIMESTAMP/TO_UTC_TIMESTAMP 替代
+-- ⚠️ MAKEDATE(year, dayofyear) 不支持，用 MAKE_DATE(year, month, day) 替代
+-- ⚠️ MAKETIME / PERIOD_ADD / PERIOD_DIFF 不支持
 ```
 
 **与 Snowflake 差异：**
@@ -199,6 +205,7 @@ PERIOD_DIFF(p1, p2)             -- 期间差
 - Snowflake `DATEDIFF(day, start, end)` → ClickZetta `DATEDIFF(end, start)` ⚠️ 参数顺序相反！
 - Snowflake `DATE_TRUNC('day', dt)` → ClickZetta 相同
 - Snowflake `TO_DATE(s)` → ClickZetta 相同
+- Snowflake `CONVERT_TIMEZONE(from, to, ts)` → ClickZetta `FROM_UTC_TIMESTAMP` / `TO_UTC_TIMESTAMP`
 - Snowflake `CONVERT_TIMEZONE(tz, dt)` → ClickZetta `CONVERT_TZ(dt, from_tz, to_tz)`
 - Snowflake `SYSDATE()` / `GETDATE()` → ClickZetta `CURRENT_TIMESTAMP()` / `NOW()`
 - Snowflake `TIMESTAMPADD(unit, n, dt)` → ClickZetta `dt + INTERVAL n unit`
@@ -281,7 +288,8 @@ APPROX_PERCENTILE(col, p)       -- 近似百分位数
 -- 统计聚合
 CORR(x, y)                      -- 相关系数
 COVAR_POP(x, y) / COVAR_SAMP(x, y)  -- 协方差
-REGR_SLOPE(y, x) / REGR_INTERCEPT(y, x)  -- 线性回归
+-- ⚠️ REGR_SLOPE / REGR_INTERCEPT 不支持
+-- 替代：CORR(y,x) * STDDEV(y) / STDDEV(x) 计算斜率
 
 -- 有序集合聚合
 PERCENTILE(col, p)              -- 精确百分位数

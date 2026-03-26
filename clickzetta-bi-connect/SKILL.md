@@ -45,7 +45,7 @@ jdbc:clickzetta://f8866243.cn-shanghai-alicloud.api.clickzetta.com/quick_start?u
 ## SQLAlchemy URL（Superset / Python ORM）
 
 ```
-clickzetta://<username>:<password>@<instance>.<region_id>.api.clickzetta.com/<workspace>?schema=<schema>&virtualcluster=<vc_name>
+clickzetta://<username>:<password>@<instance>.<region_id>.api.clickzetta.com/<workspace>?schema=<schema>&vcluster=<vc_name>
 ```
 
 安装：

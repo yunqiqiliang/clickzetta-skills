@@ -247,6 +247,8 @@ CREATE EXTERNAL VOLUME IF NOT EXISTS my_batch_volume
 > - `LOCATION`：对象存储路径，格式为 `oss://bucket/path/`
 > - `USING CONNECTION`：引用已创建的存储连接
 > - `DIRECTORY = (enable=true, auto_refresh=true)`：启用目录元数据并自动刷新，便于查询 Volume 中的文件列表
+>
+> **注意**：批量导入 Volume 使用 `LOCATION ... USING CONNECTION ...` 语法；PIPE 模式 Volume 使用 `STORAGE_CONNECTION = ... LOCATION = ...` 语法。两种语法均有效，适用于不同场景，不可混用。
 
 #### 步骤 4a：INSERT INTO 从 Volume 导入（支持过滤转换）
 

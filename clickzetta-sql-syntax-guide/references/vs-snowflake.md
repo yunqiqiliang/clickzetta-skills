@@ -128,11 +128,11 @@ LIMIT 1000;
 -- ClickZetta 限制：WHEN NOT MATCHED 只能有一个
 -- Snowflake 支持多个 WHEN NOT MATCHED
 
--- ClickZetta MERGE 示例
+-- ClickZetta MERGE 示例（⚠️ UPDATE 必须在 DELETE 之前）
 MERGE INTO target t
 USING source s ON t.id = s.id
-WHEN MATCHED AND s.action = 'DELETE' THEN DELETE
 WHEN MATCHED THEN UPDATE SET t.amount = s.amount
+WHEN MATCHED AND s.action = 'DELETE' THEN DELETE
 WHEN NOT MATCHED THEN INSERT (id, amount) VALUES (s.id, s.amount);
 ```
 
