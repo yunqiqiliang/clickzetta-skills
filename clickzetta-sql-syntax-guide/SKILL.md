@@ -1,15 +1,16 @@
 ---
 name: clickzetta-sql-syntax-guide
 description: |
-  ClickZetta Lakehouse SQL 语法完整参考，以及与 Snowflake、Spark SQL 的全面差异对照。
-  覆盖 DDL（Schema/Table/View/Index/Time Travel）、DML（INSERT/UPDATE/DELETE/MERGE/COPY INTO）、
-  DQL（SELECT/JOIN/窗口函数/CTE/JSON/ARRAY/STRUCT/LATERAL VIEW）、函数（日期/字符串/聚合/条件/向量）。
-  帮助从 Snowflake 或 Spark 迁移的用户快速找到正确语法，避免常见陷阱。
-  当用户说"Snowflake 迁移"、"Spark SQL 迁移"、"语法差异"、"ClickZetta 怎么写"、
-  "Snowflake 语法在 ClickZetta 怎么用"、"TARGET_LAG"、"QUALIFY"、"VARIANT"、
-  "METADATA$ACTION"、"CREATE OR REPLACE"、"LISTAGG"、"IFF"、"DATEADD"、
-  "FLATTEN"、"PIVOT"、"SQL 语法参考"、"数据类型"、"DATEDIFF"、"CHARINDEX"、
-  "ILIKE"、"ZEROIFNULL"、"OBJECT_CONSTRUCT"、"ARRAY_SIZE"时触发。
+  ClickZetta Lakehouse SQL 语法完整参考，以及从 Snowflake、Databricks、Spark SQL 迁移的
+  全面兼容性指南。覆盖 DDL/DML/DQL 完整语法、隐式类型转换规则、迁移陷阱速查。
+  帮助从 Snowflake 或 Databricks 迁移的用户快速找到正确语法，避免常见错误。
+  当用户说"Snowflake 迁移"、"Databricks 迁移"、"Spark SQL 迁移"、"语法差异"、
+  "ClickZetta 怎么写"、"TARGET_LAG"、"QUALIFY"、"VARIANT"、"METADATA$ACTION"、
+  "CREATE OR REPLACE"、"LISTAGG"、"IFF"、"DATEADD"、"FLATTEN"、"PIVOT"、
+  "SQL 语法参考"、"数据类型"、"DATEDIFF"、"CHARINDEX"、"ZEROIFNULL"、
+  "OBJECT_CONSTRUCT"、"ARRAY_SIZE"、"APPLY CHANGES INTO"、"ZORDER"、
+  "WHEN NOT MATCHED BY SOURCE"、"WITH RECURSIVE"、"BEGIN TRANSACTION"、
+  "隐式转换"、"implicit cast"、"日期写入"、"BOOLEAN 写入"时触发。
 ---
 
 # ClickZetta Lakehouse SQL 语法指南
@@ -18,11 +19,13 @@ description: |
 
 | 文档 | 内容 |
 |---|---|
+| [Snowflake 迁移指南](references/migration-snowflake.md) | 对象映射、类型转换、语法差异、函数对照（完整） |
+| [Databricks 迁移指南](references/migration-databricks.md) | Delta Lake 差异、APPLY CHANGES、ZORDER 替代方案 |
 | [DDL 参考](references/ddl-reference.md) | Schema/Table/View/Index/Time Travel 完整语法 |
-| [DML 参考](references/dml-reference.md) | INSERT/UPDATE/DELETE/MERGE/COPY INTO 完整语法 |
+| [DML 参考](references/dml-reference.md) | INSERT/UPDATE/DELETE/MERGE/COPY INTO + 类型转换规则 |
 | [DQL 参考](references/dql-reference.md) | SELECT/JOIN/窗口函数/CTE/JSON/ARRAY/LATERAL VIEW |
 | [函数参考](references/functions-reference.md) | 数值/字符串/日期/条件/聚合/向量函数完整列表 |
-| [vs Snowflake](references/vs-snowflake.md) | 对象概念映射 + 语法差异汇总 |
+| [vs Snowflake](references/vs-snowflake.md) | 差异汇总（含隐式转换规则表） |
 | [vs Spark SQL](references/vs-spark.md) | 数据类型映射 + 语法差异汇总 |
 
 ---
@@ -43,7 +46,14 @@ description: |
 | 日期加减 | `DATEADD(day, 7, dt)` (SF) | `DATE_ADD(dt, 7)` |
 | DATEDIFF 顺序 | `DATEDIFF(day, start, end)` (SF) | `DATEDIFF(end, start)` ← 顺序相反！ |
 | 查找子串位置 | `CHARINDEX(sub, s)` (SF) | `INSTR(s, sub)` ← 参数顺序相反！ |
-| 不区分大小写匹配 | `ILIKE` (SF) | `LOWER(s) LIKE LOWER(pattern)` |
+| 不区分大小写匹配 | `ILIKE` (SF) | `ILIKE` ✅ ClickZetta 也支持！ |
+| 差集运算 | `MINUS` (Oracle/DB2) | `MINUS` ✅ ClickZetta 也支持！ |
+| 递归 CTE | `WITH RECURSIVE` (SF/Databricks) | ❌ 不支持，需用 Python/ZettaPark 替代 |
+| 事务 | `BEGIN; COMMIT; ROLLBACK;` | ❌ 不支持，用 MERGE 实现原子操作 |
+| MERGE 不匹配删除 | `WHEN NOT MATCHED BY SOURCE THEN DELETE` | ❌ 不支持，需两步：MERGE + DELETE |
+| Delta ZORDER | `OPTIMIZE t ZORDER BY (col)` | `OPTIMIZE t`（只做小文件合并，无 ZORDER） |
+| STRUCT 命名字段 | `STRUCT(1 AS id, 'Alice' AS name)` | ❌ 不支持，用 `STRUCT(1, 'Alice')` |
+| SEQUENCE 对象 | `CREATE SEQUENCE seq` | ❌ 不支持，用 `IDENTITY(1)` 列替代 |
 | 数值类型 | `NUMBER(p,s)` (SF) | `DECIMAL(p,s)` |
 | 半结构化类型 | `VARIANT` (SF) | `JSON` |
 | 行数限制 | `SELECT TOP 10` (SF) | `SELECT ... LIMIT 10` |
