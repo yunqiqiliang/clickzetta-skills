@@ -4,6 +4,44 @@
 
 ---
 
+## ⚠️ 日期/时间类型写入规则
+
+**ClickZetta 不允许字符串隐式转换为 DATE/TIMESTAMP 类型（INSERT 时）。**
+必须显式转换，否则报错：`implicit cast not allowed`
+
+```sql
+-- ❌ 错误：字符串不能隐式转为 DATE/TIMESTAMP
+INSERT INTO orders VALUES (1, '2024-01-15', '2024-01-15 12:30:00');
+
+-- ✅ 正确方式 1：CAST 显式转换
+INSERT INTO orders VALUES (1, CAST('2024-01-15' AS DATE), CAST('2024-01-15 12:30:00' AS TIMESTAMP));
+
+-- ✅ 正确方式 2：TO_DATE / TO_TIMESTAMP 函数
+INSERT INTO orders VALUES (1, TO_DATE('2024-01-15'), TO_TIMESTAMP('2024-01-15 12:30:00'));
+
+-- ✅ 正确方式 3：DATE / TIMESTAMP 字面量
+INSERT INTO orders VALUES (1, DATE '2024-01-15', TIMESTAMP '2024-01-15 12:30:00');
+
+-- ✅ 正确方式 4：当前时间函数
+INSERT INTO orders VALUES (1, CURRENT_DATE(), CURRENT_TIMESTAMP());
+
+-- ✅ 正确方式 5：INTERVAL 运算
+INSERT INTO orders VALUES (1, CURRENT_DATE() - INTERVAL 7 DAY, CURRENT_TIMESTAMP() - INTERVAL 1 HOUR);
+```
+
+**注意：WHERE 条件中字符串可以与日期比较（隐式转换允许）：**
+```sql
+-- ✅ WHERE 中字符串可以与 DATE 比较
+SELECT * FROM orders WHERE dt = '2024-01-15';
+SELECT * FROM orders WHERE dt >= '2024-01-01' AND dt < '2025-01-01';
+```
+
+**与 Snowflake / Spark 差异：**
+- Snowflake / Spark：INSERT 时字符串可隐式转为日期类型
+- ClickZetta：INSERT 时**必须显式转换**，WHERE 中可隐式比较
+
+---
+
 ## INSERT
 
 ```sql

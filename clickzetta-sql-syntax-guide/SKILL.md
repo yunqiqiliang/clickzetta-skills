@@ -53,7 +53,8 @@ description: |
 | 数组大小 | `ARRAY_SIZE(arr)` (SF) | `SIZE(arr)` |
 | PIVOT | 原生 PIVOT 语法 (SF) | `CASE WHEN` 手动实现 |
 | 临时表 | `CREATE TEMPORARY TABLE` (SF) | 不支持，用 CTE 替代 |
-| 含 ARRAY/JSON 列建索引 | 内联 INDEX 定义 | 必须单独 `CREATE BLOOMFILTER INDEX ... ON TABLE t(col)` |
+| 日期字符串写入 | `INSERT ... VALUES (..., '2024-01-15', ...)` | `CAST('2024-01-15' AS DATE)` 或 `DATE '2024-01-15'` 或 `TO_DATE(...)` |
+| 时间字符串写入 | `INSERT ... VALUES (..., '2024-01-15 12:00:00', ...)` | `CAST(... AS TIMESTAMP)` 或 `TIMESTAMP '...'` 或 `TO_TIMESTAMP(...)` |
 | 索引语法关键字 | `USING BLOOM_FILTER` | `BLOOMFILTER`（无 USING） |
 | DROP INDEX | `DROP INDEX idx ON table` | `DROP INDEX idx`（无 ON table） |
 | TRUNCATE IF EXISTS | `TRUNCATE TABLE IF EXISTS t` | `TRUNCATE TABLE t`（不支持 IF EXISTS） |
