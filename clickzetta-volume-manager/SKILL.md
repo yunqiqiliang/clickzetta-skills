@@ -27,7 +27,31 @@ description: |
 
 ## 创建外部 Volume
 
-前提：先创建 STORAGE CONNECTION（参考 clickzetta-lakehouse-connect skill）
+前提：先创建 STORAGE CONNECTION（对象存储认证配置）
+
+```sql
+-- 阿里云 OSS
+CREATE STORAGE CONNECTION IF NOT EXISTS my_oss_conn
+  TYPE OSS
+  ACCESS_ID = 'LTAIxxxxxxxxxxxx'
+  ACCESS_KEY = 'T8Gexxxxxxmtxxxxxx'
+  ENDPOINT = 'oss-cn-hangzhou-internal.aliyuncs.com';
+
+-- 腾讯云 COS
+CREATE STORAGE CONNECTION IF NOT EXISTS my_cos_conn
+  TYPE COS
+  ACCESS_KEY = '<access_key>'
+  SECRET_KEY = '<secret_key>'
+  REGION = 'ap-shanghai'
+  APP_ID = '1310000503';
+
+-- AWS S3
+CREATE STORAGE CONNECTION IF NOT EXISTS my_s3_conn
+  TYPE S3
+  ACCESS_KEY = '<access_key>'
+  SECRET_KEY = '<secret_key>'
+  REGION = 'us-east-1';
+```
 
 ```sql
 -- 挂载阿里云 OSS
