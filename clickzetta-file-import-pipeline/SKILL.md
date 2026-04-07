@@ -40,8 +40,7 @@ description: |
 COPY INTO target_table
 FROM VOLUME volume_name
 USING format_type
-FILES('filename')
-ON_ERROR = ABORT;
+FILES('filename');
 ```
 
 对于 USER VOLUME（通过 put_file_to_volume 上传的文件）：
@@ -49,8 +48,7 @@ ON_ERROR = ABORT;
 COPY INTO target_table
 FROM USER VOLUME
 USING CSV
-FILES('uploaded_filename')
-ON_ERROR = ABORT;
+FILES('uploaded_filename');
 ```
 
 CSV 格式可附加 OPTIONS：
@@ -58,8 +56,7 @@ CSV 格式可附加 OPTIONS：
 COPY INTO target_table
 FROM VOLUME vol USING CSV
 FILES('data.csv')
-OPTIONS(header='true', sep=',', quote='"', escape='\\', nullValue='')
-ON_ERROR = ABORT;
+OPTIONS('header'='true', 'sep'=',', 'quote'='"', 'nullValue'='');
 ```
 
 overwrite 模式使用 COPY OVERWRITE：
@@ -84,7 +81,7 @@ SELECT * FROM target_table LIMIT 5;
 2. preview_volume_data(source_volume='my_vol', files='data.csv', format='CSV', limit='5')
    → 推断出列: id INT, name STRING, value DOUBLE
 3. create_table(table_name='imported_data', columns='id INT, name STRING, value DOUBLE')
-4. write_query(query="COPY INTO imported_data FROM VOLUME my_vol USING CSV FILES('data.csv') OPTIONS(header='true') ON_ERROR=ABORT")
+4. write_query(query="COPY INTO imported_data FROM VOLUME my_vol USING CSV FILES('data.csv') OPTIONS('header'='true')")
 5. read_query(query="SELECT COUNT(*) FROM imported_data")
 ```
 
@@ -92,7 +89,7 @@ SELECT * FROM target_table LIMIT 5;
 ```
 1. put_file_to_volume(source_path='/local/new_batch.parquet', target_volume='data_vol')
 2. desc_object(object_name='existing_table', object_type='TABLE')  → 确认表存在
-3. write_query(query="COPY INTO existing_table FROM VOLUME data_vol USING PARQUET FILES('new_batch.parquet') ON_ERROR=ABORT")
+3. write_query(query="COPY INTO existing_table FROM VOLUME data_vol USING PARQUET FILES('new_batch.parquet')")
 4. read_query(query="SELECT COUNT(*) FROM existing_table")
 ```
 

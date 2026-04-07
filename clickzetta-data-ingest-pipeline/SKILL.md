@@ -79,12 +79,13 @@ VALUES ('val1', 'val2', 'val3');
 #### COPY INTO 快速导入（从 Volume）
 ```sql
 -- 1. 确认 Volume 中有文件
-LIST @volume_name;
+SHOW VOLUME DIRECTORY volume_name;
 
 -- 2. 执行 COPY INTO
 COPY INTO schema_name.table_name
-FROM @volume_name/path/
-FILE_FORMAT = (TYPE = 'CSV' SKIP_HEADER = 1);
+FROM VOLUME volume_name
+USING CSV
+OPTIONS('header' = 'true');
 ```
 
 #### Java SDK 导入指引

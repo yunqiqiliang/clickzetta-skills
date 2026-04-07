@@ -205,22 +205,25 @@ GRANT SELECT, READ METADATA ON TABLE public.orders TO SHARE my_share;
 
 ---
 
-## Spark SQL 特有功能（ClickZetta 无对应）
+## Spark SQL 特有功能（ClickZetta 无对应或语法不同）
 
 ```sql
--- 1. Delta Lake 特有语法
-OPTIMIZE table_name ZORDER BY (col);
-VACUUM table_name RETAIN 168 HOURS;
+-- 1. Delta Lake 特有语法（ClickZetta 无对应）
+OPTIMIZE table_name ZORDER BY (col);   -- ClickZetta 有 OPTIMIZE 但无 ZORDER
+VACUUM table_name RETAIN 168 HOURS;   -- ClickZetta 自动管理，无需手动 VACUUM
 
--- 2. SHOW TABLES EXTENDED
+-- 2. SHOW TABLES EXTENDED（ClickZetta 无对应）
 SHOW TABLES EXTENDED IN schema LIKE 'orders*';
 
--- 3. DESCRIBE HISTORY（Delta）
+-- 3. DESCRIBE HISTORY（Delta）→ ClickZetta 用 DESC HISTORY
+-- Spark/Delta:
 DESCRIBE HISTORY orders;
+-- ClickZetta:
+DESC HISTORY orders;
 
--- 4. GENERATE（生成列）
-CREATE TABLE orders (
-    id INT,
-    year INT GENERATED ALWAYS AS (YEAR(order_date))
-);
+-- 4. 生成列（语法不同）
+-- Spark:
+CREATE TABLE orders (id INT, year INT GENERATED ALWAYS AS (YEAR(order_date)));
+-- ClickZetta（相同语法，也支持）:
+CREATE TABLE orders (id INT, year INT GENERATED ALWAYS AS (YEAR(order_date)));
 ```

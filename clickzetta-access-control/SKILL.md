@@ -113,8 +113,11 @@ SHOW GRANTS;
 -- 查看指定用户权限
 SHOW GRANTS TO USER alice;
 
--- 查看角色权限
+-- 查看工作空间角色权限
 SHOW GRANTS TO ROLE analyst_role;
+
+-- 查看实例级角色权限
+SHOW GRANTS TO INSTANCE ROLE instance_admin;
 ```
 
 ---

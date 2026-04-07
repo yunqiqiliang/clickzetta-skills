@@ -134,8 +134,11 @@ class Upper(object):
 打包上传：
 ```bash
 zip -rq upper.zip upper.py
-# 上传到 User Volume（无需 OSS）
-PUT 'upper.zip' TO USER VOLUME;
+```
+
+```sql
+-- 上传到 User Volume（在 ClickZetta Studio 或 CLI 中执行，source_path 使用绝对路径）
+PUT '/path/to/upper.zip' TO USER VOLUME;
 ```
 
 ### 步骤 3：创建 External Function

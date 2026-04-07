@@ -198,7 +198,8 @@ DROP TABLE IF EXISTS orders;
 DROP TABLE my_schema.orders;
 
 -- 清空表（保留结构）
-TRUNCATE TABLE orders;                             -- ⚠️ 不支持 IF EXISTS
+TRUNCATE TABLE orders;
+TRUNCATE TABLE IF EXISTS orders;               -- ✅ 支持 IF EXISTS
 
 -- 清空指定分区
 TRUNCATE TABLE orders PARTITION (dt = '2024-01-01');

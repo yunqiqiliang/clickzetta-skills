@@ -28,10 +28,14 @@
 ## CREATE ROLE（创建自定义角色）
 
 ```sql
+-- 工作空间角色
 CREATE ROLE [IF NOT EXISTS] role_name [COMMENT 'comment'];
+
+-- 实例级角色（Instance Role，跨工作空间）
+CREATE INSTANCE ROLE [IF NOT EXISTS] role_name [COMMENT 'comment'];
 ```
 
-注意：目前仅支持在工作空间内创建自定义角色，不支持实例级自定义角色。
+注意：自定义角色只能通过 SQL 创建，Web 端暂不支持。
 
 ## GRANT ROLE（将角色授予用户）
 

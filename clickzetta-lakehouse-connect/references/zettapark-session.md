@@ -349,9 +349,11 @@ plt.show()
 # 覆盖写入
 df.write.save_as_table("my_table", mode="overwrite")
 
-# 写入临时表
-df.write.save_as_table("my_temp_table", mode="overwrite", table_type="transient")
+# 追加写入
+df.write.save_as_table("my_temp_table", mode="append")
 ```
+
+> **注意**：ClickZetta 不支持 `table_type="transient"` 参数（该参数来自 Snowflake）。如需临时存储，直接使用普通表，并通过 `data_lifecycle` 属性设置 TTL 或手动清理。
 
 ### 8.2 通过 SQL 创建表并插入数据
 

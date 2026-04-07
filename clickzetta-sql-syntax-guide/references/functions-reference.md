@@ -72,7 +72,7 @@ MID(s, pos, len)                -- 同 SUBSTR
 INSTR(s, substr)                -- 查找位置（1-based，0表示未找到）
 LOCATE(substr, s)               -- 同 INSTR，参数顺序不同
 LOCATE(substr, s, pos)          -- 从pos开始查找
--- ⚠️ POSITION(substr IN s) 语法不支持，用 LOCATE(substr, s) 替代
+POSITION(substr IN s)           -- ✅ 支持，返回子串位置（1-based）
 FIND_IN_SET(s, list)            -- 在逗号分隔列表中查找
 
 -- 替换
@@ -95,9 +95,8 @@ SPLIT(s, delimiter)             -- 按分隔符分割，返回 ARRAY
 SPLIT_PART(s, delimiter, n)     -- 取第n个分割部分（1-based）
 
 -- 格式化
-FORMAT(fmt, args...)            -- printf 风格（如 FORMAT('%d items', 5) → '5 items'）
+FORMAT_STRING(fmt, args...)     -- printf 风格（如 FORMAT_STRING('%d items', 5) → '5 items'）
 -- ⚠️ FORMAT(number, decimals) 数字千分位格式化不支持，用 ROUND + CAST 替代
--- ⚠️ PRINTF 不支持，用 FORMAT 替代
 
 -- 编码
 BASE64(s) / UNBASE64(s)         -- Base64 编解码
@@ -201,7 +200,7 @@ TO_UTC_TIMESTAMP(ts, tz)        -- 指定时区转 UTC
 ```
 
 **与 Snowflake 差异：**
-- Snowflake `DATEADD(day, n, dt)` → ClickZetta `DATE_ADD(dt, n)` 或 `dt + INTERVAL n DAY`
+- Snowflake `DATEADD(day, n, dt)` → ClickZetta `DATEADD(day, n, dt)` ✅ 也支持；或用 `DATE_ADD(dt, n)` / `dt + INTERVAL n DAY`
 - Snowflake `DATEDIFF(day, start, end)` → ClickZetta `DATEDIFF(end, start)` ⚠️ 参数顺序相反！
 - Snowflake `DATE_TRUNC('day', dt)` → ClickZetta 相同
 - Snowflake `TO_DATE(s)` → ClickZetta 相同

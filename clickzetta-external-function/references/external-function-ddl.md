@@ -110,9 +110,11 @@ pip3 install httpx pydantic -t .
 
 # 打包（< 500MB）
 zip -rq code.zip ./*
+```
 
-# 上传到 User Volume（无需 OSS）
-PUT 'code.zip' TO USER VOLUME;
+```sql
+-- 上传到 User Volume（在 ClickZetta Studio 或 CLI 中执行，source_path 使用绝对路径）
+PUT '/path/to/code.zip' TO USER VOLUME;
 ```
 
 ---

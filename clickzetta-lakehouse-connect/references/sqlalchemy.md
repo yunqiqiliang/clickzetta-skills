@@ -340,7 +340,7 @@ class ClickZettaEngineSpec(BaseEngineSpec):
 
 ### 9.3 反引号问题
 
-ClickZetta SQL 不支持反引号（`` ` ``）作为标识符引用。Superset 的 Engine Spec 通过 monkey-patch `ClickZettaDialect` 的 `identifier_preparer_class` 自动移除反引号：
+ClickZetta SQL 原生支持反引号（`` ` ``）作为标识符引用（官方文档有明确说明）。但 SQLAlchemy ORM 自动生成的反引号在某些场景下可能与 ClickZetta dialect 不兼容。Superset 的 Engine Spec 通过 monkey-patch 移除反引号以确保兼容性：
 
 ```python
 # 来自 superset/superset/db_engine_specs/clickzetta.py
@@ -449,7 +449,7 @@ df.to_sql("sales_summary", engine, if_exists="append", index=False)
 4. 网络是否可达 service 地址
 
 ### Q: 查询报错 "backtick not supported"？
-ClickZetta 不支持反引号引用标识符。如果使用 ORM 自动生成的 SQL 包含反引号，需要像 Superset Engine Spec 那样 patch dialect，或在 SQL 中避免使用保留字作为列名。
+ClickZetta SQL 原生支持反引号标识符，但 SQLAlchemy ORM 自动生成的反引号在某些场景下可能引发兼容性问题。如遇此报错，可像 Superset Engine Spec 那样 patch dialect 移除反引号，或在建表时避免使用保留字作为列名。
 
 ### Q: 如何在长时间运行的应用中保持连接？
 设置 `pool_pre_ping=True` 和 `pool_recycle=3600`，确保连接池中的连接不会因服务端超时而失效。

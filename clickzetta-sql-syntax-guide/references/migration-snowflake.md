@@ -180,15 +180,9 @@ MERGE INTO target USING source ON ...
 ### QUALIFY（窗口函数过滤）
 
 ```sql
--- Snowflake：支持 QUALIFY
+-- 两者都支持 QUALIFY
 SELECT * FROM orders
 QUALIFY ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY created_at DESC) = 1;
-
--- ClickZetta：不支持 QUALIFY，用子查询
-SELECT * FROM (
-    SELECT *, ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY created_at DESC) AS rn
-    FROM orders
-) t WHERE rn = 1;
 ```
 
 ### PIVOT / UNPIVOT
@@ -250,8 +244,8 @@ SELECT ARRAY_CONSTRUCT(1, 2, 3) AS arr;
 
 -- ClickZetta
 SELECT MAP('name', 'Alice') AS obj;          -- 简单 MAP
-SELECT STRUCT(1 AS id, 'Alice' AS name);     -- ⚠️ 命名字段语法不支持
-SELECT STRUCT(1, 'Alice') AS person;         -- ✅ 位置参数
+SELECT named_struct('id', 1, 'name', 'Alice') AS person;  -- ✅ 命名字段用 named_struct
+SELECT STRUCT(1, 'Alice') AS person;         -- 位置参数写法
 SELECT ARRAY(1, 2, 3) AS arr;               -- ARRAY_CONSTRUCT → ARRAY()
 ```
 
@@ -271,7 +265,7 @@ SELECT * FROM t MATCH_RECOGNIZE (...);
 
 ```sql
 -- Snowflake → ClickZetta
-DATEADD(day, 7, dt)          → DATE_ADD(dt, 7) 或 dt + INTERVAL 7 DAY
+DATEADD(day, 7, dt)          → DATEADD(day, 7, dt)  ✅ 相同；也可用 DATE_ADD(dt, 7)
 DATEDIFF(day, start, end)    → DATEDIFF(end, start)  ⚠️ 参数顺序相反！
 DATE_TRUNC('month', dt)      → DATE_TRUNC('month', dt)  相同
 TO_DATE('2024-01-01')        → TO_DATE('2024-01-01')  相同
@@ -370,7 +364,9 @@ AS SELECT ...;
 ## 已验证的兼容性（Snowflake 有，ClickZetta 也有）
 
 - `SEMI JOIN` / `ANTI JOIN` ✅
+- `QUALIFY` ✅（ClickZetta 也支持）
 - `ILIKE` ✅（ClickZetta 也支持）
+- `DATEADD` ✅（ClickZetta 也支持）
 - `MINUS`（等价于 EXCEPT）✅
 - `DECODE` ✅
 - `INITCAP` ✅

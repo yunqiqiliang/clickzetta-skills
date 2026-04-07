@@ -76,7 +76,6 @@ CREATE STORAGE CONNECTION IF NOT EXISTS my_oss_connection
 CREATE EXTERNAL VOLUME IF NOT EXISTS pipe_volume
   STORAGE_CONNECTION = my_oss_connection
   LOCATION = 'oss://my-bucket/data-path/'
-  FILE_FORMAT = (TYPE = 'csv')
   COMMENT = 'Volume for OSS PIPE ingestion';
 ```
 
@@ -165,8 +164,7 @@ CREATE STORAGE CONNECTION IF NOT EXISTS my_oss_role_connection
 -- 使用 LH_execute_query 执行
 CREATE EXTERNAL VOLUME IF NOT EXISTS pipe_event_volume
   STORAGE_CONNECTION = my_oss_role_connection
-  LOCATION = 'oss://my-bucket/data-path/'
-  FILE_FORMAT = (TYPE = 'csv');
+  LOCATION = 'oss://my-bucket/data-path/';
 ```
 
 #### 步骤 3：创建 PIPE（EVENT_NOTIFICATION 模式）
@@ -197,13 +195,12 @@ OPTIONS (
 
 ### 模式 C：批量导入（一次性 Volume + COPY/INSERT）
 
-> 适用于一次性或定期批量加载对象存储中的文件，无需创建 PIPE。支持阿里云 OSS 和腾讯云 COS。
+> 适用于一次性或定期批量加载对象存储中的文件，无需创建 PIPE。支持阿里云 OSS、腾讯云 COS 和 AWS S3。
 > 推荐使用 GENERAL PURPOSE 类型的虚拟集群执行批量加载。
 
 #### 使用限制
 
-- Volume 目前仅支持阿里云 OSS 和腾讯云 COS（不支持 AWS S3）
-- 不支持跨云导入（如从 OSS 导入到腾讯云环境）
+- 不支持跨云导入（源存储与 Lakehouse 环境需在同一云平台）
 - 同地域建议使用内网 Endpoint（如 `oss-cn-shanghai-internal.aliyuncs.com`）以提升速度和稳定性
 
 #### 步骤 1：创建目标表
@@ -396,7 +393,7 @@ DROP PIPE IF EXISTS my_oss_pipe;
 
 ### 批量导入（模式 C）
 
-- Volume 目前仅支持阿里云 OSS 和腾讯云 COS，不支持 AWS S3
+- Volume 支持阿里云 OSS、腾讯云 COS 和 AWS S3
 - 不支持跨云导入（源存储与 Lakehouse 环境需在同一云平台）
 - 同地域建议使用内网 Endpoint 以提升传输速度和稳定性
 - 推荐使用 GENERAL PURPOSE 类型虚拟集群执行批量加载任务

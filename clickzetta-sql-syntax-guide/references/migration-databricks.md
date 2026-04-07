@@ -8,15 +8,18 @@
 
 | Databricks | ClickZetta | 说明 |
 |---|---|---|
-| Catalog | 无直接对应 | ClickZetta 用 WORKSPACE 作顶层 |
+| Catalog（内部数据） | WORKSPACE | 顶层命名空间，Catalog.Schema.Table ≈ Workspace.Schema.Table |
+| Catalog（外部数据源） | EXTERNAL CATALOG | 联邦查询外部系统时的三层命名空间顶层（catalog.schema.table） |
 | Database / Schema | SCHEMA | 相同 |
 | Cluster / SQL Warehouse | VCLUSTER | 计算集群 |
-| Delta Table | 普通表（Parquet 格式） | ClickZetta 默认 Parquet，支持 Iceberg |
-| External Location | STORAGE CONNECTION + VOLUME | 对象存储访问 |
-| Unity Catalog | External Catalog | 联邦查询 |
-| Structured Streaming | PIPE + TABLE STREAM | 流式处理 |
-| APPLY CHANGES INTO | MERGE INTO | CDC 处理 |
-| Auto Loader | PIPE（EVENT_NOTIFICATION 模式） | 自动文件加载 |
+| Delta Table（普通表） | TABLE | ClickZetta 默认 Parquet 存储，支持 Iceberg 格式 |
+| Delta Table（增量计算） | DYNAMIC TABLE | 自动增量刷新，替代 DLT Pipeline |
+| External Location | STORAGE CONNECTION + EXTERNAL VOLUME | STORAGE CONNECTION 负责认证，EXTERNAL VOLUME 负责挂载路径 |
+| Unity Catalog（元数据治理） | 无完整对应 | ClickZetta 通过 RBAC + SCHEMA 权限管理实现部分治理能力 |
+| Unity Catalog（外部数据联邦查询） | EXTERNAL CATALOG | 支持 Hive、Iceberg REST、Databricks Unity Catalog 联邦查询 |
+| Structured Streaming | PIPE + TABLE STREAM | PIPE 负责持续摄入，TABLE STREAM 负责 CDC 变更捕获 |
+| APPLY CHANGES INTO（DLT CDC） | TABLE STREAM + MERGE INTO | 先建 Stream 捕获变更，再用 MERGE 消费 |
+| Auto Loader | PIPE（EVENT_NOTIFICATION 模式） | 文件上传即触发加载，仅支持 OSS/S3 |
 
 ---
 
@@ -156,15 +159,9 @@ ROLLBACK;
 ### QUALIFY（窗口函数过滤）
 
 ```sql
--- Databricks：支持 QUALIFY
+-- 两者都支持 QUALIFY
 SELECT * FROM orders
 QUALIFY ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY created_at DESC) = 1;
-
--- ClickZetta：用子查询
-SELECT * FROM (
-    SELECT *, ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY created_at DESC) AS rn
-    FROM orders
-) t WHERE rn = 1;
 ```
 
 ### RECURSIVE CTE
@@ -188,10 +185,9 @@ SELECT * FROM nums;
 -- Databricks：支持命名字段
 SELECT STRUCT(1 AS id, 'Alice' AS name) AS person;
 
--- ❌ ClickZetta：不支持命名字段语法
--- ✅ ClickZetta：只支持位置参数
-SELECT STRUCT(1, 'Alice') AS person;
--- 访问时用 person.col1, person.col2（自动命名）
+-- ClickZetta：用 named_struct 实现命名字段
+SELECT named_struct('id', 1, 'name', 'Alice') AS person;  -- ✅ 推荐
+SELECT STRUCT(1, 'Alice') AS person;  -- 位置参数写法，访问时用 person.col1, person.col2
 ```
 
 ---
@@ -245,6 +241,7 @@ SELECT * FROM t WHERE dt >= DATE '2024-01-01' AND dt < DATE '2025-01-01';
 
 - `SEMI JOIN` / `ANTI JOIN` ✅
 - `LATERAL VIEW EXPLODE` / `POSEXPLODE` ✅
+- `QUALIFY` ✅
 - `MERGE INTO`（基本语法）✅
 - `GROUPING SETS` / `ROLLUP` / `CUBE` ✅
 - `WITH CTE`（非递归）✅

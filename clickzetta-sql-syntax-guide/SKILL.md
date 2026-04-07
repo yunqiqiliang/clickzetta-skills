@@ -38,12 +38,12 @@ description: |
 | 动态表刷新 | `TARGET_LAG = '1 minutes'` | `REFRESH INTERVAL 1 MINUTE VCLUSTER vc` |
 | Stream 元数据 | `METADATA$ACTION` | `__change_type` |
 | 对象存储导入 | `COPY INTO t FROM @stage` | `COPY INTO t FROM VOLUME v USING CSV` |
-| 窗口过滤 | `QUALIFY ROW_NUMBER() = 1` | 子查询 `WHERE rn = 1` |
+| 窗口过滤 | `QUALIFY ROW_NUMBER() = 1` | `QUALIFY ROW_NUMBER() = 1` ✅ ClickZetta 也支持！ |
 | 数组展开 | `LATERAL FLATTEN(input => arr)` (SF) | `LATERAL VIEW EXPLODE(arr)` |
 | 半结构化访问 | `data:key` (SF) | `data['key']` |
 | 列表聚合 | `LISTAGG(col, ',')` (SF) | `GROUP_CONCAT(col SEPARATOR ',')` |
 | 条件函数 | `IFF(cond, a, b)` (SF) | `IF(cond, a, b)` |
-| 日期加减 | `DATEADD(day, 7, dt)` (SF) | `DATE_ADD(dt, 7)` |
+| 日期加减 | `DATEADD(day, 7, dt)` (SF) | `DATEADD(day, 7, dt)` ✅ 也支持；或用 `DATE_ADD(dt, 7)` |
 | DATEDIFF 顺序 | `DATEDIFF(day, start, end)` (SF) | `DATEDIFF(end, start)` ← 顺序相反！ |
 | 查找子串位置 | `CHARINDEX(sub, s)` (SF) | `INSTR(s, sub)` ← 参数顺序相反！ |
 | 不区分大小写匹配 | `ILIKE` (SF) | `ILIKE` ✅ ClickZetta 也支持！ |
@@ -52,7 +52,7 @@ description: |
 | 事务 | `BEGIN; COMMIT; ROLLBACK;` | ❌ 不支持，用 MERGE 实现原子操作 |
 | MERGE 不匹配删除 | `WHEN NOT MATCHED BY SOURCE THEN DELETE` | ❌ 不支持，需两步：MERGE + DELETE |
 | Delta ZORDER | `OPTIMIZE t ZORDER BY (col)` | `OPTIMIZE t`（只做小文件合并，无 ZORDER） |
-| STRUCT 命名字段 | `STRUCT(1 AS id, 'Alice' AS name)` | ❌ 不支持，用 `STRUCT(1, 'Alice')` |
+| STRUCT 命名字段 | `STRUCT(1 AS id, 'Alice' AS name)` | `named_struct('id', 1, 'name', 'Alice')` ✅ |
 | SEQUENCE 对象 | `CREATE SEQUENCE seq` | ❌ 不支持，用 `IDENTITY(1)` 列替代 |
 | 数值类型 | `NUMBER(p,s)` (SF) | `DECIMAL(p,s)` |
 | 半结构化类型 | `VARIANT` (SF) | `JSON` |
@@ -72,7 +72,7 @@ description: |
 | WHERE 中可以 | 不适用 | `WHERE dt = '2024-01-01'` ✅ WHERE 中字符串可隐式比较 |
 | 索引语法关键字 | `USING BLOOM_FILTER` | `BLOOMFILTER`（无 USING）；向量/倒排建表内联时用 `USING VECTOR` / `USING INVERTED` |
 | DROP INDEX | `DROP INDEX idx ON table` | `DROP INDEX idx`（无 ON table） |
-| TRUNCATE IF EXISTS | `TRUNCATE TABLE IF EXISTS t` | `TRUNCATE TABLE t`（不支持 IF EXISTS） |
+| TRUNCATE IF EXISTS | `TRUNCATE TABLE IF EXISTS t` | `TRUNCATE TABLE IF EXISTS t` ✅ ClickZetta 也支持！ |
 | MERGE 多 MATCHED 顺序 | DELETE 可在 UPDATE 前 | UPDATE 必须在 DELETE 之前 |
 
 ---

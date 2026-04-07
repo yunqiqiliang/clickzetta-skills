@@ -189,15 +189,9 @@ LATERAL FLATTEN(input => e.skills) f;
 ### QUALIFY（窗口函数过滤）
 
 ```sql
--- Snowflake 支持 QUALIFY
+-- 两者都支持 QUALIFY
 SELECT * FROM orders
 QUALIFY ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY created_at DESC) = 1;
-
--- ClickZetta：不支持 QUALIFY，用子查询替代
-SELECT * FROM (
-    SELECT *, ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY created_at DESC) AS rn
-    FROM orders
-) t WHERE rn = 1;
 ```
 
 ### PIVOT / UNPIVOT
@@ -282,8 +276,9 @@ DATE_TRUNC('month', order_date)
 TO_DATE('2024-01-01')
 CURRENT_TIMESTAMP()
 
--- ClickZetta（兼容 Hive/Spark 风格）
-DATE_ADD(order_date, 7)           -- 或 order_date + INTERVAL 7 DAY
+-- ClickZetta（兼容 Hive/Spark 风格，同时也支持 Snowflake 风格）
+DATEADD(day, 7, order_date)       -- ✅ 与 Snowflake 相同语法也支持
+DATE_ADD(order_date, 7)           -- 或 Hive 风格
 DATEDIFF(end_date, start_date)    -- 注意参数顺序相反！
 DATE_TRUNC('month', order_date)   -- 相同
 TO_DATE('2024-01-01')             -- 相同

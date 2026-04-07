@@ -127,13 +127,11 @@ LATERAL VIEW EXPLODE(meta_map) m AS k, v;
 ### TABLESAMPLE
 
 ```sql
--- ✅ 按行数采样（只支持实体表，不支持子查询）
-SELECT * FROM orders TABLESAMPLE (100 ROWS);
+-- SYSTEM 模式：按百分比采样（文件级）
+SELECT * FROM orders TABLESAMPLE (10 PERCENT);
 
--- ⚠️ 按百分比采样语法不支持
--- SELECT * FROM orders TABLESAMPLE (10 PERCENT);  -- 报错
--- 替代：用 RAND() 过滤
-SELECT * FROM orders WHERE RAND() < 0.1;
+-- ROW 模式：按行数采样
+SELECT * FROM orders TABLESAMPLE (100 ROWS);
 ```
 
 ### SEQUENCE（生成序列）
@@ -143,10 +141,8 @@ SELECT * FROM orders WHERE RAND() < 0.1;
 SELECT SEQUENCE(1, 5);                -- [1,2,3,4,5]
 SELECT SEQUENCE(0, 10, 2);            -- [0,2,4,6,8,10]
 
--- 展开为行（替代 GENERATE_SERIES）
+-- 展开为行（ClickZetta 用 EXPLODE(SEQUENCE(...))，无 GENERATE_SERIES）
 SELECT EXPLODE(SEQUENCE(1, 5)) AS n;  -- 5行：1,2,3,4,5
-
--- ⚠️ GENERATE_SERIES 不支持，用 EXPLODE(SEQUENCE(...)) 替代
 ```
 
 ### EXPLODE 直接在 SELECT 中使用
@@ -186,7 +182,7 @@ WHERE EXISTS (SELECT 1 FROM orders WHERE orders.customer_id = customers.id)
 ```
 
 **与 Snowflake 差异：**
-- Snowflake `ILIKE`（不区分大小写 LIKE）→ ClickZetta 用 `LOWER(col) LIKE LOWER(pattern)` 替代
+- Snowflake `ILIKE`（不区分大小写 LIKE）→ ClickZetta `ILIKE` ✅ 同样支持
 - Snowflake `RLIKE` → ClickZetta 同样支持 `RLIKE` / `REGEXP`
 
 ---
@@ -312,11 +308,11 @@ ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING    -- 当前行到末尾
 ```
 
 **与 Snowflake 差异：**
-- Snowflake 支持 `QUALIFY` 直接过滤窗口函数结果；ClickZetta 不支持，用子查询替代：
+- ClickZetta 同样支持 `QUALIFY` 直接过滤窗口函数结果：
   ```sql
-  -- Snowflake
+  -- 两者都支持
   SELECT * FROM orders QUALIFY ROW_NUMBER() OVER (PARTITION BY cust ORDER BY dt DESC) = 1;
-  -- ClickZetta
+  -- 子查询写法也可以
   SELECT * FROM (
       SELECT *, ROW_NUMBER() OVER (PARTITION BY cust ORDER BY dt DESC) AS rn FROM orders
   ) t WHERE rn = 1;
