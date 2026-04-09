@@ -128,7 +128,12 @@ ALTER TABLE tname SET PROPERTIES ('data_lifecycle'='30');
 
 -- 关闭生命周期（永久保留）
 ALTER TABLE tname SET PROPERTIES ('data_lifecycle'='-1');
+
+-- 设置分区级别的生命周期（到期后自动回收该分区数据）
+ALTER TABLE tname PARTITION (dt='2024-01-01') SET PROPERTIES ('data_lifecycle'='30');
 ```
+
+> **分区级别支持**：`data_lifecycle` 和 `data_retention_days` 均支持在分区级别设置，可以对不同分区配置不同的保留策略。例如热数据分区保留 90 天 Time Travel，冷数据分区保留 1 天。
 
 ---
 

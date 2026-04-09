@@ -6,7 +6,8 @@ description: |
   SHOW GRANTS 权限查看、动态脱敏策略创建与绑定等完整安全治理工作流。
   当用户说"创建用户"、"添加用户"、"授权"、"GRANT"、"REVOKE"、"撤销权限"、
   "创建角色"、"角色管理"、"RBAC"、"权限管理"、"查看权限"、"数据脱敏"、
-  "动态脱敏"、"列级安全"、"敏感数据保护"、"用户权限"时触发。
+  "动态脱敏"、"列级安全"、"敏感数据保护"、"用户权限"、"网络策略"、
+  "IP 白名单"、"IP 黑名单"、"NETWORK POLICY"时触发。
 ---
 
 # ClickZetta 访问控制与数据安全
@@ -194,6 +195,38 @@ GRANT ROLE readonly_role TO USER bob;
 
 ---
 
+## 步骤 5：网络策略（IP 白名单/黑名单）
+
+通过网络策略控制对 Lakehouse 服务实例的 JDBC、SDK 及 Web 访问，支持白名单和黑名单模式。
+
+```sql
+-- 创建网络策略（白名单模式：仅允许指定 IP 访问）
+CREATE NETWORK POLICY office_only
+  ALLOWED_IP_LIST = ('10.0.0.0/8', '172.16.0.0/12')
+  COMMENT '仅允许办公网络访问';
+
+-- 创建网络策略（黑名单模式：阻止指定 IP）
+CREATE NETWORK POLICY block_external
+  BLOCKED_IP_LIST = ('203.0.113.0/24')
+  COMMENT '阻止外部 IP';
+
+-- 同时设置白名单和黑名单（Deny 优先）
+CREATE NETWORK POLICY mixed_policy
+  ALLOWED_IP_LIST = ('10.0.0.0/8')
+  BLOCKED_IP_LIST = ('10.0.1.100/32')
+  COMMENT '允许内网但阻止特定 IP';
+
+-- 查看网络策略
+SHOW NETWORK POLICIES;
+
+-- 删除网络策略
+DROP NETWORK POLICY IF EXISTS office_only;
+```
+
+> ⚠️ 网络策略遵循 **Deny 优先** 原则：同时出现在白名单和黑名单中的 IP 会被拒绝。
+
+---
+
 ## 参考文档
 
 - [访问控制概览](https://www.yunqi.tech/documents/access-control-general)
@@ -206,3 +239,4 @@ GRANT ROLE readonly_role TO USER bob;
 - [SHOW USERS](https://www.yunqi.tech/documents/SHOWUSERS)
 - [动态脱敏](https://www.yunqi.tech/documents/dynamic-mask)
 - [系统内置角色权限列表](https://www.yunqi.tech/documents/permissions-of-built-in-workspace-level-roles)
+- [网络策略](https://www.yunqi.tech/documents/network_policy)

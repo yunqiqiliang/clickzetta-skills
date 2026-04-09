@@ -8,7 +8,8 @@ description: |
   当用户说"创建Volume"、"挂载OSS"、"挂载S3"、"挂载COS"、"Volume管理"、
   "查询OSS文件"、"查询S3文件"、"上传文件到Volume"、"PUT文件"、"GET文件"、
   "从Volume导入数据"、"导出到Volume"、"COPY INTO VOLUME"、"SELECT FROM VOLUME"、
-  "User Volume"、"数据湖文件"时触发。
+  "User Volume"、"数据湖文件"、"数据导出"、"导出数据"、"导出CSV"、"导出Parquet"、
+  "COPY OVERWRITE INTO"时触发。
 ---
 
 # ClickZetta Volume 管理
@@ -145,27 +146,80 @@ REMOVE USER VOLUME FILE 'subdir/data.csv';
 
 ## 数据导入导出
 
+### 从 Volume 导入到表
+
 ```sql
--- 从 Volume 导入到表
+-- CSV 导入
 COPY INTO my_table
 FROM VOLUME my_oss_volume
 USING CSV
 OPTIONS('header' = 'true')
 SUBDIRECTORY 'data/';
 
--- 导出表到 Volume
+-- 指定文件导入
+COPY INTO my_table
+FROM VOLUME my_oss_volume
+USING PARQUET
+FILES('data_2024.parquet');
+
+-- 正则匹配文件导入
+COPY INTO my_table
+FROM VOLUME my_oss_volume
+USING PARQUET
+REGEXP '.*2024-0[1-6].parquet';
+
+-- 覆盖写入（清空表后导入）
+COPY OVERWRITE INTO my_table
+FROM VOLUME my_oss_volume
+USING CSV
+OPTIONS('header' = 'true');
+```
+
+### 导出表到 Volume
+
+```sql
+-- 导出整张表为 Parquet
 COPY INTO VOLUME my_oss_volume
 SUBDIRECTORY 'export/'
 FROM my_table
 USING PARQUET;
 
--- 导出查询结果
+-- 导出查询结果为 CSV
 COPY INTO VOLUME my_oss_volume
 SUBDIRECTORY 'export/2024/'
 FROM (SELECT * FROM orders WHERE year = 2024)
 USING CSV
 OPTIONS('header' = 'true');
+
+-- 导出为 JSON 格式
+COPY INTO VOLUME my_oss_volume
+SUBDIRECTORY 'export/json/'
+FROM (SELECT * FROM orders LIMIT 1000)
+USING JSON;
+
+-- 导出到 User Volume
+COPY INTO USER VOLUME
+SUBDIRECTORY 'my_export/'
+FROM my_table
+USING CSV
+OPTIONS('header' = 'true');
 ```
+
+### 导出到本地（GET 命令）
+
+```sql
+-- 从 Volume 下载文件到本地
+GET VOLUME my_oss_volume FILE 'export/data.csv' TO '/local/output/';
+
+-- 从 User Volume 下载
+GET USER VOLUME FILE 'my_export/data.csv' TO '/local/output/';
+```
+
+### 通过 Studio 导出
+
+在 Lakehouse Studio 中：
+- 执行 SQL 查询后，点击结果区域的「导出」按钮，可导出为 CSV 或 Excel 文件
+- 支持导出最多 10 万行查询结果
 
 ---
 

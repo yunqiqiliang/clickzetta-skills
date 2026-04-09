@@ -283,6 +283,44 @@ ALTER PIPE kafka_orders_pipe SET PIPE_EXECUTION_PAUSED = true;
 ALTER PIPE kafka_orders_pipe SET PIPE_EXECUTION_PAUSED = false;
 ```
 
+### 场景 E：参数化动态表（按分区刷新）
+
+通过 `SESSION_CONFIGS()` 函数定义参数化查询，在刷新时传入分区值控制全量或增量刷新范围：
+
+```sql
+-- 创建参数化动态表（使用 SESSION_CONFIGS 定义参数）
+CREATE OR REPLACE DYNAMIC TABLE dwd.orders_partitioned
+  REFRESH interval 30 MINUTE
+  VCLUSTER default_ap
+AS
+SELECT order_id, user_id, amount, status, created_at, DATE(created_at) AS dt
+FROM ods.orders
+WHERE dt = SESSION_CONFIGS('target_date', CAST(CURRENT_DATE() AS STRING));
+
+-- 手动触发刷新并传入参数
+REFRESH DYNAMIC TABLE dwd.orders_partitioned
+  WITH PROPERTIES ('target_date' = '2024-06-15');
+```
+
+> **适用场景**：传统按天/按小时全量 ETL 任务改造为增量任务时，用 SESSION_CONFIGS 替换调度变量（如 `${bizdate}`），实现参数化分区刷新。
+
+### 场景 F：动态表 DML 操作（手动修正数据）
+
+动态表默认不支持 DML，需先设置参数开启：
+
+```sql
+-- 开启动态表 DML 支持
+ALTER DYNAMIC TABLE dwd.orders_clean SET PROPERTIES ('cz.dynamic.table.enable.dml' = 'true');
+
+-- 手动插入补数据
+INSERT INTO dwd.orders_clean VALUES (999, 'manual_user', 100.00, 'COMPLETED', '2024-06-15 00:00:00', '2024-06-15');
+
+-- 手动删除错误数据
+DELETE FROM dwd.orders_clean WHERE order_id = 999;
+```
+
+> ⚠️ **注意**：对动态表执行 DML 后，下一次自动刷新会触发**全量刷新**（而非增量），可能耗时较长。仅在数据修正等特殊场景使用。
+
 ---
 
 ## 常见错误

@@ -11,7 +11,7 @@ description: |
 
 # ClickZetta External Catalog
 
-> ⚠️ 当前处于公开预览阶段。只有 `instance_admin` 角色可以创建和查询 External Catalog。
+> ⚠️ 创建 External Catalog 需要 `instance_admin` 角色。查询权限可通过 GRANT 授予其他用户。
 
 阅读 [references/external-catalog-ddl.md](references/external-catalog-ddl.md) 了解完整语法。
 

@@ -6,7 +6,8 @@ description: |
   包括 JDBC 连接字符串格式、SQLAlchemy URL 格式、驱动安装步骤。
   当用户说"连接 Superset"、"Tableau 连接 Lakehouse"、"Metabase"、"DBeaver"、
   "DataGrip"、"BI 工具"、"JDBC 连接"、"SQLAlchemy 连接"、"帆软"、"FineBI"、
-  "数据库客户端"、"可视化工具连接"、"BI 报表"时触发。
+  "数据库客户端"、"可视化工具连接"、"BI 报表"、"PowerBI"、"Navicat"、
+  "MySQL 协议连接"时触发。
 ---
 
 # ClickZetta BI 工具连接
@@ -21,7 +22,9 @@ description: |
 | Tableau | JDBC + .taco 插件 |
 | Metabase | 专用 .jar 驱动 |
 | DBeaver / DataGrip | JDBC |
-| 帆软 FineBI | JDBC |
+| 帆软 FineBI | JDBC 或 MySQL 协议 |
+| PowerBI | MySQL 协议 |
+| Navicat | MySQL 协议 |
 | Python / ORM | SQLAlchemy |
 
 ---
@@ -105,6 +108,49 @@ docker restart metabase
 
 ---
 
+## MySQL 协议连接（PowerBI / Navicat / 帆软）
+
+Lakehouse 支持通过 MySQL 协议连接，适用于不支持自定义 JDBC 驱动的工具。
+
+**前置准备：**
+1. 在管理中心为用户重置 MySQL 协议专用密码
+2. 为用户设置默认计算集群（`ALTER USER username SET DEFAULT_VCLUSTER = default_ap`）
+
+**用户名格式：** `<instance_name>.<workspace_name>.<username>`
+
+**连接参数：**
+- 主机：`<instance>.<region_id>.mysql.clickzetta.com`
+- 端口：`3306`
+- 用户名：`instance.workspace.username`（三段式拼接）
+- 密码：MySQL 协议专用密码（非 Lakehouse 登录密码）
+
+### PowerBI
+
+1. 获取数据 → MySQL 数据库
+2. 服务器：`instance.cn-shanghai-alicloud.mysql.clickzetta.com`
+3. 用户名：`instance.workspace.username`
+4. 密码：MySQL 协议专用密码
+5. 数据连接模式选择 DirectQuery
+
+### Navicat
+
+1. 新建连接 → MySQL
+2. 主机：`instance.cn-shanghai-alicloud.mysql.clickzetta.com`
+3. 端口：`3306`
+4. 用户名：`instance.workspace.username`
+5. 密码：MySQL 协议专用密码
+
+### 帆软 FineBI（MySQL 协议方式）
+
+1. 管理系统 → 数据连接 → 新建数据连接 → MySQL
+2. URL：`jdbc:mysql://instance.cn-shanghai-alicloud.mysql.clickzetta.com:3306/workspace`
+3. 用户名：`instance.workspace.username`
+4. 密码：MySQL 协议专用密码
+
+> ⚠️ MySQL 协议连接有部分 SQL 语法限制，详见 [使用MySQL协议连接](https://www.yunqi.tech/documents/use-mysql-client)
+
+---
+
 ## 常用地域代码
 
 | 地域 | region_id |
@@ -125,3 +171,5 @@ docker restart metabase
 | DBeaver 驱动加载失败 | 确认 JAR 包版本与 Lakehouse 版本匹配 |
 | 连接超时 | 检查网络，确认 instance/region_id 正确 |
 | 无权限查询 | 确认用户已被 `CREATE USER` 添加到工作空间，且有 `USE VCLUSTER` 权限 |
+| MySQL 协议连接失败 | 确认用户名为三段式格式（instance.workspace.username），密码为 MySQL 协议专用密码 |
+| PowerBI DirectQuery 报错 | 确认已设置用户默认计算集群（`ALTER USER ... SET DEFAULT_VCLUSTER`） |

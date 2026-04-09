@@ -123,6 +123,42 @@ SHOW DYNAMIC TABLE REFRESH HISTORY <name> LIMIT 20;
 - 刷新失败不影响表的可查询性（返回上次成功版本的数据）
 - 非简单加列/减列的 `CREATE OR REPLACE` 会触发一次全量刷新
 
+## 参数化动态表（SESSION_CONFIGS）
+
+通过 `SESSION_CONFIGS()` 函数定义参数化查询，在刷新时传入分区值控制刷新范围：
+
+```sql
+-- 创建参数化动态表
+CREATE OR REPLACE DYNAMIC TABLE dwd.orders_partitioned
+  REFRESH interval 30 MINUTE
+  VCLUSTER default_ap
+AS
+SELECT order_id, user_id, amount, dt
+FROM ods.orders
+WHERE dt = SESSION_CONFIGS('target_date', CAST(CURRENT_DATE() AS STRING));
+
+-- 手动触发刷新并传入参数
+REFRESH DYNAMIC TABLE dwd.orders_partitioned
+  WITH PROPERTIES ('target_date' = '2024-06-15');
+```
+
+适用场景：传统按天全量 ETL 改造为增量任务，用 SESSION_CONFIGS 替换调度变量。
+
+## 动态表 DML 操作
+
+动态表默认不支持 DML，需先开启参数：
+
+```sql
+-- 开启 DML 支持
+ALTER DYNAMIC TABLE <name> SET PROPERTIES ('cz.dynamic.table.enable.dml' = 'true');
+
+-- 支持的 DML 操作
+INSERT INTO <name> VALUES (...);
+DELETE FROM <name> WHERE ...;
+```
+
+> ⚠️ 执行 DML 后，下一次自动刷新会触发**全量刷新**（而非增量），仅在数据修正等特殊场景使用。
+
 ## 参考文档
 
 - [CREATE DYNAMIC TABLE](https://www.yunqi.tech/documents/create-dynamic-table)
@@ -133,3 +169,5 @@ SHOW DYNAMIC TABLE REFRESH HISTORY <name> LIMIT 20;
 - [动态表简介](https://www.yunqi.tech/documents/dynamic_table_summary)
 - [查看动态表刷新模式](https://www.yunqi.tech/documents/dynamic-table-incre)
 - [传统离线任务转增量实践](https://www.yunqi.tech/documents/transformt-dt)
+- [动态表支持参数化定义](https://www.yunqi.tech/documents/dynamicTable-parmaters)
+- [动态表支持DML语句修改](https://www.yunqi.tech/documents/dynamicTable-dml)

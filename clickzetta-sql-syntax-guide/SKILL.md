@@ -34,7 +34,7 @@ description: |
 
 | 场景 | Snowflake / Spark | ClickZetta 正确写法 |
 |---|---|---|
-| 替换建表 | `CREATE OR REPLACE TABLE t` | `CREATE TABLE IF NOT EXISTS t` |
+| 替换普通表 | `CREATE OR REPLACE TABLE t` | `CREATE TABLE IF NOT EXISTS t`（普通表不支持 OR REPLACE；Dynamic Table / View / MV 支持） |
 | 动态表刷新 | `TARGET_LAG = '1 minutes'` | `REFRESH INTERVAL 1 MINUTE VCLUSTER vc` |
 | Stream 元数据 | `METADATA$ACTION` | `__change_type` |
 | 对象存储导入 | `COPY INTO t FROM @stage` | `COPY INTO t FROM VOLUME v USING CSV` |
@@ -44,7 +44,7 @@ description: |
 | 列表聚合 | `LISTAGG(col, ',')` (SF) | `GROUP_CONCAT(col SEPARATOR ',')` |
 | 条件函数 | `IFF(cond, a, b)` (SF) | `IF(cond, a, b)` |
 | 日期加减 | `DATEADD(day, 7, dt)` (SF) | `DATEADD(day, 7, dt)` ✅ 也支持；或用 `DATE_ADD(dt, 7)` |
-| DATEDIFF 顺序 | `DATEDIFF(day, start, end)` (SF) | `DATEDIFF(end, start)` ← 顺序相反！ |
+| DATEDIFF 顺序 | `DATEDIFF(day, start, end)` (SF) | `DATEDIFF(day, start, end)` ✅ 三参数形式也支持；或 `DATEDIFF(end, start)` 两参数形式（返回天数） |
 | 查找子串位置 | `CHARINDEX(sub, s)` (SF) | `INSTR(s, sub)` ← 参数顺序相反！ |
 | 不区分大小写匹配 | `ILIKE` (SF) | `ILIKE` ✅ ClickZetta 也支持！ |
 | 差集运算 | `MINUS` (Oracle/DB2) | `MINUS` ✅ ClickZetta 也支持！ |
@@ -74,6 +74,7 @@ description: |
 | DROP INDEX | `DROP INDEX idx ON table` | `DROP INDEX idx`（无 ON table） |
 | TRUNCATE IF EXISTS | `TRUNCATE TABLE IF EXISTS t` | `TRUNCATE TABLE IF EXISTS t` ✅ ClickZetta 也支持！ |
 | MERGE 多 MATCHED 顺序 | DELETE 可在 UPDATE 前 | UPDATE 必须在 DELETE 之前 |
+| 同义词 | `CREATE SYNONYM s FOR t` (Oracle) | `CREATE SYNONYM s FOR TABLE t` ✅ 支持 TABLE/VOLUME/FUNCTION 三种对象 |
 
 ---
 
@@ -139,6 +140,13 @@ CREATE EXTERNAL VOLUME my_vol
 -- Share（跨实例数据共享）
 CREATE SHARE my_share;
 GRANT SELECT, READ METADATA ON TABLE public.orders TO SHARE my_share;
+
+-- Synonym（同义词，为对象创建别名）
+CREATE SYNONYM my_orders FOR TABLE other_schema.orders;
+CREATE SYNONYM my_vol FOR VOLUME other_schema.data_volume;
+CREATE SYNONYM my_func FOR FUNCTION other_schema.udf_name;
+DROP SYNONYM my_orders FOR TABLE;
+SHOW SYNONYMS;
 
 -- Time Travel
 SELECT * FROM orders TIMESTAMP AS OF '2024-01-01 00:00:00';

@@ -296,6 +296,34 @@ SHOW TABLES HISTORY;                           -- 含已删除的表
 
 ---
 
+## SYNONYM（同义词）操作
+
+```sql
+-- 为表创建同义词（跨 Schema 访问）
+CREATE SYNONYM my_orders FOR TABLE other_schema.orders;
+
+-- 为 Volume 创建同义词
+CREATE SYNONYM my_vol FOR VOLUME other_schema.data_volume;
+
+-- 为函数创建同义词
+CREATE SYNONYM my_func FOR FUNCTION other_schema.udf_name;
+
+-- 查看同义词
+SHOW SYNONYMS;
+SHOW SYNONYMS IN my_schema;
+SHOW SYNONYMS LIKE 'my_%';
+
+-- 删除同义词（需指定对象类型）
+DROP SYNONYM my_orders FOR TABLE;
+DROP SYNONYM my_vol FOR VOLUME;
+DROP SYNONYM my_func FOR FUNCTION;
+```
+
+> 同义词支持的对象类型：TABLE（含普通表、Table Stream、物化视图、动态表）、VOLUME、FUNCTION。
+> 使用场景：跨 Schema 访问、数据一致性维护、应用层解耦。
+
+---
+
 ## Time Travel & 数据恢复
 
 ```sql

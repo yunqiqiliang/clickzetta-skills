@@ -1,12 +1,15 @@
 ---
 name: clickzetta-monitoring
 description: |
-  监控和分析 ClickZetta Lakehouse 作业运行状态、性能和资源使用情况。
+  监控和分析 ClickZetta Lakehouse 作业运行状态、性能和资源使用情况，
+  以及通过 INFORMATION_SCHEMA 查询元数据（表、列、Schema、工作空间等）。
   覆盖 SHOW JOBS 实时查看作业、information_schema.job_history 历史分析、
-  慢查询识别、集群负载分析、缓存命中率统计、失败作业排查等完整监控工作流。
+  慢查询识别、集群负载分析、缓存命中率统计、失败作业排查、
+  information_schema.tables/columns/schemas 元数据查询等完整监控与治理工作流。
   当用户说"查看作业"、"作业历史"、"SHOW JOBS"、"慢查询"、"查询性能"、
   "集群负载"、"作业失败"、"查询失败"、"监控"、"job history"、
-  "information_schema"、"缓存命中率"、"查询耗时"、"作业状态"时触发。
+  "information_schema"、"缓存命中率"、"查询耗时"、"作业状态"、
+  "元数据查询"、"查看所有表"、"表大小"、"列信息"、"资产盘点"时触发。
 ---
 
 # ClickZetta 作业监控与分析
@@ -123,3 +126,73 @@ jdbc:clickzetta://instance.region.api.clickzetta.com/workspace?query_tag=my_app
 | 作业长时间"集群启动中" | VCluster 冷启动慢，联系技术支持 |
 | 大量失败作业 | 查看 job_id 详情，检查 SQL 语法或权限 |
 | 平均执行时间突然变长 | 检查数据量变化、索引状态、缓存命中率 |
+
+---
+
+## INFORMATION_SCHEMA 元数据查询
+
+除了 `job_history`，INFORMATION_SCHEMA 还提供丰富的元数据视图，用于资产盘点和治理。
+
+### 空间级视图（当前工作空间）
+
+```sql
+-- 查看当前空间下所有 Schema
+SELECT * FROM information_schema.schemas;
+
+-- 查看所有表及其大小、行数
+SELECT table_schema, table_name, table_type, row_count, total_bytes
+FROM information_schema.tables
+ORDER BY total_bytes DESC;
+
+-- 查看所有列的详细信息（字段名、类型、是否可空、注释）
+SELECT table_schema, table_name, column_name, data_type, is_nullable, comment
+FROM information_schema.columns
+WHERE table_schema = 'public';
+
+-- 查看排序列推荐
+SELECT * FROM information_schema.sortkey_candidates;
+```
+
+### 实例级视图（需要 instance_admin 权限，使用 sys 库）
+
+```sql
+-- 查看实例下所有工作空间
+SELECT * FROM sys.information_schema.workspaces;
+
+-- 查看实例下所有 Schema（跨工作空间）
+SELECT * FROM sys.information_schema.schemas;
+
+-- 查看实例用量（费用分析）
+SELECT * FROM sys.information_schema.instance_usage
+WHERE start_time >= CURRENT_DATE() - INTERVAL 7 DAY;
+```
+
+### 常用元数据分析场景
+
+```sql
+-- 找出最大的 10 张表
+SELECT table_schema, table_name, row_count, total_bytes
+FROM information_schema.tables
+WHERE table_type = 'TABLE'
+ORDER BY total_bytes DESC
+LIMIT 10;
+
+-- 找出没有注释的表
+SELECT table_schema, table_name
+FROM information_schema.tables
+WHERE comment IS NULL OR comment = '';
+
+-- 找出没有注释的字段
+SELECT table_schema, table_name, column_name
+FROM information_schema.columns
+WHERE (comment IS NULL OR comment = '')
+  AND table_schema NOT IN ('information_schema');
+
+-- 统计各 Schema 下的表数量和总存储
+SELECT table_schema,
+       COUNT(*) AS table_count,
+       SUM(total_bytes) AS total_storage
+FROM information_schema.tables
+GROUP BY table_schema
+ORDER BY total_storage DESC;
+```

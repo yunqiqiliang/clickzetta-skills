@@ -156,7 +156,8 @@ ADD_MONTHS(dt, n)               -- 加n个月
 MONTHS_BETWEEN(dt1, dt2)        -- 月份差
 
 -- 日期差
-DATEDIFF(end_dt, start_dt)      -- ⚠️ end在前！返回天数差
+DATEDIFF(end_dt, start_dt)      -- 两参数形式：返回天数差（end在前）
+DATEDIFF(unit, start_dt, end_dt) -- 三参数形式：指定单位（day/hour/month等），与 Snowflake 兼容
 TIMESTAMPDIFF(unit, dt1, dt2)   -- 指定单位的差值
 
 -- 截断
@@ -201,7 +202,7 @@ TO_UTC_TIMESTAMP(ts, tz)        -- 指定时区转 UTC
 
 **与 Snowflake 差异：**
 - Snowflake `DATEADD(day, n, dt)` → ClickZetta `DATEADD(day, n, dt)` ✅ 也支持；或用 `DATE_ADD(dt, n)` / `dt + INTERVAL n DAY`
-- Snowflake `DATEDIFF(day, start, end)` → ClickZetta `DATEDIFF(end, start)` ⚠️ 参数顺序相反！
+- Snowflake `DATEDIFF(day, start, end)` → ClickZetta `DATEDIFF(day, start, end)` ✅ 三参数形式也支持；或用 `DATEDIFF(end, start)` 两参数形式（返回天数）
 - Snowflake `DATE_TRUNC('day', dt)` → ClickZetta 相同
 - Snowflake `TO_DATE(s)` → ClickZetta 相同
 - Snowflake `CONVERT_TIMEZONE(from, to, ts)` → ClickZetta `FROM_UTC_TIMESTAMP` / `TO_UTC_TIMESTAMP`
