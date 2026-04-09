@@ -300,78 +300,109 @@
 
 <!-- ===== 4. 数据处理流水线 ===== -->
 <h2>4. 数据处理流水线（增量计算）</h2>
-<p class="desc">云器 Lakehouse 提供 Pipe（持续摄入）、Table Stream（CDC 变更捕获）、Dynamic Table（声明式增量刷新）和 Materialized View（定时全量刷新）四种增量处理机制，可级联构建多层 ETL 管道。</p>
+<p class="desc">云器 Lakehouse 流式数据处理（Streaming Data Pipeline）通过编排实时数据采集和增量数据处理任务，持续产出实时更新的结果数据。核心功能包括：实时数据加载（SDK Streaming API / Studio 数据集成 / Pipe）、增量数据处理（Dynamic Table 声明式增量刷新）、变化数据捕获（Table Stream / Volume Stream）、连续性调度（DDL 定义 / Studio 调度 / 流式 SQL 秒级微批）。Dynamic Table 建议使用 GP 集群（刷新时自动执行小文件合并，AP 集群不支持）。</p>
 <div class="diagram-container">
-<svg width="920" height="400" viewBox="0 0 920 400" xmlns="http://www.w3.org/2000/svg">
+<svg width="920" height="540" viewBox="0 0 920 540" xmlns="http://www.w3.org/2000/svg">
   <defs><marker id="arr4" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#1976d2"/></marker></defs>
 
-  <!-- 外部数据源 -->
-  <rect x="10" y="20" width="130" height="140" rx="8" fill="#eceff1" stroke="#b0bec5" stroke-width="2"/>
-  <text x="75" y="42" text-anchor="middle" font-size="11" font-weight="bold" fill="#37474f">外部数据源</text>
-  <rect x="20" y="52" width="110" height="22" rx="4" fill="#78909c"/><text x="75" y="68" text-anchor="middle" font-size="9" fill="white">Kafka Topic</text>
-  <rect x="20" y="80" width="110" height="22" rx="4" fill="#78909c"/><text x="75" y="96" text-anchor="middle" font-size="9" fill="white">OSS / S3 文件</text>
-  <rect x="20" y="108" width="110" height="22" rx="4" fill="#78909c"/><text x="75" y="124" text-anchor="middle" font-size="9" fill="white">MySQL CDC</text>
+  <!-- ===== 第一行：实时数据加载 → ODS 层 ===== -->
+  <text x="75" y="16" text-anchor="middle" font-size="11" font-weight="bold" fill="#37474f">实时数据加载</text>
 
-  <!-- Pipe -->
-  <line x1="140" y1="70" x2="168" y2="70" stroke="#1976d2" stroke-width="2" marker-end="url(#arr4)"/>
-  <rect x="170" y="20" width="150" height="100" rx="8" fill="#e8f5e9" stroke="#a5d6a7" stroke-width="2"/>
-  <text x="245" y="42" text-anchor="middle" font-size="11" font-weight="bold" fill="#2e7d32">Pipe（持续摄入）</text>
-  <text x="245" y="60" text-anchor="middle" font-size="9" fill="#546e7a">READ_KAFKA 函数</text>
-  <text x="245" y="76" text-anchor="middle" font-size="9" fill="#546e7a">COPY INTO FROM VOLUME</text>
-  <text x="245" y="92" text-anchor="middle" font-size="9" fill="#546e7a">自动调度 · GP 集群</text>
-  <text x="245" y="108" text-anchor="middle" font-size="9" fill="#546e7a">load_history 去重</text>
+  <rect x="10" y="24" width="130" height="130" rx="8" fill="#eceff1" stroke="#b0bec5" stroke-width="2"/>
+  <text x="75" y="44" text-anchor="middle" font-size="10" font-weight="bold" fill="#546e7a">外部数据源</text>
+  <rect x="18" y="54" width="114" height="20" rx="4" fill="#78909c"/><text x="75" y="69" text-anchor="middle" font-size="8" fill="white">Kafka Topic</text>
+  <rect x="18" y="78" width="114" height="20" rx="4" fill="#78909c"/><text x="75" y="93" text-anchor="middle" font-size="8" fill="white">OSS / S3 / COS 文件</text>
+  <rect x="18" y="102" width="114" height="20" rx="4" fill="#78909c"/><text x="75" y="117" text-anchor="middle" font-size="8" fill="white">MySQL / PG CDC</text>
+  <rect x="18" y="126" width="114" height="20" rx="4" fill="#78909c"/><text x="75" y="141" text-anchor="middle" font-size="8" fill="white">SDK Streaming API</text>
+
+  <line x1="140" y1="80" x2="168" y2="80" stroke="#1976d2" stroke-width="2" marker-end="url(#arr4)"/>
+
+  <!-- 加载方式 -->
+  <rect x="170" y="24" width="160" height="130" rx="8" fill="#e8f5e9" stroke="#a5d6a7" stroke-width="2"/>
+  <text x="250" y="44" text-anchor="middle" font-size="10" font-weight="bold" fill="#2e7d32">加载方式</text>
+  <rect x="178" y="54" width="144" height="20" rx="4" fill="#388e3c"/><text x="250" y="69" text-anchor="middle" font-size="8" fill="white">Kafka Pipe（READ_KAFKA）</text>
+  <rect x="178" y="78" width="144" height="20" rx="4" fill="#388e3c"/><text x="250" y="93" text-anchor="middle" font-size="8" fill="white">OSS Pipe（LIST_PURGE）</text>
+  <rect x="178" y="102" width="144" height="20" rx="4" fill="#388e3c"/><text x="250" y="117" text-anchor="middle" font-size="8" fill="white">Studio 数据集成（CDC）</text>
+  <rect x="178" y="126" width="144" height="20" rx="4" fill="#388e3c"/><text x="250" y="141" text-anchor="middle" font-size="8" fill="white">Java/Python SDK 写入</text>
+
+  <line x1="330" y1="80" x2="358" y2="80" stroke="#1976d2" stroke-width="2" marker-end="url(#arr4)"/>
 
   <!-- ODS 层 -->
-  <line x1="320" y1="70" x2="358" y2="70" stroke="#1976d2" stroke-width="2" marker-end="url(#arr4)"/>
-  <rect x="360" y="20" width="140" height="140" rx="8" fill="#e3f2fd" stroke="#90caf9" stroke-width="2"/>
-  <text x="430" y="42" text-anchor="middle" font-size="11" font-weight="bold" fill="#1565c0">ODS / Bronze 层</text>
-  <text x="430" y="62" text-anchor="middle" font-size="9" fill="#546e7a">原始数据落表</text>
-  <rect x="372" y="72" width="116" height="20" rx="4" fill="#1976d2"/><text x="430" y="87" text-anchor="middle" font-size="9" fill="white">INSERT 新行</text>
-  <rect x="372" y="98" width="116" height="20" rx="4" fill="#1976d2"/><text x="430" y="113" text-anchor="middle" font-size="9" fill="white">UPDATE 修改</text>
-  <rect x="372" y="124" width="116" height="20" rx="4" fill="#1976d2"/><text x="430" y="139" text-anchor="middle" font-size="9" fill="white">DELETE 删除</text>
+  <rect x="360" y="24" width="150" height="130" rx="8" fill="#e3f2fd" stroke="#90caf9" stroke-width="2"/>
+  <text x="435" y="44" text-anchor="middle" font-size="10" font-weight="bold" fill="#1565c0">ODS / Bronze 层</text>
+  <text x="435" y="62" text-anchor="middle" font-size="8" fill="#546e7a">原始数据落表（秒级可见）</text>
+  <rect x="370" y="70" width="130" height="18" rx="3" fill="#1976d2"/><text x="435" y="84" text-anchor="middle" font-size="8" fill="white">INSERT（追加写入）</text>
+  <rect x="370" y="92" width="130" height="18" rx="3" fill="#1976d2"/><text x="435" y="106" text-anchor="middle" font-size="8" fill="white">UPDATE / DELETE（CDC）</text>
+  <rect x="370" y="114" width="130" height="18" rx="3" fill="#1976d2"/><text x="435" y="128" text-anchor="middle" font-size="8" fill="white">Snapshot 版本管理</text>
+  <text x="435" y="148" text-anchor="middle" font-size="8" fill="#546e7a">每次 DML 生成新版本</text>
 
-  <!-- Table Stream -->
-  <line x1="430" y1="160" x2="430" y2="188" stroke="#1976d2" stroke-width="2" marker-end="url(#arr4)"/>
-  <rect x="340" y="190" width="180" height="80" rx="8" fill="#f3e5f5" stroke="#ce93d8" stroke-width="2"/>
-  <text x="430" y="212" text-anchor="middle" font-size="11" font-weight="bold" fill="#6a1b9a">Table Stream</text>
-  <text x="430" y="230" text-anchor="middle" font-size="9" fill="#546e7a">__change_type 元数据</text>
-  <text x="430" y="246" text-anchor="middle" font-size="9" fill="#546e7a">INSERT / UPDATE_AFTER / DELETE</text>
-  <text x="430" y="262" text-anchor="middle" font-size="9" fill="#546e7a">DML 消费推进 offset</text>
+  <!-- ===== 第二行：变化数据捕获 ===== -->
+  <line x1="435" y1="154" x2="435" y2="178" stroke="#1976d2" stroke-width="2" marker-end="url(#arr4)"/>
 
-  <!-- DWD Dynamic Table -->
-  <line x1="520" y1="230" x2="558" y2="120" stroke="#1976d2" stroke-width="2" marker-end="url(#arr4)"/>
-  <rect x="560" y="50" width="170" height="100" rx="8" fill="#e8f5e9" stroke="#a5d6a7" stroke-width="2"/>
-  <text x="645" y="72" text-anchor="middle" font-size="11" font-weight="bold" fill="#2e7d32">Dynamic Table</text>
-  <text x="645" y="90" text-anchor="middle" font-size="9" fill="#546e7a">DWD / Silver 层清洗</text>
-  <rect x="572" y="100" width="146" height="18" rx="3" fill="#2e7d32"/><text x="645" y="114" text-anchor="middle" font-size="9" fill="white">REFRESH interval N MINUTE</text>
-  <text x="645" y="138" text-anchor="middle" font-size="9" fill="#546e7a">自动增量计算 · 级联刷新</text>
+  <rect x="10" y="180" width="240" height="110" rx="8" fill="#f3e5f5" stroke="#ce93d8" stroke-width="2"/>
+  <text x="130" y="200" text-anchor="middle" font-size="10" font-weight="bold" fill="#6a1b9a">Table Stream（CDC 变更捕获）</text>
+  <text x="130" y="218" text-anchor="middle" font-size="8" fill="#546e7a">记录表的 DML 变更（INSERT/UPDATE/DELETE）</text>
+  <rect x="18" y="226" width="224" height="16" rx="3" fill="#7b1fa2"/><text x="130" y="238" text-anchor="middle" font-size="8" fill="white">__change_type: INSERT | UPDATE_BEFORE | UPDATE_AFTER | DELETE</text>
+  <text x="130" y="256" text-anchor="middle" font-size="8" fill="#546e7a">STANDARD 模式（全变更）/ APPEND_ONLY 模式（仅 INSERT）</text>
+  <text x="130" y="272" text-anchor="middle" font-size="8" fill="#546e7a">DML 消费自动推进 offset · 需先开启 change_tracking</text>
+  <text x="130" y="284" text-anchor="middle" font-size="8" fill="#546e7a">支持在 Table / DT / MV / Kafka 外部表上创建</text>
 
-  <!-- DWS Dynamic Table -->
-  <line x1="730" y1="100" x2="768" y2="100" stroke="#1976d2" stroke-width="2" marker-end="url(#arr4)"/>
-  <rect x="770" y="50" width="140" height="100" rx="8" fill="#e8f5e9" stroke="#a5d6a7" stroke-width="2"/>
-  <text x="840" y="72" text-anchor="middle" font-size="11" font-weight="bold" fill="#2e7d32">Dynamic Table</text>
-  <text x="840" y="90" text-anchor="middle" font-size="9" fill="#546e7a">DWS / Gold 层聚合</text>
-  <rect x="782" y="100" width="116" height="18" rx="3" fill="#2e7d32"/><text x="840" y="114" text-anchor="middle" font-size="9" fill="white">REFRESH interval 5 MIN</text>
-  <text x="840" y="138" text-anchor="middle" font-size="9" fill="#546e7a">BI 报表直接查询</text>
+  <rect x="270" y="180" width="240" height="110" rx="8" fill="#fce4ec" stroke="#f48fb1" stroke-width="2"/>
+  <text x="390" y="200" text-anchor="middle" font-size="10" font-weight="bold" fill="#880e4f">Volume Stream（文件变更捕获）</text>
+  <text x="390" y="218" text-anchor="middle" font-size="8" fill="#546e7a">监听 External Volume 的文件新增/删除</text>
+  <rect x="278" y="226" width="224" height="16" rx="3" fill="#c2185b"/><text x="390" y="238" text-anchor="middle" font-size="8" fill="white">基于 Directory Table + 云消息队列（MNS/SQS）</text>
+  <text x="390" y="256" text-anchor="middle" font-size="8" fill="#546e7a">典型场景：日志分析 / IoT 数据 / 图片元数据提取</text>
+  <text x="390" y="272" text-anchor="middle" font-size="8" fill="#546e7a">增量驱动：只处理新增/变更文件，避免全量扫描</text>
+  <text x="390" y="284" text-anchor="middle" font-size="8" fill="#546e7a">DML 消费推进 offset（与 Table Stream 一致）</text>
+
+  <!-- ===== 第三行：增量数据处理 ===== -->
+  <line x1="130" y1="290" x2="130" y2="310" stroke="#1976d2" stroke-width="1.5" marker-end="url(#arr4)"/>
+  <line x1="390" y1="290" x2="390" y2="310" stroke="#1976d2" stroke-width="1.5" marker-end="url(#arr4)"/>
+
+  <rect x="10" y="314" width="500" height="120" rx="8" fill="#e8f5e9" stroke="#a5d6a7" stroke-width="2"/>
+  <text x="260" y="334" text-anchor="middle" font-size="11" font-weight="bold" fill="#2e7d32">Dynamic Table（声明式增量刷新）</text>
+  <text x="260" y="352" text-anchor="middle" font-size="9" fill="#546e7a">通过 SQL 查询定义数据加工逻辑，系统自动读取 Base Table 增量变化，CBO 智能选择全量/增量/部分增量计算</text>
+  <rect x="20" y="360" width="150" height="30" rx="5" fill="#2e7d32"/>
+  <text x="95" y="372" text-anchor="middle" font-size="8" fill="white" font-weight="bold">DWD / Silver 层</text>
+  <text x="95" y="384" text-anchor="middle" font-size="7" fill="#c8e6c9">清洗 · 过滤 · 类型转换</text>
+  <rect x="180" y="360" width="150" height="30" rx="5" fill="#2e7d32"/>
+  <text x="255" y="372" text-anchor="middle" font-size="8" fill="white" font-weight="bold">DWS / Gold 层</text>
+  <text x="255" y="384" text-anchor="middle" font-size="7" fill="#c8e6c9">聚合 · 宽表 · 维度建模</text>
+  <rect x="340" y="360" width="160" height="30" rx="5" fill="#2e7d32"/>
+  <text x="420" y="372" text-anchor="middle" font-size="8" fill="white" font-weight="bold">多层级联（自动依赖）</text>
+  <text x="420" y="384" text-anchor="middle" font-size="7" fill="#c8e6c9">ODS→DWD→DWS 自动编排</text>
+  <text x="260" y="410" text-anchor="middle" font-size="8" fill="#546e7a">REFRESH interval N MINUTE VCLUSTER name · 建议 GP 集群（自动小文件合并，AP 不支持）· 最小间隔 1 分钟</text>
+  <text x="260" y="426" text-anchor="middle" font-size="8" fill="#546e7a">SESSION_CONFIGS() 参数化定义 · DML 支持（需开启参数，触发全量刷新）· Time Travel / UNDROP 支持</text>
 
   <!-- Materialized View -->
-  <rect x="560" y="190" width="170" height="80" rx="8" fill="#e0f7fa" stroke="#80deea" stroke-width="2"/>
-  <text x="645" y="212" text-anchor="middle" font-size="11" font-weight="bold" fill="#006064">Materialized View</text>
-  <text x="645" y="230" text-anchor="middle" font-size="9" fill="#546e7a">REFRESH AUTO EVERY '1 hours'</text>
-  <text x="645" y="246" text-anchor="middle" font-size="9" fill="#546e7a">预计算聚合 · 查询加速</text>
-  <text x="645" y="262" text-anchor="middle" font-size="9" fill="#546e7a">手动或定时全量刷新</text>
-  <line x1="500" y1="100" x2="558" y2="230" stroke="#1976d2" stroke-width="1.5" marker-end="url(#arr4)"/>
+  <rect x="530" y="314" width="190" height="120" rx="8" fill="#e0f7fa" stroke="#80deea" stroke-width="2"/>
+  <text x="625" y="334" text-anchor="middle" font-size="10" font-weight="bold" fill="#006064">Materialized View</text>
+  <text x="625" y="352" text-anchor="middle" font-size="8" fill="#546e7a">预计算并存储查询结果</text>
+  <rect x="538" y="360" width="174" height="16" rx="3" fill="#00838f"/><text x="625" y="372" text-anchor="middle" font-size="8" fill="white">REFRESH AUTO EVERY '1 hours'</text>
+  <text x="625" y="392" text-anchor="middle" font-size="8" fill="#546e7a">手动或定时全量刷新</text>
+  <text x="625" y="406" text-anchor="middle" font-size="8" fill="#546e7a">支持查询改写（Preview）</text>
+  <text x="625" y="420" text-anchor="middle" font-size="8" fill="#546e7a">基表变更后自动失效</text>
 
   <!-- MERGE INTO -->
-  <rect x="560" y="290" width="170" height="60" rx="8" fill="#fff3e0" stroke="#ffcc80" stroke-width="2"/>
-  <text x="645" y="312" text-anchor="middle" font-size="11" font-weight="bold" fill="#e65100">MERGE INTO</text>
-  <text x="645" y="330" text-anchor="middle" font-size="9" fill="#546e7a">UPDATE 在 DELETE 之前</text>
-  <text x="645" y="344" text-anchor="middle" font-size="9" fill="#546e7a">幂等消费 Stream 数据</text>
-  <line x1="520" y1="260" x2="558" y2="310" stroke="#1976d2" stroke-width="1.5" marker-end="url(#arr4)"/>
+  <rect x="740" y="314" width="170" height="120" rx="8" fill="#fff3e0" stroke="#ffcc80" stroke-width="2"/>
+  <text x="825" y="334" text-anchor="middle" font-size="10" font-weight="bold" fill="#e65100">消费方式</text>
+  <rect x="748" y="346" width="154" height="16" rx="3" fill="#f57c00"/><text x="825" y="358" text-anchor="middle" font-size="8" fill="white">Dynamic Table 自动消费</text>
+  <rect x="748" y="368" width="154" height="16" rx="3" fill="#f57c00"/><text x="825" y="380" text-anchor="middle" font-size="8" fill="white">MERGE INTO 幂等消费</text>
+  <rect x="748" y="390" width="154" height="16" rx="3" fill="#f57c00"/><text x="825" y="402" text-anchor="middle" font-size="8" fill="white">INSERT INTO 全量消费</text>
+  <text x="825" y="424" text-anchor="middle" font-size="8" fill="#546e7a">UPDATE 必须在 DELETE 之前</text>
 
-  <!-- 底部说明 -->
-  <rect x="10" y="370" width="900" height="24" rx="4" fill="#eceff1"/>
-  <text x="460" y="387" text-anchor="middle" font-size="10" fill="#546e7a">SESSION_CONFIGS() 参数化动态表 · 动态表 DML（需开启参数，触发全量刷新）· SHOW DYNAMIC TABLE REFRESH HISTORY 排查刷新失败</text>
+  <!-- ===== 底部：调度方式对比 ===== -->
+  <rect x="10" y="450" width="900" height="80" rx="8" fill="#eceff1" stroke="#b0bec5"/>
+  <text x="460" y="470" text-anchor="middle" font-size="11" font-weight="bold" fill="#37474f">三种调度方式</text>
+  <rect x="25" y="480" width="270" height="40" rx="6" fill="#546e7a"/>
+  <text x="160" y="496" text-anchor="middle" font-size="9" fill="white" font-weight="bold">DDL 定义调度</text>
+  <text x="160" y="512" text-anchor="middle" font-size="8" fill="#cfd8dc">REFRESH interval N MINUTE · 简单易用 · 最小 1 分钟</text>
+  <rect x="310" y="480" width="290" height="40" rx="6" fill="#546e7a"/>
+  <text x="455" y="496" text-anchor="middle" font-size="9" fill="white" font-weight="bold">Studio 调度（推荐生产环境）</text>
+  <text x="455" y="512" text-anchor="middle" font-size="8" fill="#cfd8dc">可视化配置 · 上下游依赖 · 失败告警 · 运维监控</text>
+  <rect x="615" y="480" width="280" height="40" rx="6" fill="#546e7a"/>
+  <text x="755" y="496" text-anchor="middle" font-size="9" fill="white" font-weight="bold">流式 SQL（秒级微批）</text>
+  <text x="755" y="512" text-anchor="middle" font-size="8" fill="#cfd8dc">固化物理执行计划 · 最小 1 秒 · AP 集群 · 常驻进程</text>
 </svg>
 </div>
 

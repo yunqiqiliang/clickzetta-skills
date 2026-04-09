@@ -300,78 +300,109 @@
 
 <!-- ===== 4. Data Processing Pipeline (Incremental Computation) ===== -->
 <h2>4. Data Processing Pipeline (Incremental Computation)</h2>
-<p class="desc">ClickZetta Lakehouse provides four incremental processing mechanisms: Pipe (continuous ingestion), Table Stream (CDC change capture), Dynamic Table (declarative incremental refresh), and Materialized View (scheduled full refresh), which can be cascaded to build multi-layer ETL pipelines.</p>
+<p class="desc">ClickZetta Lakehouse Streaming Data Pipeline orchestrates realtime data ingestion and incremental processing tasks to continuously produce up-to-date result data. Core capabilities: Realtime Data Loading (SDK Streaming API / Studio Data Integration / Pipe), Incremental Data Processing (Dynamic Table declarative incremental refresh), Change Data Capture (Table Stream / Volume Stream), Continuous Scheduling (DDL-defined / Studio scheduling / Streaming SQL second-level micro-batch). Dynamic Tables should use GP clusters (auto small-file compaction during refresh; AP clusters do not support this).</p>
 <div class="diagram-container">
-<svg width="920" height="400" viewBox="0 0 920 400" xmlns="http://www.w3.org/2000/svg">
+<svg width="920" height="540" viewBox="0 0 920 540" xmlns="http://www.w3.org/2000/svg">
   <defs><marker id="arr4" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#1976d2"/></marker></defs>
 
-  <!-- External Data Sources -->
-  <rect x="10" y="20" width="130" height="140" rx="8" fill="#eceff1" stroke="#b0bec5" stroke-width="2"/>
-  <text x="75" y="42" text-anchor="middle" font-size="11" font-weight="bold" fill="#37474f">External Data Sources</text>
-  <rect x="20" y="52" width="110" height="22" rx="4" fill="#78909c"/><text x="75" y="68" text-anchor="middle" font-size="9" fill="white">Kafka Topic</text>
-  <rect x="20" y="80" width="110" height="22" rx="4" fill="#78909c"/><text x="75" y="96" text-anchor="middle" font-size="9" fill="white">OSS / S3 Files</text>
-  <rect x="20" y="108" width="110" height="22" rx="4" fill="#78909c"/><text x="75" y="124" text-anchor="middle" font-size="9" fill="white">MySQL CDC</text>
+  <!-- ===== Row 1: Realtime Data Loading → ODS Layer ===== -->
+  <text x="75" y="16" text-anchor="middle" font-size="11" font-weight="bold" fill="#37474f">Realtime Data Loading</text>
 
-  <!-- Pipe -->
-  <line x1="140" y1="70" x2="168" y2="70" stroke="#1976d2" stroke-width="2" marker-end="url(#arr4)"/>
-  <rect x="170" y="20" width="150" height="100" rx="8" fill="#e8f5e9" stroke="#a5d6a7" stroke-width="2"/>
-  <text x="245" y="42" text-anchor="middle" font-size="11" font-weight="bold" fill="#2e7d32">Pipe (Continuous Ingestion)</text>
-  <text x="245" y="60" text-anchor="middle" font-size="9" fill="#546e7a">READ_KAFKA Function</text>
-  <text x="245" y="76" text-anchor="middle" font-size="9" fill="#546e7a">COPY INTO FROM VOLUME</text>
-  <text x="245" y="92" text-anchor="middle" font-size="9" fill="#546e7a">Auto Scheduling · GP Cluster</text>
-  <text x="245" y="108" text-anchor="middle" font-size="9" fill="#546e7a">load_history Dedup</text>
+  <rect x="10" y="24" width="130" height="130" rx="8" fill="#eceff1" stroke="#b0bec5" stroke-width="2"/>
+  <text x="75" y="44" text-anchor="middle" font-size="10" font-weight="bold" fill="#546e7a">External Data Sources</text>
+  <rect x="18" y="54" width="114" height="20" rx="4" fill="#78909c"/><text x="75" y="69" text-anchor="middle" font-size="8" fill="white">Kafka Topic</text>
+  <rect x="18" y="78" width="114" height="20" rx="4" fill="#78909c"/><text x="75" y="93" text-anchor="middle" font-size="8" fill="white">OSS / S3 / COS Files</text>
+  <rect x="18" y="102" width="114" height="20" rx="4" fill="#78909c"/><text x="75" y="117" text-anchor="middle" font-size="8" fill="white">MySQL / PG CDC</text>
+  <rect x="18" y="126" width="114" height="20" rx="4" fill="#78909c"/><text x="75" y="141" text-anchor="middle" font-size="8" fill="white">SDK Streaming API</text>
+
+  <line x1="140" y1="80" x2="168" y2="80" stroke="#1976d2" stroke-width="2" marker-end="url(#arr4)"/>
+
+  <!-- Loading Methods -->
+  <rect x="170" y="24" width="160" height="130" rx="8" fill="#e8f5e9" stroke="#a5d6a7" stroke-width="2"/>
+  <text x="250" y="44" text-anchor="middle" font-size="10" font-weight="bold" fill="#2e7d32">Loading Methods</text>
+  <rect x="178" y="54" width="144" height="20" rx="4" fill="#388e3c"/><text x="250" y="69" text-anchor="middle" font-size="8" fill="white">Kafka Pipe (READ_KAFKA)</text>
+  <rect x="178" y="78" width="144" height="20" rx="4" fill="#388e3c"/><text x="250" y="93" text-anchor="middle" font-size="8" fill="white">OSS Pipe (LIST_PURGE)</text>
+  <rect x="178" y="102" width="144" height="20" rx="4" fill="#388e3c"/><text x="250" y="117" text-anchor="middle" font-size="8" fill="white">Studio Data Integration (CDC)</text>
+  <rect x="178" y="126" width="144" height="20" rx="4" fill="#388e3c"/><text x="250" y="141" text-anchor="middle" font-size="8" fill="white">Java/Python SDK Write</text>
+
+  <line x1="330" y1="80" x2="358" y2="80" stroke="#1976d2" stroke-width="2" marker-end="url(#arr4)"/>
 
   <!-- ODS Layer -->
-  <line x1="320" y1="70" x2="358" y2="70" stroke="#1976d2" stroke-width="2" marker-end="url(#arr4)"/>
-  <rect x="360" y="20" width="140" height="140" rx="8" fill="#e3f2fd" stroke="#90caf9" stroke-width="2"/>
-  <text x="430" y="42" text-anchor="middle" font-size="11" font-weight="bold" fill="#1565c0">ODS / Bronze Layer</text>
-  <text x="430" y="62" text-anchor="middle" font-size="9" fill="#546e7a">Raw Data Landing</text>
-  <rect x="372" y="72" width="116" height="20" rx="4" fill="#1976d2"/><text x="430" y="87" text-anchor="middle" font-size="9" fill="white">INSERT New Rows</text>
-  <rect x="372" y="98" width="116" height="20" rx="4" fill="#1976d2"/><text x="430" y="113" text-anchor="middle" font-size="9" fill="white">UPDATE Modifications</text>
-  <rect x="372" y="124" width="116" height="20" rx="4" fill="#1976d2"/><text x="430" y="139" text-anchor="middle" font-size="9" fill="white">DELETE Removals</text>
+  <rect x="360" y="24" width="150" height="130" rx="8" fill="#e3f2fd" stroke="#90caf9" stroke-width="2"/>
+  <text x="435" y="44" text-anchor="middle" font-size="10" font-weight="bold" fill="#1565c0">ODS / Bronze Layer</text>
+  <text x="435" y="62" text-anchor="middle" font-size="8" fill="#546e7a">Raw Data Landing (second-level visibility)</text>
+  <rect x="370" y="70" width="130" height="18" rx="3" fill="#1976d2"/><text x="435" y="84" text-anchor="middle" font-size="8" fill="white">INSERT (Append Write)</text>
+  <rect x="370" y="92" width="130" height="18" rx="3" fill="#1976d2"/><text x="435" y="106" text-anchor="middle" font-size="8" fill="white">UPDATE / DELETE (CDC)</text>
+  <rect x="370" y="114" width="130" height="18" rx="3" fill="#1976d2"/><text x="435" y="128" text-anchor="middle" font-size="8" fill="white">Snapshot Version Management</text>
+  <text x="435" y="148" text-anchor="middle" font-size="8" fill="#546e7a">Each DML generates new version</text>
 
-  <!-- Table Stream -->
-  <line x1="430" y1="160" x2="430" y2="188" stroke="#1976d2" stroke-width="2" marker-end="url(#arr4)"/>
-  <rect x="340" y="190" width="180" height="80" rx="8" fill="#f3e5f5" stroke="#ce93d8" stroke-width="2"/>
-  <text x="430" y="212" text-anchor="middle" font-size="11" font-weight="bold" fill="#6a1b9a">Table Stream</text>
-  <text x="430" y="230" text-anchor="middle" font-size="9" fill="#546e7a">__change_type Metadata</text>
-  <text x="430" y="246" text-anchor="middle" font-size="9" fill="#546e7a">INSERT / UPDATE_AFTER / DELETE</text>
-  <text x="430" y="262" text-anchor="middle" font-size="9" fill="#546e7a">DML Consumption Advances Offset</text>
+  <!-- ===== Row 2: Change Data Capture ===== -->
+  <line x1="435" y1="154" x2="435" y2="178" stroke="#1976d2" stroke-width="2" marker-end="url(#arr4)"/>
 
-  <!-- DWD Dynamic Table -->
-  <line x1="520" y1="230" x2="558" y2="120" stroke="#1976d2" stroke-width="2" marker-end="url(#arr4)"/>
-  <rect x="560" y="50" width="170" height="100" rx="8" fill="#e8f5e9" stroke="#a5d6a7" stroke-width="2"/>
-  <text x="645" y="72" text-anchor="middle" font-size="11" font-weight="bold" fill="#2e7d32">Dynamic Table</text>
-  <text x="645" y="90" text-anchor="middle" font-size="9" fill="#546e7a">DWD / Silver Layer Cleansing</text>
-  <rect x="572" y="100" width="146" height="18" rx="3" fill="#2e7d32"/><text x="645" y="114" text-anchor="middle" font-size="9" fill="white">REFRESH interval N MINUTE</text>
-  <text x="645" y="138" text-anchor="middle" font-size="9" fill="#546e7a">Auto Incremental Compute · Cascade Refresh</text>
+  <rect x="10" y="180" width="240" height="110" rx="8" fill="#f3e5f5" stroke="#ce93d8" stroke-width="2"/>
+  <text x="130" y="200" text-anchor="middle" font-size="10" font-weight="bold" fill="#6a1b9a">Table Stream (CDC Change Capture)</text>
+  <text x="130" y="218" text-anchor="middle" font-size="8" fill="#546e7a">Records DML changes (INSERT/UPDATE/DELETE)</text>
+  <rect x="18" y="226" width="224" height="16" rx="3" fill="#7b1fa2"/><text x="130" y="238" text-anchor="middle" font-size="8" fill="white">__change_type: INSERT | UPDATE_BEFORE | UPDATE_AFTER | DELETE</text>
+  <text x="130" y="256" text-anchor="middle" font-size="8" fill="#546e7a">STANDARD mode (all changes) / APPEND_ONLY mode (INSERT only)</text>
+  <text x="130" y="272" text-anchor="middle" font-size="8" fill="#546e7a">DML consumption auto-advances offset · Requires change_tracking</text>
+  <text x="130" y="284" text-anchor="middle" font-size="8" fill="#546e7a">Supports Table / DT / MV / Kafka External Table</text>
 
-  <!-- DWS Dynamic Table -->
-  <line x1="730" y1="100" x2="768" y2="100" stroke="#1976d2" stroke-width="2" marker-end="url(#arr4)"/>
-  <rect x="770" y="50" width="140" height="100" rx="8" fill="#e8f5e9" stroke="#a5d6a7" stroke-width="2"/>
-  <text x="840" y="72" text-anchor="middle" font-size="11" font-weight="bold" fill="#2e7d32">Dynamic Table</text>
-  <text x="840" y="90" text-anchor="middle" font-size="9" fill="#546e7a">DWS / Gold Layer Aggregation</text>
-  <rect x="782" y="100" width="116" height="18" rx="3" fill="#2e7d32"/><text x="840" y="114" text-anchor="middle" font-size="9" fill="white">REFRESH interval 5 MIN</text>
-  <text x="840" y="138" text-anchor="middle" font-size="9" fill="#546e7a">BI Reports Direct Query</text>
+  <rect x="270" y="180" width="240" height="110" rx="8" fill="#fce4ec" stroke="#f48fb1" stroke-width="2"/>
+  <text x="390" y="200" text-anchor="middle" font-size="10" font-weight="bold" fill="#880e4f">Volume Stream (File Change Capture)</text>
+  <text x="390" y="218" text-anchor="middle" font-size="8" fill="#546e7a">Monitors External Volume file add/delete events</text>
+  <rect x="278" y="226" width="224" height="16" rx="3" fill="#c2185b"/><text x="390" y="238" text-anchor="middle" font-size="8" fill="white">Based on Directory Table + Cloud MQ (MNS/SQS)</text>
+  <text x="390" y="256" text-anchor="middle" font-size="8" fill="#546e7a">Typical: Log analysis / IoT data / Image metadata extraction</text>
+  <text x="390" y="272" text-anchor="middle" font-size="8" fill="#546e7a">Incremental driver: process only new/changed files</text>
+  <text x="390" y="284" text-anchor="middle" font-size="8" fill="#546e7a">DML consumption advances offset (same as Table Stream)</text>
+
+  <!-- ===== Row 3: Incremental Data Processing ===== -->
+  <line x1="130" y1="290" x2="130" y2="310" stroke="#1976d2" stroke-width="1.5" marker-end="url(#arr4)"/>
+  <line x1="390" y1="290" x2="390" y2="310" stroke="#1976d2" stroke-width="1.5" marker-end="url(#arr4)"/>
+
+  <rect x="10" y="314" width="500" height="120" rx="8" fill="#e8f5e9" stroke="#a5d6a7" stroke-width="2"/>
+  <text x="260" y="334" text-anchor="middle" font-size="11" font-weight="bold" fill="#2e7d32">Dynamic Table (Declarative Incremental Refresh)</text>
+  <text x="260" y="352" text-anchor="middle" font-size="9" fill="#546e7a">Define processing logic via SQL; system auto-reads Base Table deltas; CBO intelligently selects full/incremental/partial compute</text>
+  <rect x="20" y="360" width="150" height="30" rx="5" fill="#2e7d32"/>
+  <text x="95" y="372" text-anchor="middle" font-size="8" fill="white" font-weight="bold">DWD / Silver Layer</text>
+  <text x="95" y="384" text-anchor="middle" font-size="7" fill="#c8e6c9">Cleansing · Filtering · Type Conversion</text>
+  <rect x="180" y="360" width="150" height="30" rx="5" fill="#2e7d32"/>
+  <text x="255" y="372" text-anchor="middle" font-size="8" fill="white" font-weight="bold">DWS / Gold Layer</text>
+  <text x="255" y="384" text-anchor="middle" font-size="7" fill="#c8e6c9">Aggregation · Wide Table · Dim Modeling</text>
+  <rect x="340" y="360" width="160" height="30" rx="5" fill="#2e7d32"/>
+  <text x="420" y="372" text-anchor="middle" font-size="8" fill="white" font-weight="bold">Multi-Layer Cascade (Auto Deps)</text>
+  <text x="420" y="384" text-anchor="middle" font-size="7" fill="#c8e6c9">ODS→DWD→DWS Auto Orchestration</text>
+  <text x="260" y="410" text-anchor="middle" font-size="8" fill="#546e7a">REFRESH interval N MINUTE VCLUSTER name · Use GP cluster (auto small-file compaction; AP unsupported) · Min interval 1 min</text>
+  <text x="260" y="426" text-anchor="middle" font-size="8" fill="#546e7a">SESSION_CONFIGS() parameterized · DML support (requires param, triggers full refresh) · Time Travel / UNDROP supported</text>
 
   <!-- Materialized View -->
-  <rect x="560" y="190" width="170" height="80" rx="8" fill="#e0f7fa" stroke="#80deea" stroke-width="2"/>
-  <text x="645" y="212" text-anchor="middle" font-size="11" font-weight="bold" fill="#006064">Materialized View</text>
-  <text x="645" y="230" text-anchor="middle" font-size="9" fill="#546e7a">REFRESH AUTO EVERY '1 hours'</text>
-  <text x="645" y="246" text-anchor="middle" font-size="9" fill="#546e7a">Pre-computed Aggregation · Query Acceleration</text>
-  <text x="645" y="262" text-anchor="middle" font-size="9" fill="#546e7a">Manual or Scheduled Full Refresh</text>
-  <line x1="500" y1="100" x2="558" y2="230" stroke="#1976d2" stroke-width="1.5" marker-end="url(#arr4)"/>
+  <rect x="530" y="314" width="190" height="120" rx="8" fill="#e0f7fa" stroke="#80deea" stroke-width="2"/>
+  <text x="625" y="334" text-anchor="middle" font-size="10" font-weight="bold" fill="#006064">Materialized View</text>
+  <text x="625" y="352" text-anchor="middle" font-size="8" fill="#546e7a">Pre-compute and store query results</text>
+  <rect x="538" y="360" width="174" height="16" rx="3" fill="#00838f"/><text x="625" y="372" text-anchor="middle" font-size="8" fill="white">REFRESH AUTO EVERY '1 hours'</text>
+  <text x="625" y="392" text-anchor="middle" font-size="8" fill="#546e7a">Manual or scheduled full refresh</text>
+  <text x="625" y="406" text-anchor="middle" font-size="8" fill="#546e7a">Query rewrite support (Preview)</text>
+  <text x="625" y="420" text-anchor="middle" font-size="8" fill="#546e7a">Auto-invalidated on base table change</text>
 
-  <!-- MERGE INTO -->
-  <rect x="560" y="290" width="170" height="60" rx="8" fill="#fff3e0" stroke="#ffcc80" stroke-width="2"/>
-  <text x="645" y="312" text-anchor="middle" font-size="11" font-weight="bold" fill="#e65100">MERGE INTO</text>
-  <text x="645" y="330" text-anchor="middle" font-size="9" fill="#546e7a">UPDATE Must Precede DELETE</text>
-  <text x="645" y="344" text-anchor="middle" font-size="9" fill="#546e7a">Idempotent Stream Data Consumption</text>
-  <line x1="520" y1="260" x2="558" y2="310" stroke="#1976d2" stroke-width="1.5" marker-end="url(#arr4)"/>
+  <!-- Consumption Methods -->
+  <rect x="740" y="314" width="170" height="120" rx="8" fill="#fff3e0" stroke="#ffcc80" stroke-width="2"/>
+  <text x="825" y="334" text-anchor="middle" font-size="10" font-weight="bold" fill="#e65100">Consumption Methods</text>
+  <rect x="748" y="346" width="154" height="16" rx="3" fill="#f57c00"/><text x="825" y="358" text-anchor="middle" font-size="8" fill="white">Dynamic Table Auto Consumption</text>
+  <rect x="748" y="368" width="154" height="16" rx="3" fill="#f57c00"/><text x="825" y="380" text-anchor="middle" font-size="8" fill="white">MERGE INTO Idempotent Consumption</text>
+  <rect x="748" y="390" width="154" height="16" rx="3" fill="#f57c00"/><text x="825" y="402" text-anchor="middle" font-size="8" fill="white">INSERT INTO Full Consumption</text>
+  <text x="825" y="424" text-anchor="middle" font-size="8" fill="#546e7a">UPDATE must precede DELETE</text>
 
-  <!-- Bottom Description -->
-  <rect x="10" y="370" width="900" height="24" rx="4" fill="#eceff1"/>
-  <text x="460" y="387" text-anchor="middle" font-size="10" fill="#546e7a">SESSION_CONFIGS() Parameterized Dynamic Tables · Dynamic Table DML (requires parameter, triggers full refresh) · SHOW DYNAMIC TABLE REFRESH HISTORY for troubleshooting</text>
+  <!-- ===== Bottom: Three Scheduling Methods ===== -->
+  <rect x="10" y="450" width="900" height="80" rx="8" fill="#eceff1" stroke="#b0bec5"/>
+  <text x="460" y="470" text-anchor="middle" font-size="11" font-weight="bold" fill="#37474f">Three Scheduling Methods</text>
+  <rect x="25" y="480" width="270" height="40" rx="6" fill="#546e7a"/>
+  <text x="160" y="496" text-anchor="middle" font-size="9" fill="white" font-weight="bold">DDL-Defined Scheduling</text>
+  <text x="160" y="512" text-anchor="middle" font-size="8" fill="#cfd8dc">REFRESH interval N MINUTE · Simple · Min 1 minute</text>
+  <rect x="310" y="480" width="290" height="40" rx="6" fill="#546e7a"/>
+  <text x="455" y="496" text-anchor="middle" font-size="9" fill="white" font-weight="bold">Studio Scheduling (Recommended for Prod)</text>
+  <text x="455" y="512" text-anchor="middle" font-size="8" fill="#cfd8dc">Visual Config · Upstream/Downstream Deps · Failure Alerts · Ops Monitoring</text>
+  <rect x="615" y="480" width="280" height="40" rx="6" fill="#546e7a"/>
+  <text x="755" y="496" text-anchor="middle" font-size="9" fill="white" font-weight="bold">Streaming SQL (Second-Level Micro-Batch)</text>
+  <text x="755" y="512" text-anchor="middle" font-size="8" fill="#cfd8dc">Materialized Execution Plan · Min 1 sec · AP Cluster · Resident Process</text>
 </svg>
 </div>
 
