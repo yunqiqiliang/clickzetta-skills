@@ -11,7 +11,8 @@ description: |
   "OBJECT_CONSTRUCT"、"ARRAY_SIZE"、"APPLY CHANGES INTO"、"ZORDER"、
   "WHEN NOT MATCHED BY SOURCE"、"WITH RECURSIVE"、"BEGIN TRANSACTION"、
   "隐式转换"、"implicit cast"、"日期写入"、"BOOLEAN 写入"、"UNION"、"INTERSECT"、
-  "EXCEPT"、"集合运算"、"STRUCT AS"、"named_struct"时触发。
+  "EXCEPT"、"集合运算"、"STRUCT AS"、"named_struct"、"JSON"、"半结构化"、
+  "大宽表"、"VARIANT"、"JSON 字段"、"灵活 Schema"、"客户案例"时触发。
 ---
 
 # ClickZetta Lakehouse SQL 语法指南
@@ -28,6 +29,7 @@ description: |
 | [函数参考](references/functions-reference.md) | 数值/字符串/日期/条件/聚合/向量函数完整列表 |
 | [vs Snowflake](references/vs-snowflake.md) | 差异汇总（含隐式转换规则表） |
 | [vs Spark SQL](references/vs-spark.md) | 数据类型映射 + 语法差异汇总 |
+| [JSON 实战指南](references/json-use-cases.md) | JSON 字段代替大宽表客户案例与最佳实践 |
 
 ---
 
