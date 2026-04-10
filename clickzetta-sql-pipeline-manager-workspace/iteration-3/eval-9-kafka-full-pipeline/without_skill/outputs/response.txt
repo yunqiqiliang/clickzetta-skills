@@ -1,0 +1,314 @@
+# 完整数据管道设计：Kafka → ODS → DWD → DWS
+
+## 架构概览
+
+```
+Kafka (user_events)
+       ↓
+  ODS 原始层（实时接入，保留原始数据）
+       ↓
+  DWD 清洗层（每 2 分钟刷新，过滤无效 event_type）
+       ↓
+  DWS 聚合层（跟随 DWD，按天统计 page UV/PV）
+```
+
+---
+
+## 第一步：创建 Kafka 数据源连接
+
+```sql
+-- 创建 Kafka 外部数据源
+CREATE EXTERNAL DATA SOURCE kafka_prod
+  TYPE = KAFKA
+  PROPERTIES (
+    'bootstrap.servers' = 'kafka.prod.com:9092',
+    'security.protocol' = 'PLAINTEXT'
+  );
+```
+
+---
+
+## 第二步：ODS 层 — 原始数据接入
+
+### 2.1 创建 Kafka 外部表（读取原始流）
+
+```sql
+-- ODS 外部表：直接映射 Kafka topic
+CREATE EXTERNAL TABLE ods_kafka_user_events (
+  user_id     STRING,
+  event_type  STRING,
+  page_id     STRING,
+  ts          BIGINT   -- 毫秒时间戳
+)
+USING KAFKA
+OPTIONS (
+  'data_source'    = 'kafka_prod',
+  'topic'          = 'user_events',
+  'starting_offsets' = 'latest',
+  'value.format'   = 'json'
+);
+```
+
+### 2.2 创建 ODS 落地表（持久化原始数据）
+
+```sql
+-- ODS 落地表：按天分区，保留原始字段 + 入库时间
+CREATE TABLE IF NOT EXISTS ods.user_events_raw (
+  user_id     STRING,
+  event_type  STRING,
+  page_id     STRING,
+  ts          BIGINT,
+  event_date  DATE,        -- 由 ts 转换的日期分区键
+  ingest_time TIMESTAMP    -- 数据入库时间
+)
+PARTITIONED BY (event_date)
+STORED AS PARQUET;
+```
+
+### 2.3 ODS 写入任务（持续写入原始数据）
+
+```sql
+-- 将 Kafka 数据持续写入 ODS 落地表
+INSERT INTO ods.user_events_raw
+SELECT
+  user_id,
+  event_type,
+  page_id,
+  ts,
+  CAST(FROM_UNIXTIME(ts / 1000, 'yyyy-MM-dd') AS DATE) AS event_date,
+  CURRENT_TIMESTAMP() AS ingest_time
+FROM ods_kafka_user_events;
+```
+
+---
+
+## 第三步：DWD 层 — 数据清洗（每 2 分钟刷新）
+
+### 3.1 定义有效 event_type 枚举
+
+有效的用户行为事件类型（根据业务定义，示例如下）：
+- `page_view`
+- `click`
+- `scroll`
+- `search`
+- `add_to_cart`
+- `purchase`
+
+### 3.2 创建 DWD 清洗表
+
+```sql
+-- DWD 清洗表：过滤无效事件，标准化字段
+CREATE TABLE IF NOT EXISTS dwd.user_events_clean (
+  user_id     STRING,
+  event_type  STRING,
+  page_id     STRING,
+  ts          BIGINT,
+  event_time  TIMESTAMP,   -- 标准化时间戳
+  event_date  DATE,        -- 日期分区键
+  etl_time    TIMESTAMP    -- ETL 处理时间
+)
+PARTITIONED BY (event_date)
+STORED AS PARQUET;
+```
+
+### 3.3 DWD 刷新任务（每 2 分钟调度）
+
+```sql
+-- DWD 增量刷新：从 ODS 读取最近数据，过滤无效 event_type
+-- 调度频率：每 2 分钟执行一次
+INSERT OVERWRITE dwd.user_events_clean
+PARTITION (event_date)
+SELECT
+  user_id,
+  event_type,
+  page_id,
+  ts,
+  FROM_UNIXTIME(ts / 1000)                              AS event_time,
+  CAST(FROM_UNIXTIME(ts / 1000, 'yyyy-MM-dd') AS DATE)  AS event_date,
+  CURRENT_TIMESTAMP()                                    AS etl_time
+FROM ods.user_events_raw
+WHERE
+  -- 过滤无效 event_type：NULL、空字符串、非法值
+  event_type IS NOT NULL
+  AND TRIM(event_type) != ''
+  AND event_type IN (
+    'page_view',
+    'click',
+    'scroll',
+    'search',
+    'add_to_cart',
+    'purchase'
+  )
+  -- 过滤无效 user_id
+  AND user_id IS NOT NULL
+  AND TRIM(user_id) != ''
+  -- 过滤无效 page_id
+  AND page_id IS NOT NULL
+  AND TRIM(page_id) != ''
+  -- 过滤时间戳异常（ts 为毫秒，过滤明显错误的时间）
+  AND ts > 0
+  AND FROM_UNIXTIME(ts / 1000) >= '2020-01-01'
+  AND FROM_UNIXTIME(ts / 1000) <= CURRENT_TIMESTAMP();
+```
+
+---
+
+## 第四步：DWS 层 — 聚合统计（跟随 DWD，每 2 分钟刷新）
+
+### 4.1 创建 DWS 聚合表
+
+```sql
+-- DWS 聚合表：按天统计每个 page 的 UV 和 PV
+CREATE TABLE IF NOT EXISTS dws.page_uv_pv_daily (
+  event_date  DATE,
+  page_id     STRING,
+  pv          BIGINT,    -- Page View：总访问次数（含重复用户）
+  uv          BIGINT,    -- Unique Visitor：去重用户数
+  etl_time    TIMESTAMP  -- ETL 处理时间
+)
+PARTITIONED BY (event_date)
+STORED AS PARQUET;
+```
+
+### 4.2 DWS 刷新任务（跟随 DWD，每 2 分钟调度）
+
+```sql
+-- DWS 增量刷新：从 DWD 聚合，按天统计 page UV/PV
+-- 调度频率：每 2 分钟执行一次（与 DWD 刷新任务串行，DWD 完成后触发）
+INSERT OVERWRITE dws.page_uv_pv_daily
+PARTITION (event_date)
+SELECT
+  event_date,
+  page_id,
+  COUNT(*)                   AS pv,   -- PV：所有 page_view 事件计数
+  COUNT(DISTINCT user_id)    AS uv,   -- UV：去重用户数
+  CURRENT_TIMESTAMP()        AS etl_time
+FROM dwd.user_events_clean
+WHERE
+  event_type = 'page_view'   -- PV/UV 统计仅基于页面浏览事件
+GROUP BY
+  event_date,
+  page_id;
+```
+
+---
+
+## 第五步：调度配置
+
+### 5.1 任务依赖关系
+
+```
+[每 2 分钟]
+Task-1: ODS 写入（持续流式，或每 2 分钟批量）
+    ↓ 完成后触发
+Task-2: DWD 刷新（过滤清洗）
+    ↓ 完成后触发
+Task-3: DWS 刷新（聚合统计）
+```
+
+### 5.2 ClickZetta 调度 SQL（使用 SCHEDULE 语法）
+
+```sql
+-- 创建 DWD 刷新任务，每 2 分钟执行
+CREATE TASK dwd_user_events_refresh
+  SCHEDULE = 'EVERY 2 MINUTES'
+  COMMENT = 'DWD 清洗层每 2 分钟刷新'
+AS
+INSERT OVERWRITE dwd.user_events_clean
+PARTITION (event_date)
+SELECT
+  user_id,
+  event_type,
+  page_id,
+  ts,
+  FROM_UNIXTIME(ts / 1000)                              AS event_time,
+  CAST(FROM_UNIXTIME(ts / 1000, 'yyyy-MM-dd') AS DATE)  AS event_date,
+  CURRENT_TIMESTAMP()                                    AS etl_time
+FROM ods.user_events_raw
+WHERE
+  event_type IS NOT NULL
+  AND TRIM(event_type) != ''
+  AND event_type IN ('page_view','click','scroll','search','add_to_cart','purchase')
+  AND user_id IS NOT NULL AND TRIM(user_id) != ''
+  AND page_id IS NOT NULL AND TRIM(page_id) != ''
+  AND ts > 0
+  AND FROM_UNIXTIME(ts / 1000) >= '2020-01-01'
+  AND FROM_UNIXTIME(ts / 1000) <= CURRENT_TIMESTAMP();
+
+-- 创建 DWS 刷新任务，跟随 DWD（在 DWD 任务完成后触发）
+CREATE TASK dws_page_uv_pv_refresh
+  AFTER dwd_user_events_refresh   -- 依赖 DWD 任务完成
+  COMMENT = 'DWS 聚合层跟随 DWD 刷新'
+AS
+INSERT OVERWRITE dws.page_uv_pv_daily
+PARTITION (event_date)
+SELECT
+  event_date,
+  page_id,
+  COUNT(*)                   AS pv,
+  COUNT(DISTINCT user_id)    AS uv,
+  CURRENT_TIMESTAMP()        AS etl_time
+FROM dwd.user_events_clean
+WHERE event_type = 'page_view'
+GROUP BY event_date, page_id;
+```
+
+---
+
+## 第六步：数据验证查询
+
+```sql
+-- 验证 ODS 数据量
+SELECT event_date, COUNT(*) AS raw_count
+FROM ods.user_events_raw
+GROUP BY event_date
+ORDER BY event_date DESC
+LIMIT 7;
+
+-- 验证 DWD 清洗效果（对比 ODS 与 DWD 数据量）
+SELECT
+  o.event_date,
+  o.raw_count,
+  d.clean_count,
+  ROUND(d.clean_count * 100.0 / o.raw_count, 2) AS pass_rate_pct
+FROM (
+  SELECT event_date, COUNT(*) AS raw_count
+  FROM ods.user_events_raw GROUP BY event_date
+) o
+JOIN (
+  SELECT event_date, COUNT(*) AS clean_count
+  FROM dwd.user_events_clean GROUP BY event_date
+) d ON o.event_date = d.event_date
+ORDER BY o.event_date DESC
+LIMIT 7;
+
+-- 查看 DWS 聚合结果（最近 7 天 Top 10 页面）
+SELECT
+  event_date,
+  page_id,
+  pv,
+  uv,
+  ROUND(pv * 1.0 / uv, 2) AS avg_pv_per_user
+FROM dws.page_uv_pv_daily
+WHERE event_date >= CURRENT_DATE() - INTERVAL 7 DAYS
+ORDER BY event_date DESC, pv DESC
+LIMIT 10;
+```
+
+---
+
+## 设计说明
+
+| 层级 | 表名 | 刷新策略 | 分区 | 说明 |
+|------|------|----------|------|------|
+| ODS  | ods.user_events_raw | 持续写入 / 每 2 分钟 | event_date | 保留原始数据，不做任何清洗 |
+| DWD  | dwd.user_events_clean | 每 2 分钟 OVERWRITE | event_date | 过滤无效 event_type、空值、异常时间戳 |
+| DWS  | dws.page_uv_pv_daily | 跟随 DWD（串行触发） | event_date | 按天聚合 page UV/PV，仅统计 page_view 事件 |
+
+### 关键设计决策
+
+1. ODS 使用 INSERT INTO（追加），保留完整历史原始数据，便于数据回溯和问题排查。
+2. DWD 和 DWS 使用 INSERT OVERWRITE PARTITION，每次刷新覆盖当天分区，保证幂等性，避免重复计算。
+3. UV 使用 COUNT(DISTINCT user_id) 实现精确去重；如数据量极大，可改用 APPROX_COUNT_DISTINCT 提升性能。
+4. DWS 的 PV/UV 仅统计 event_type = 'page_view' 的事件，其他事件类型（click、scroll 等）不计入页面访问量。
+5. DWD 任务与 DWS 任务通过 AFTER 依赖串行执行，确保 DWS 始终基于最新的 DWD 数据聚合。

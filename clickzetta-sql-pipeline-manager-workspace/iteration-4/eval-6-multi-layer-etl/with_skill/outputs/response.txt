@@ -1,0 +1,191 @@
+三层 ETL 动态表设计方案：ODS → DWD → DWS
+
+设计思路
+--------
+- ODS 层：原始数据落地表（普通表，由 Pipe 或外部写入）
+- DWD 层：清洗层动态表，TARGET_LAG = '1 minutes'，每分钟增量刷新
+- DWS 层：聚合层动态表，TARGET_LAG = DOWNSTREAM，跟随 DWD 自动触发
+
+TARGET_LAG 规则：
+- DWD 设置具体频率（'1 minutes'），是整条链路的调度驱动者
+- DWS 设置 DOWNSTREAM，意味着每次 DWD 刷新完成后，DWS 自动触发，无需独立调度
+- 这样整条链路只有一个调度时钟，避免错位和重复计算
+
+以下以订单数据为例，给出完整可运行 SQL。
+
+
+-- ============================================================
+-- Step 1：创建三层 Schema
+-- ============================================================
+CREATE SCHEMA IF NOT EXISTS ods;
+CREATE SCHEMA IF NOT EXISTS dwd;
+CREATE SCHEMA IF NOT EXISTS dws;
+
+
+-- ============================================================
+-- Step 2：ODS 原始层 —— 建表（普通表，接收原始数据写入）
+-- ============================================================
+CREATE TABLE IF NOT EXISTS ods.orders (
+  order_id    STRING,
+  user_id     STRING,
+  amount      DECIMAL(10, 2),
+  status      STRING,
+  region      STRING,
+  created_at  TIMESTAMP
+);
+
+-- 如果数据来自 Kafka，用 Pipe 持续摄入：
+-- CREATE OR REPLACE PIPE ods_orders_pipe AS
+-- INSERT INTO ods.orders (order_id, user_id, amount, status, region, created_at)
+-- SELECT
+--   $1:order_id::STRING,
+--   $1:user_id::STRING,
+--   $1:amount::DECIMAL(10,2),
+--   $1:status::STRING,
+--   $1:region::STRING,
+--   $1:created_at::TIMESTAMP
+-- FROM TABLE(
+--   READ_KAFKA(
+--     KAFKA_BROKER     => 'kafka.example.com:9092',
+--     KAFKA_TOPIC      => 'orders',
+--     KAFKA_GROUP_ID   => 'lakehouse_ods_ingest',
+--     KAFKA_OFFSET     => 'latest',
+--     KAFKA_DATA_FORMAT => 'json'
+--   )
+-- );
+
+
+-- ============================================================
+-- Step 3：DWD 清洗层 —— 动态表，每分钟刷新
+-- ============================================================
+CREATE OR REPLACE DYNAMIC TABLE dwd.orders_clean
+  TARGET_LAG = '1 minutes'
+  VCLUSTER = default_ap
+  COMMENT = 'DWD 清洗层：过滤无效数据，标准化字段，补充分区列'
+AS
+SELECT
+  order_id,
+  user_id,
+  amount,
+  UPPER(TRIM(status))        AS status,       -- 标准化状态值
+  LOWER(TRIM(region))        AS region,       -- 标准化地区
+  created_at,
+  DATE(created_at)           AS dt,           -- 日期分区列
+  DATE_TRUNC('hour', created_at) AS hour      -- 小时分区列
+FROM ods.orders
+WHERE amount > 0                              -- 过滤金额异常
+  AND order_id IS NOT NULL                   -- 过滤空主键
+  AND user_id  IS NOT NULL;
+
+
+-- ============================================================
+-- Step 4：DWS 聚合层 —— 动态表，跟随 DWD 刷新（DOWNSTREAM）
+-- ============================================================
+
+-- 4a：按小时 + 地区聚合订单量和金额
+CREATE OR REPLACE DYNAMIC TABLE dws.order_stats_hourly
+  TARGET_LAG = DOWNSTREAM
+  VCLUSTER = default_ap
+  COMMENT = 'DWS 聚合层：按小时+地区统计订单量和金额，跟随 DWD 刷新'
+AS
+SELECT
+  hour,
+  region,
+  COUNT(*)                   AS order_cnt,
+  COUNT(DISTINCT user_id)    AS uv,
+  SUM(amount)                AS total_amount,
+  AVG(amount)                AS avg_amount
+FROM dwd.orders_clean
+GROUP BY hour, region;
+
+-- 4b：按天 + 状态聚合（可选，同样跟随 DWD）
+CREATE OR REPLACE DYNAMIC TABLE dws.order_stats_daily
+  TARGET_LAG = DOWNSTREAM
+  VCLUSTER = default_ap
+  COMMENT = 'DWS 聚合层：按天+状态统计，跟随 DWD 刷新'
+AS
+SELECT
+  dt,
+  status,
+  COUNT(*)                   AS order_cnt,
+  SUM(amount)                AS total_amount
+FROM dwd.orders_clean
+GROUP BY dt, status;
+
+
+-- ============================================================
+-- Step 5：验证命令
+-- ============================================================
+
+-- 查看所有动态表
+SHOW TABLES IN dwd WHERE is_dynamic = true;
+SHOW TABLES IN dws WHERE is_dynamic = true;
+
+-- 查看 DWD 刷新历史（确认每分钟触发）
+SHOW DYNAMIC TABLE REFRESH HISTORY dwd.orders_clean LIMIT 10;
+
+-- 查看 DWS 刷新历史（确认跟随 DWD 触发）
+SHOW DYNAMIC TABLE REFRESH HISTORY dws.order_stats_hourly LIMIT 10;
+SHOW DYNAMIC TABLE REFRESH HISTORY dws.order_stats_daily  LIMIT 10;
+
+-- 查看动态表结构和调度配置
+DESC DYNAMIC TABLE dwd.orders_clean;
+DESC DYNAMIC TABLE dws.order_stats_hourly;
+
+-- 验证增量刷新模式（EXPLAIN 输出中有 INCREMENTAL 字样表示支持增量）
+EXPLAIN SELECT * FROM dwd.orders_clean;
+EXPLAIN SELECT * FROM dws.order_stats_hourly;
+
+
+-- ============================================================
+-- Step 6：运维操作
+-- ============================================================
+
+-- 暂停整条链路（先暂停下游，再暂停上游）
+ALTER DYNAMIC TABLE dws.order_stats_daily   SUSPEND;
+ALTER DYNAMIC TABLE dws.order_stats_hourly  SUSPEND;
+ALTER DYNAMIC TABLE dwd.orders_clean        SUSPEND;
+
+-- 恢复整条链路（先恢复上游，再恢复下游）
+ALTER DYNAMIC TABLE dwd.orders_clean        RESUME;
+ALTER DYNAMIC TABLE dws.order_stats_hourly  RESUME;
+ALTER DYNAMIC TABLE dws.order_stats_daily   RESUME;
+
+-- 临时调整 DWD 刷新频率（如改为 5 分钟）
+ALTER DYNAMIC TABLE dwd.orders_clean SET TARGET_LAG = '5 minutes';
+
+-- 修改 SQL 逻辑时，必须用 CREATE OR REPLACE，不能用 ALTER
+-- CREATE OR REPLACE DYNAMIC TABLE dwd.orders_clean
+--   TARGET_LAG = '1 minutes'
+--   VCLUSTER = default_ap
+-- AS
+-- SELECT ... （新的查询逻辑）;
+
+
+关键设计要点说明
+----------------
+
+1. 只有 DWD 设置具体 TARGET_LAG
+   DWD 是整条链路唯一的调度时钟。设置 '1 minutes' 后，ClickZetta 每分钟检查一次
+   ODS 是否有新数据，有则触发增量刷新。
+
+2. DWS 全部设置 DOWNSTREAM
+   DOWNSTREAM 意味着"等上游动态表刷新完成后，我再刷新"。DWD 刷新完 → DWS 自动
+   触发，延迟叠加约为秒级，整体端到端延迟约 1~2 分钟。
+
+3. 增量刷新 vs 全量刷新
+   动态表默认尝试增量刷新（只处理新增/变更数据），大幅降低计算成本。
+   如果 SQL 包含某些不支持增量的算子（如复杂窗口函数），会自动降级为全量刷新。
+   用 EXPLAIN SELECT * FROM <table> 可以确认是否走增量路径。
+
+4. ODS 层不用动态表
+   ODS 是原始数据的落地点，由 Pipe（Kafka/OSS）或业务系统直接写入，不需要自动
+   刷新逻辑，用普通表即可。
+
+5. 刷新失败不影响查询
+   动态表刷新失败时，查询仍返回上次成功版本的数据，不会报错。
+   通过 SHOW DYNAMIC TABLE REFRESH HISTORY 可以查看失败原因。
+
+6. VCLUSTER 参数
+   ClickZetta 使用 VCLUSTER（不是 Snowflake 的 WAREHOUSE）指定计算集群。
+   未指定时默认使用 default_ap。

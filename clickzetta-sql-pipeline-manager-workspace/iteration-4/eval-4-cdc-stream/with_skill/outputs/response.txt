@@ -1,0 +1,116 @@
+要捕获 ods.orders 表的 UPDATE 和 DELETE 变更并同步到 dwd.orders_dim，需要使用 Table Stream + Dynamic Table 的组合方案。
+
+## 方案说明
+
+- ods.orders 有 UPDATE/DELETE 变更 → 使用 Table Stream（MODE = STANDARD）捕获所有变更类型
+- Dynamic Table 消费 Stream，过滤出需要的变更类型，自动增量刷新到目标表
+
+## 完整 SQL
+
+### Step 1：在 ods.orders 上创建 Table Stream
+
+```sql
+-- 创建标准流，捕获 INSERT / UPDATE / DELETE 所有变更
+CREATE TABLE STREAM ods.orders_stream
+  ON TABLE ods.orders
+  MODE = STANDARD
+  COMMENT 'CDC 流，捕获 orders 表所有变更';
+```
+
+MODE = STANDARD 是关键：它会为每次 UPDATE 产生两条记录：
+- update_preimage：更新前的旧值
+- update_postimage：更新后的新值
+
+DELETE 会产生一条 _change_type = 'delete' 的记录。
+
+### Step 2：创建 Dynamic Table 消费 Stream，同步到 dwd.orders_dim
+
+根据你的需求（同步 UPDATE 和 DELETE），有两种处理方式：
+
+**方式 A：只保留最新状态（过滤掉 DELETE，保留 update_postimage）**
+
+适合目标表是维度表，只需要最新有效数据：
+
+```sql
+CREATE OR REPLACE DYNAMIC TABLE dwd.orders_dim
+  TARGET_LAG = '1 minutes'
+  VCLUSTER = default_ap
+AS
+SELECT
+  order_id,
+  user_id,
+  amount,
+  status,
+  created_at,
+  _change_type,
+  _change_timestamp
+FROM ods.orders_stream
+WHERE _change_type IN ('insert', 'update_postimage');
+```
+
+**方式 B：完整 CDC，包含 DELETE 记录（用于审计或下游处理）**
+
+```sql
+CREATE OR REPLACE DYNAMIC TABLE dwd.orders_dim
+  TARGET_LAG = '1 minutes'
+  VCLUSTER = default_ap
+AS
+SELECT
+  order_id,
+  user_id,
+  amount,
+  status,
+  created_at,
+  _change_type,
+  _change_timestamp
+FROM ods.orders_stream
+WHERE _change_type IN ('insert', 'update_postimage', 'delete');
+```
+
+### Step 3：验证
+
+```sql
+-- 确认 Stream 已创建
+SHOW TABLE STREAMS IN ods;
+
+-- 查看当前未消费的变更数量
+SELECT COUNT(*) FROM ods.orders_stream;
+
+-- 确认 Dynamic Table 已创建并开始刷新
+SHOW TABLES WHERE is_dynamic = true;
+
+-- 查看刷新历史，排查是否有失败
+SHOW DYNAMIC TABLE REFRESH HISTORY dwd.orders_dim LIMIT 5;
+
+-- 查看目标表数据
+SELECT * FROM dwd.orders_dim LIMIT 20;
+```
+
+### Step 4：运维操作（按需）
+
+```sql
+-- 暂停 Dynamic Table（如维护期间）
+ALTER DYNAMIC TABLE dwd.orders_dim SUSPEND;
+
+-- 恢复
+ALTER DYNAMIC TABLE dwd.orders_dim RESUME;
+
+-- 删除 Stream（不再需要时）
+DROP TABLE STREAM IF EXISTS ods.orders_stream;
+```
+
+## 关键注意事项
+
+1. _change_type 字段值说明：
+   - insert：新插入的行
+   - update_preimage：UPDATE 前的旧值（通常不需要，可过滤掉）
+   - update_postimage：UPDATE 后的新值（这是你需要的）
+   - delete：被删除的行
+
+2. Stream 是一次性消费的：Dynamic Table 每次刷新会消费掉已读取的变更，下次只返回新增变更。不要用多个消费者同时读同一个 Stream，否则会互相干扰。
+
+3. 如果 Stream 长时间没有被消费（超过源表的 data_retention_days），数据会丢失。推荐用 Dynamic Table 自动消费，避免手动管理。
+
+4. TARGET_LAG = '1 minutes' 表示每分钟增量刷新一次，可根据实际延迟需求调整（如 '30 seconds' 或 '5 minutes'）。
+
+5. VCLUSTER 默认使用 default_ap，如果你有其他计算集群名称，替换为实际名称。

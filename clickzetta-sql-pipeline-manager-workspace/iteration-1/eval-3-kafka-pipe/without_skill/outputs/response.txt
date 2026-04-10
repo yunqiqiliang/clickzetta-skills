@@ -1,0 +1,78 @@
+要从 Kafka 持续导入订单数据到 ods.orders 表，可以使用 ClickZetta 的 PIPE 功能创建一个 Kafka 数据管道。
+
+以下是完整的 SQL 示例：
+
+-- 第一步：创建目标表（如果还没有的话）
+CREATE TABLE IF NOT EXISTS ods.orders (
+    order_id STRING,
+    customer_id STRING,
+    order_amount DOUBLE,
+    order_status STRING,
+    created_at TIMESTAMP,
+    -- 根据实际 JSON 字段添加更多列
+    _kafka_offset BIGINT,
+    _kafka_partition INT,
+    _kafka_timestamp TIMESTAMP
+);
+
+-- 第二步：创建 Kafka PIPE
+CREATE PIPE ods.orders_kafka_pipe
+AS
+INSERT INTO ods.orders
+SELECT
+    data:order_id::STRING AS order_id,
+    data:customer_id::STRING AS customer_id,
+    data:order_amount::DOUBLE AS order_amount,
+    data:order_status::STRING AS order_status,
+    data:created_at::TIMESTAMP AS created_at,
+    _kafka_offset,
+    _kafka_partition,
+    _kafka_timestamp
+FROM (
+    SELECT
+        PARSE_JSON(value) AS data,
+        _kafka_offset,
+        _kafka_partition,
+        _kafka_timestamp
+    FROM TABLE(
+        KAFKA_SOURCE(
+            'bootstrap.servers' = 'kafka.prod.com:9092',
+            'topic' = 'orders',
+            'format' = 'json',
+            'group.id' = 'clickzetta_orders_consumer'
+        )
+    )
+);
+
+-- 第三步：启动 PIPE
+ALTER PIPE ods.orders_kafka_pipe SET STATUS = 'RUNNING';
+
+-- 查看 PIPE 状态
+SHOW PIPES IN SCHEMA ods;
+
+-- 查看 PIPE 运行详情
+DESCRIBE PIPE ods.orders_kafka_pipe;
+
+
+说明：
+
+1. KAFKA_SOURCE 函数参数：
+   - bootstrap.servers：Kafka broker 地址，即 kafka.prod.com:9092
+   - topic：消费的 topic 名称，即 orders
+   - format：数据格式，这里是 json
+   - group.id：消费者组 ID，可自定义
+
+2. JSON 解析：
+   - 使用 PARSE_JSON(value) 将 JSON 字符串解析为对象
+   - 使用 data:field_name::TYPE 语法提取字段并转换类型
+
+3. 管道管理：
+   - ALTER PIPE ... SET STATUS = 'RUNNING'  启动管道
+   - ALTER PIPE ... SET STATUS = 'PAUSED'   暂停管道
+   - ALTER PIPE ... SET STATUS = 'STOPPED'  停止管道
+   - DROP PIPE ods.orders_kafka_pipe         删除管道
+
+4. 注意事项：
+   - 请根据实际的 JSON 数据结构调整字段映射
+   - 如果 Kafka 需要认证，需要额外添加 security.protocol、sasl.mechanism 等参数
+   - 建议在生产环境中设置合适的 auto.offset.reset 参数（earliest 或 latest）

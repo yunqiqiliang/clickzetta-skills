@@ -1,0 +1,32 @@
+以下是创建物化视图 dws.mv_daily_revenue 的完整 SQL，每小时自动刷新，统计每天每个 region 的 revenue 总和：
+
+```sql
+CREATE OR REPLACE MATERIALIZED VIEW dws.mv_daily_revenue
+  COMMENT '每日各 region 收入汇总'
+  REFRESH AUTO EVERY '1 hours'
+  VCLUSTER = default_ap
+AS
+SELECT
+  DATE(created_at) AS day,
+  region,
+  SUM(revenue) AS total_revenue
+FROM dwd.orders_clean
+GROUP BY 1, 2;
+```
+
+执行后，可通过以下 SQL 验证物化视图已创建成功：
+
+```sql
+SHOW TABLES WHERE is_materialized_view = true;
+```
+
+如需立即触发一次全量刷新，执行：
+
+```sql
+REFRESH MATERIALIZED VIEW dws.mv_daily_revenue;
+```
+
+说明：
+- REFRESH AUTO EVERY '1 hours'：每小时自动全量刷新一次
+- VCLUSTER = default_ap：使用默认计算集群执行刷新（如有其他集群名称请替换）
+- 查询字段假设 dwd.orders_clean 中存在 created_at（时间戳）、region（地区）、revenue（收入）列，请根据实际列名调整

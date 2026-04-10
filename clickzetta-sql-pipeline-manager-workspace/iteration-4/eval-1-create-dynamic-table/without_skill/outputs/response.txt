@@ -1,0 +1,16 @@
+以下是创建动态表 dwd.orders_clean 的 SQL：
+
+CREATE DYNAMIC TABLE dwd.orders_clean
+  TARGET_LAG = '1 minute'
+  COMPUTE_CLUSTER = 'default_ap'
+AS
+SELECT *
+FROM ods.orders
+WHERE amount > 0;
+
+说明：
+- TARGET_LAG = '1 minute'：指定动态表每分钟刷新一次。
+- COMPUTE_CLUSTER = 'default_ap'：指定用于刷新计算的集群为 default_ap。
+- AS SELECT ... FROM ods.orders WHERE amount > 0：从源表 ods.orders 过滤 amount 大于 0 的数据。
+
+动态表创建后，ClickZetta 会按照指定的刷新频率自动增量或全量更新 dwd.orders_clean 的数据，无需手动调度。

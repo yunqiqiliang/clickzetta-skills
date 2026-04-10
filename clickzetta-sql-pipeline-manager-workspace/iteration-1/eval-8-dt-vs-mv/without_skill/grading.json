@@ -1,0 +1,10 @@
+{
+  "eval_id": 8,
+  "run_type": "without_skill",
+  "expectations": [
+    {"text": "说明动态表适合实时或增量计算场景", "passed": true, "evidence": "动态表更适合的场景是：需要近实时（分钟级）更新、有多层数据管道依赖、或者数据是流式持续写入"},
+    {"text": "说明物化视图适合低频或手动刷新场景", "passed": true, "evidence": "物化视图：查询加速、固定报表预聚合；刷新触发方式：手动触发、定时调度"},
+    {"text": "明确推荐物化视图用于每天一次的报表场景", "passed": true, "evidence": "推荐使用：物化视图（Materialized View）...每天一次的聚合报表 → 用物化视图"},
+    {"text": "提到 REFRESH MANUAL 或 REFRESH AUTO EVERY '1 days' 等具体语法", "passed": false, "evidence": "使用了 REFRESH COMPLETE + START WITH/NEXT 语法（Oracle风格），未提及 REFRESH MANUAL 或 REFRESH AUTO EVERY '1 days'"}
+  ]
+}

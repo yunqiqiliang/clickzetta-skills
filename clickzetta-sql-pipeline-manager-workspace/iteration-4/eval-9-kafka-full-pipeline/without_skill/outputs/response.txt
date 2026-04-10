@@ -1,0 +1,207 @@
+ClickZetta Lakehouse 数据管道设计：Kafka 用户行为数据三层架构
+================================================================
+
+数据源：Kafka broker: kafka.prod.com:9092，topic: user_events，JSON 格式
+字段：user_id, event_type, page_id, ts（时间戳）
+目标：ODS 原始层 → DWD 清洗层 → DWS 聚合层
+
+
+================================================================
+第一步：创建 Kafka 外部数据源连接
+================================================================
+
+-- 创建 Kafka 数据源（External Source）
+CREATE EXTERNAL SOURCE kafka_user_events
+TYPE = KAFKA
+PROPERTIES (
+  'bootstrap.servers' = 'kafka.prod.com:9092',
+  'topic'             = 'user_events',
+  'format'            = 'json',
+  'group.id'          = 'clickzetta_ods_consumer',
+  'auto.offset.reset' = 'earliest'
+);
+
+
+================================================================
+第二步：ODS 原始层 —— 实时接入 Kafka 数据
+================================================================
+
+-- 创建 ODS 原始表（流式写入，保留所有原始字段）
+CREATE TABLE ods_user_events (
+  user_id    STRING,
+  event_type STRING,
+  page_id    STRING,
+  ts         BIGINT,          -- 原始时间戳（毫秒）
+  _ingest_time TIMESTAMP      -- 系统写入时间，用于审计
+)
+USING DELTA
+PARTITIONED BY (dt STRING);   -- 按天分区，dt = DATE(FROM_UNIXTIME(ts/1000))
+
+-- 创建 ODS 流式 Pipeline：从 Kafka 持续写入 ODS 表
+CREATE PIPELINE ods_kafka_to_ods
+AS
+INSERT INTO ods_user_events (user_id, event_type, page_id, ts, _ingest_time, dt)
+SELECT
+  CAST(JSON_EXTRACT(payload, '$.user_id')    AS STRING)    AS user_id,
+  CAST(JSON_EXTRACT(payload, '$.event_type') AS STRING)    AS event_type,
+  CAST(JSON_EXTRACT(payload, '$.page_id')    AS STRING)    AS page_id,
+  CAST(JSON_EXTRACT(payload, '$.ts')         AS BIGINT)    AS ts,
+  CURRENT_TIMESTAMP()                                       AS _ingest_time,
+  DATE_FORMAT(FROM_UNIXTIME(
+    CAST(JSON_EXTRACT(payload, '$.ts') AS BIGINT) / 1000
+  ), 'yyyy-MM-dd')                                          AS dt
+FROM STREAM(kafka_user_events);
+
+-- 启动 ODS Pipeline（持续运行，不设调度间隔）
+ALTER PIPELINE ods_kafka_to_ods START;
+
+
+================================================================
+第三步：DWD 清洗层 —— 过滤无效 event_type，每 2 分钟刷新
+================================================================
+
+-- 合法的 event_type 白名单（根据业务定义）
+-- 示例：click, view, scroll, submit, login, logout
+
+-- 创建 DWD 清洗表
+CREATE TABLE dwd_user_events_clean (
+  user_id    STRING,
+  event_type STRING,
+  page_id    STRING,
+  ts         BIGINT,
+  event_time TIMESTAMP,        -- 转换后的可读时间
+  dt         STRING            -- 分区字段
+)
+USING DELTA
+PARTITIONED BY (dt STRING);
+
+-- 创建 DWD Pipeline：从 ODS 读取，过滤无效数据，每 2 分钟调度
+CREATE PIPELINE dwd_clean_pipeline
+SCHEDULE EVERY 2 MINUTES
+AS
+INSERT INTO dwd_user_events_clean (user_id, event_type, page_id, ts, event_time, dt)
+SELECT
+  user_id,
+  event_type,
+  page_id,
+  ts,
+  FROM_UNIXTIME(ts / 1000)                          AS event_time,
+  dt
+FROM ods_user_events
+WHERE
+  -- 过滤无效 event_type：不为 NULL、不为空字符串、在白名单内
+  event_type IS NOT NULL
+  AND TRIM(event_type) != ''
+  AND event_type IN ('click', 'view', 'scroll', 'submit', 'login', 'logout')
+  -- 过滤无效 user_id
+  AND user_id IS NOT NULL
+  AND TRIM(user_id) != ''
+  -- 过滤无效 page_id
+  AND page_id IS NOT NULL
+  AND TRIM(page_id) != ''
+  -- 过滤异常时间戳（ts 不能为 0 或负数，且不能是未来时间）
+  AND ts > 0
+  AND FROM_UNIXTIME(ts / 1000) <= CURRENT_TIMESTAMP()
+  -- 增量处理：只处理上次调度后新写入的数据（通过 _ingest_time 控制）
+  AND _ingest_time >= DATEADD(MINUTE, -2, CURRENT_TIMESTAMP());
+
+-- 启动 DWD Pipeline
+ALTER PIPELINE dwd_clean_pipeline START;
+
+
+================================================================
+第四步：DWS 聚合层 —— 按天统计每个 page 的 UV 和 PV，跟随 DWD
+================================================================
+
+-- 创建 DWS 聚合表
+CREATE TABLE dws_page_uv_pv_daily (
+  dt         STRING,           -- 统计日期，格式 yyyy-MM-dd
+  page_id    STRING,           -- 页面 ID
+  pv         BIGINT,           -- Page View：总访问次数
+  uv         BIGINT,           -- Unique Visitor：去重用户数
+  updated_at TIMESTAMP         -- 最后更新时间
+)
+USING DELTA
+PARTITIONED BY (dt STRING);
+
+-- 创建 DWS Pipeline：从 DWD 聚合，跟随 DWD 每 2 分钟调度
+CREATE PIPELINE dws_agg_pipeline
+SCHEDULE EVERY 2 MINUTES
+AS
+-- 使用 MERGE 实现增量更新（upsert），避免重复计算
+MERGE INTO dws_page_uv_pv_daily AS target
+USING (
+  -- 从 DWD 全量重算当天数据（保证幂等性）
+  SELECT
+    dt,
+    page_id,
+    COUNT(*)                    AS pv,
+    COUNT(DISTINCT user_id)     AS uv,
+    CURRENT_TIMESTAMP()         AS updated_at
+  FROM dwd_user_events_clean
+  WHERE dt >= DATE_FORMAT(DATEADD(DAY, -1, CURRENT_DATE()), 'yyyy-MM-dd')  -- 覆盖昨天和今天，防止跨天数据遗漏
+  GROUP BY dt, page_id
+) AS source
+ON target.dt = source.dt AND target.page_id = source.page_id
+WHEN MATCHED THEN
+  UPDATE SET
+    target.pv         = source.pv,
+    target.uv         = source.uv,
+    target.updated_at = source.updated_at
+WHEN NOT MATCHED THEN
+  INSERT (dt, page_id, pv, uv, updated_at)
+  VALUES (source.dt, source.page_id, source.pv, source.uv, source.updated_at);
+
+-- 启动 DWS Pipeline
+ALTER PIPELINE dws_agg_pipeline START;
+
+
+================================================================
+第五步：验证查询
+================================================================
+
+-- 查看 ODS 最新数据
+SELECT * FROM ods_user_events
+ORDER BY _ingest_time DESC
+LIMIT 20;
+
+-- 查看 DWD 清洗后数据
+SELECT event_type, COUNT(*) AS cnt
+FROM dwd_user_events_clean
+WHERE dt = DATE_FORMAT(CURRENT_DATE(), 'yyyy-MM-dd')
+GROUP BY event_type
+ORDER BY cnt DESC;
+
+-- 查看 DWS 今日各页面 UV/PV
+SELECT
+  page_id,
+  pv,
+  uv,
+  ROUND(pv * 1.0 / NULLIF(uv, 0), 2) AS avg_pv_per_user,
+  updated_at
+FROM dws_page_uv_pv_daily
+WHERE dt = DATE_FORMAT(CURRENT_DATE(), 'yyyy-MM-dd')
+ORDER BY pv DESC;
+
+-- 查看 Pipeline 运行状态
+SHOW PIPELINES;
+
+
+================================================================
+架构说明
+================================================================
+
+层级        表名                      刷新方式              说明
+--------    ------------------------  --------------------  ---------------------------
+ODS         ods_user_events           流式持续写入           Kafka 原始数据，不做任何处理
+DWD         dwd_user_events_clean     每 2 分钟调度          过滤无效 event_type 等脏数据
+DWS         dws_page_uv_pv_daily      每 2 分钟调度          按天聚合 page 的 UV/PV
+
+数据流向：Kafka → ODS（流式） → DWD（2min 批次） → DWS（2min 批次，MERGE 更新）
+
+关键设计决策：
+1. ODS 使用流式 Pipeline（STREAM），保证数据实时落地，延迟秒级。
+2. DWD 使用 _ingest_time 做增量过滤，每次只处理最近 2 分钟新增数据，避免全表扫描。
+3. DWS 使用 MERGE INTO 实现 upsert，覆盖昨天和今天两天数据，防止跨天边界数据遗漏。
+4. 所有表按 dt（日期）分区，查询时可利用分区裁剪提升性能。
+5. DWS 跟随 DWD 同频（2 分钟），确保聚合结果与清洗层保持一致。

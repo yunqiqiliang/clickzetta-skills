@@ -1,0 +1,41 @@
+{
+  "eval_id": 9,
+  "run_type": "with_skill",
+  "assertions": [
+    {
+      "text": "包含 ODS 层建表语句（CREATE TABLE）",
+      "passed": true,
+      "evidence": "CREATE TABLE IF NOT EXISTS ods.user_events (user_id STRING, event_type STRING, page_id STRING, ts TIMESTAMP)"
+    },
+    {
+      "text": "包含 CREATE PIPE 使用 READ_KAFKA 从 kafka.prod.com:9092 摄入数据",
+      "passed": true,
+      "evidence": "CREATE OR REPLACE PIPE ods.kafka_user_events_pipe AS INSERT INTO ods.user_events ... FROM TABLE(READ_KAFKA(KAFKA_BROKER => 'kafka.prod.com:9092', ...))"
+    },
+    {
+      "text": "包含 DWD 层 CREATE DYNAMIC TABLE，TARGET_LAG = '2 minutes'，VCLUSTER",
+      "passed": true,
+      "evidence": "CREATE OR REPLACE DYNAMIC TABLE dwd.user_events_clean TARGET_LAG = '2 minutes' VCLUSTER = default_ap"
+    },
+    {
+      "text": "包含 DWS 层 CREATE DYNAMIC TABLE，TARGET_LAG = DOWNSTREAM",
+      "passed": true,
+      "evidence": "CREATE OR REPLACE DYNAMIC TABLE dws.page_daily_stats TARGET_LAG = DOWNSTREAM VCLUSTER = default_ap"
+    },
+    {
+      "text": "DWS 层包含 COUNT(DISTINCT user_id) 统计 UV 或 COUNT(*) 统计 PV",
+      "passed": true,
+      "evidence": "COUNT(DISTINCT user_id) AS uv, COUNT(*) AS pv"
+    },
+    {
+      "text": "DWS 层按日期和 page_id 分组（GROUP BY）",
+      "passed": true,
+      "evidence": "GROUP BY dt, page_id"
+    },
+    {
+      "text": "包含验证命令（SHOW 或 DESC）",
+      "passed": true,
+      "evidence": "SHOW PIPES; SHOW TABLES WHERE is_dynamic = true; SHOW DYNAMIC TABLE REFRESH HISTORY dwd.user_events_clean LIMIT 5"
+    }
+  ]
+}

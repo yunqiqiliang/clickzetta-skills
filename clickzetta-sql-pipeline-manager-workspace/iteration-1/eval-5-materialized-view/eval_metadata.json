@@ -1,0 +1,6 @@
+{
+  "eval_id": 5,
+  "eval_name": "eval-5-materialized-view",
+  "prompt": "我需要捕获 ods.orders 表的 UPDATE 和 DELETE 变更，然后同步到 dwd.orders_dim 表，怎么做？",
+  "assertions": []
+}

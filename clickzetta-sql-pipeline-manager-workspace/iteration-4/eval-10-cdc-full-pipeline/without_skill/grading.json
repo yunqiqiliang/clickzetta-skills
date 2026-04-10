@@ -1,0 +1,36 @@
+{
+  "eval_id": 10,
+  "run_type": "without_skill",
+  "assertions": [
+    {
+      "text": "包含 CREATE TABLE STREAM ON TABLE ods.orders，MODE = STANDARD",
+      "passed": false,
+      "evidence": "未使用 CREATE TABLE STREAM，而是直接对 ods.orders 使用 MERGE INTO，通过 WHERE updated_at >= CURRENT_TIMESTAMP() - INTERVAL 2 MINUTES 做增量"
+    },
+    {
+      "text": "DWD 层动态表消费 stream，过滤 _change_type IN ('insert', 'update_postimage')",
+      "passed": false,
+      "evidence": "DWD 层使用 MERGE INTO dwd.orders_latest，无 stream 消费，无 _change_type 过滤"
+    },
+    {
+      "text": "DWD 层包含 TARGET_LAG = '1 minutes'，VCLUSTER",
+      "passed": false,
+      "evidence": "DWD 层使用 CREATE TASK task_ods_to_dwd SCHEDULE = '1 MINUTE'，未使用 CREATE DYNAMIC TABLE 和 TARGET_LAG/VCLUSTER"
+    },
+    {
+      "text": "DWS 层包含 TARGET_LAG = DOWNSTREAM",
+      "passed": false,
+      "evidence": "DWS 层使用 CREATE TASK task_dwd_to_dws SCHEDULE = '1 MINUTE'，未使用 CREATE DYNAMIC TABLE 和 TARGET_LAG = DOWNSTREAM"
+    },
+    {
+      "text": "DWS 层按日期和 status 分组，包含 COUNT 和 SUM 聚合",
+      "passed": true,
+      "evidence": "GROUP BY CAST(updated_at AS DATE), status; COUNT(*) AS order_cnt, SUM(amount) AS total_amount"
+    },
+    {
+      "text": "包含验证命令（SHOW DYNAMIC TABLE REFRESH HISTORY 或 SHOW TABLE STREAMS）",
+      "passed": false,
+      "evidence": "验证部分只有 SELECT 查询，无 SHOW DYNAMIC TABLE REFRESH HISTORY 或 SHOW TABLE STREAMS 命令"
+    }
+  ]
+}

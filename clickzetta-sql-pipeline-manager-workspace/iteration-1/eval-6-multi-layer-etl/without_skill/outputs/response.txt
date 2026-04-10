@@ -1,0 +1,146 @@
+三层 ETL 动态表设计方案（ODS → DWD → DWS）
+
+一、整体架构思路
+
+使用 ClickZetta 动态表（Dynamic Table）实现三层 ETL：
+- ODS 层：原始数据，直接映射源表，不做转换
+- DWD 层：清洗层，依赖 ODS，设置每分钟刷新（lag = 1 minute）
+- DWS 层：聚合层，依赖 DWD，设置 downstream 跟随 DWD 刷新
+
+二、DDL 设计
+
+-- ============================================================
+-- ODS 层：原始层（假设源表为 raw_orders）
+-- ODS 动态表直接引用源数据，lag 设置宽松或按需
+-- ============================================================
+CREATE DYNAMIC TABLE ods_orders
+  TARGET_LAG = '2 minutes'
+  WAREHOUSE = 'my_warehouse'
+AS
+SELECT
+    order_id,
+    user_id,
+    product_id,
+    amount,
+    status,
+    created_at,
+    updated_at,
+    _load_time   -- 原始加载时间戳
+FROM raw_orders;
+
+
+-- ============================================================
+-- DWD 层：清洗层，依赖 ODS，每分钟刷新
+-- ============================================================
+CREATE DYNAMIC TABLE dwd_orders
+  TARGET_LAG = '1 minute'
+  WAREHOUSE = 'my_warehouse'
+AS
+SELECT
+    order_id,
+    user_id,
+    product_id,
+    -- 清洗：金额异常值处理
+    CASE WHEN amount < 0 THEN 0 ELSE amount END AS amount,
+    -- 清洗：状态标准化
+    UPPER(TRIM(status)) AS status,
+    -- 清洗：时间格式统一
+    TO_TIMESTAMP(created_at) AS created_at,
+    TO_TIMESTAMP(updated_at) AS updated_at,
+    -- 新增派生字段
+    DATE(created_at) AS order_date,
+    YEAR(created_at) AS order_year,
+    MONTH(created_at) AS order_month
+FROM ods_orders
+WHERE order_id IS NOT NULL
+  AND user_id IS NOT NULL;
+
+
+-- ============================================================
+-- DWS 层：聚合层，依赖 DWD，跟随 DWD 刷新（DOWNSTREAM）
+-- ============================================================
+CREATE DYNAMIC TABLE dws_order_daily_summary
+  TARGET_LAG = DOWNSTREAM
+  WAREHOUSE = 'my_warehouse'
+AS
+SELECT
+    order_date,
+    order_year,
+    order_month,
+    COUNT(DISTINCT order_id)   AS total_orders,
+    COUNT(DISTINCT user_id)    AS total_users,
+    SUM(amount)                AS total_amount,
+    AVG(amount)                AS avg_amount,
+    COUNT(CASE WHEN status = 'COMPLETED' THEN 1 END) AS completed_orders,
+    COUNT(CASE WHEN status = 'CANCELLED' THEN 1 END) AS cancelled_orders
+FROM dwd_orders
+GROUP BY order_date, order_year, order_month;
+
+
+三、关键设计说明
+
+1. TARGET_LAG 设置策略
+
+层级       TARGET_LAG       说明
+ODS        2 minutes        略宽于 DWD，确保 ODS 数据先就绪
+DWD        1 minute         核心刷新频率，每分钟清洗一次
+DWS        DOWNSTREAM       跟随上游（DWD）刷新，DWD 刷新后 DWS 自动触发
+
+2. DOWNSTREAM 的含义
+- DWS 设置 TARGET_LAG = DOWNSTREAM 表示：不独立调度，而是在其依赖的 DWD 动态表刷新完成后立即触发刷新。
+- 这样保证 DWS 数据始终与 DWD 保持一致，不会出现 DWS 读到旧 DWD 数据的情况。
+
+3. 刷新链路时序
+  源表更新
+    → ODS 动态表刷新（~2min lag）
+      → DWD 动态表刷新（~1min lag，实际从 ODS 就绪后计算）
+        → DWS 动态表刷新（DOWNSTREAM，DWD 完成后立即触发）
+
+4. Warehouse 选择建议
+- ODS/DWD 可共用一个计算资源（轻量清洗）
+- DWS 如果聚合量大，建议单独指定更大规格的 warehouse
+
+四、多个 DWS 聚合表的情况
+
+如果有多张 DWS 表都依赖同一个 DWD，全部设置 DOWNSTREAM 即可，它们会在 DWD 刷新后并行触发：
+
+CREATE DYNAMIC TABLE dws_user_daily_summary
+  TARGET_LAG = DOWNSTREAM
+  WAREHOUSE = 'my_warehouse'
+AS
+SELECT
+    order_date,
+    user_id,
+    COUNT(order_id) AS user_order_count,
+    SUM(amount)     AS user_total_amount
+FROM dwd_orders
+GROUP BY order_date, user_id;
+
+-- 另一张 DWS 表，同样 DOWNSTREAM
+CREATE DYNAMIC TABLE dws_product_daily_summary
+  TARGET_LAG = DOWNSTREAM
+  WAREHOUSE = 'my_warehouse'
+AS
+SELECT
+    order_date,
+    product_id,
+    COUNT(order_id) AS product_order_count,
+    SUM(amount)     AS product_total_amount
+FROM dwd_orders
+GROUP BY order_date, product_id;
+
+
+五、注意事项
+
+1. ODS lag 要略大于 DWD lag：确保 ODS 数据在 DWD 触发时已经刷新完毕，避免 DWD 读到过期 ODS 数据。
+
+2. 避免循环依赖：动态表的依赖链必须是有向无环图（DAG），ODS → DWD → DWS 是标准单向链路，没有问题。
+
+3. 初始化顺序：首次创建时按 ODS → DWD → DWS 顺序执行 DDL，系统会自动完成首次全量刷新。
+
+4. 监控刷新状态：可通过以下查询检查各层刷新情况：
+   SELECT name, state, last_refresh_time, scheduling_state
+   FROM information_schema.dynamic_tables
+   WHERE name IN ('ods_orders', 'dwd_orders', 'dws_order_daily_summary');
+
+5. 成本控制：DOWNSTREAM 模式下 DWS 不会空转，只在 DWD 有实际数据变化时才消耗计算资源。

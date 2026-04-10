@@ -1,0 +1,12 @@
+{
+  "eval_id": 5,
+  "run_type": "with_skill",
+  "assertions": [
+    {"text": "包含 CREATE MATERIALIZED VIEW", "passed": true, "evidence": "CREATE OR REPLACE MATERIALIZED VIEW dws.mv_daily_revenue"},
+    {"text": "包含 dws.mv_daily_revenue 作为视图名", "passed": true, "evidence": "CREATE OR REPLACE MATERIALIZED VIEW dws.mv_daily_revenue"},
+    {"text": "包含 REFRESH AUTO EVERY '1 hours' 或等效写法", "passed": true, "evidence": "REFRESH AUTO EVERY '1 hours'"},
+    {"text": "包含 FROM dwd.orders_clean", "passed": true, "evidence": "FROM dwd.orders_clean"},
+    {"text": "包含 SUM 聚合 revenue 或 amount", "passed": true, "evidence": "SUM(amount) AS revenue"},
+    {"text": "包含 GROUP BY 包括日期和 region", "passed": true, "evidence": "GROUP BY 1, 2 (DATE(created_at) AS day, region)"}
+  ]
+}

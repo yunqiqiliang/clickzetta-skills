@@ -1,0 +1,36 @@
+{
+  "eval_id": 11,
+  "run_type": "with_skill",
+  "assertions": [
+    {
+      "text": "包含 CREATE PIPE 使用 COPY INTO FROM '@my_oss_vol/logs/app/'",
+      "passed": true,
+      "evidence": "CREATE OR REPLACE PIPE oss_app_logs_pipe ... AS COPY INTO ods.app_logs FROM '@my_oss_vol/logs/app/'"
+    },
+    {
+      "text": "包含 FILE_FORMAT = (TYPE = 'parquet') 或等效写法",
+      "passed": true,
+      "evidence": "FILE_FORMAT = ( TYPE = 'parquet' )"
+    },
+    {
+      "text": "DWD 层包含 CREATE DYNAMIC TABLE，TARGET_LAG = '1 hours'，VCLUSTER，过滤 duration_ms <= 0",
+      "passed": true,
+      "evidence": "CREATE OR REPLACE DYNAMIC TABLE dwd.app_logs_clean TARGET_LAG = '1 hours' VCLUSTER = default_ap ... WHERE duration_ms > 0"
+    },
+    {
+      "text": "DWS 层包含 TARGET_LAG = DOWNSTREAM",
+      "passed": true,
+      "evidence": "CREATE OR REPLACE DYNAMIC TABLE dws.action_daily_stats TARGET_LAG = DOWNSTREAM"
+    },
+    {
+      "text": "DWS 层包含 AVG(duration_ms) 统计平均耗时",
+      "passed": true,
+      "evidence": "AVG(duration_ms) AS avg_duration_ms"
+    },
+    {
+      "text": "DWS 层按日期和 action 分组",
+      "passed": true,
+      "evidence": "GROUP BY dt, action"
+    }
+  ]
+}

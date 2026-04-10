@@ -1,0 +1,1162 @@
+{
+  "metadata": {
+    "skill_name": "clickzetta-sql-pipeline-manager",
+    "skill_path": "/Users/liangmo/Documents/GitHub/clickzetta-skills/clickzetta-sql-pipeline-manager",
+    "executor_model": "claude-sonnet-4-6",
+    "analyzer_model": "claude-sonnet-4-6",
+    "timestamp": "2026-03-23T05:41:25Z",
+    "evals_run": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "runs_per_configuration": 1
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "包含 CREATE DYNAMIC TABLE 或 CREATE OR REPLACE DYNAMIC TABLE",
+          "passed": true,
+          "evidence": "CREATE OR REPLACE DYNAMIC TABLE dwd.orders_clean"
+        },
+        {
+          "text": "包含 dwd.orders_clean 作为表名",
+          "passed": true,
+          "evidence": "CREATE OR REPLACE DYNAMIC TABLE dwd.orders_clean"
+        },
+        {
+          "text": "包含 TARGET_LAG = '1 minutes' 或等效写法",
+          "passed": true,
+          "evidence": "TARGET_LAG = '1 minutes'"
+        },
+        {
+          "text": "包含 VCLUSTER = default_ap",
+          "passed": true,
+          "evidence": "VCLUSTER = default_ap"
+        },
+        {
+          "text": "包含 WHERE amount > 0 过滤条件",
+          "passed": true,
+          "evidence": "WHERE amount > 0"
+        },
+        {
+          "text": "包含 FROM ods.orders",
+          "passed": true,
+          "evidence": "FROM ods.orders"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "包含 SHOW DYNAMIC TABLE REFRESH HISTORY 命令",
+          "passed": true,
+          "evidence": "SHOW DYNAMIC TABLE REFRESH HISTORY dws.order_hourly LIMIT 10;"
+        },
+        {
+          "text": "包含 dws.order_hourly 表名",
+          "passed": true,
+          "evidence": "SHOW DYNAMIC TABLE REFRESH HISTORY dws.order_hourly"
+        },
+        {
+          "text": "提到至少一种常见失败原因（SQL报错/源表变更/集群不可用）",
+          "passed": true,
+          "evidence": "提到：VCluster not available（计算集群不可用）、源表结构变更导致 SQL 报错、SQL 查询逻辑本身有问题"
+        },
+        {
+          "text": "提供具体的排查步骤或命令",
+          "passed": true,
+          "evidence": "提供了5步排查流程，包含 DESC DYNAMIC TABLE、SHOW CREATE TABLE、ALTER DYNAMIC TABLE RESUME 等具体命令"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "包含 CREATE PIPE 语句",
+          "passed": true,
+          "evidence": "CREATE OR REPLACE PIPE kafka_orders_pipe"
+        },
+        {
+          "text": "包含 READ_KAFKA 函数",
+          "passed": true,
+          "evidence": "FROM TABLE(READ_KAFKA(...))"
+        },
+        {
+          "text": "包含 kafka.prod.com:9092 作为 broker 地址",
+          "passed": true,
+          "evidence": "KAFKA_BROKER => 'kafka.prod.com:9092'"
+        },
+        {
+          "text": "包含 KAFKA_TOPIC 设置为 orders",
+          "passed": true,
+          "evidence": "KAFKA_TOPIC => 'orders'"
+        },
+        {
+          "text": "包含 KAFKA_DATA_FORMAT = 'json' 或等效写法",
+          "passed": true,
+          "evidence": "KAFKA_DATA_FORMAT => 'json'"
+        },
+        {
+          "text": "包含 INSERT INTO ods.orders",
+          "passed": true,
+          "evidence": "INSERT INTO ods.orders (order_id, user_id, amount, status, created_at)"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 4,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "包含 CREATE TABLE STREAM",
+          "passed": true,
+          "evidence": "CREATE TABLE STREAM ods.orders_stream"
+        },
+        {
+          "text": "包含 ON TABLE ods.orders",
+          "passed": true,
+          "evidence": "ON TABLE ods.orders"
+        },
+        {
+          "text": "包含 MODE = STANDARD 或说明标准模式",
+          "passed": true,
+          "evidence": "MODE = STANDARD"
+        },
+        {
+          "text": "提到 _change_type 字段",
+          "passed": true,
+          "evidence": "_change_type 字段说明表格中列出了 insert/update_preimage/update_postimage/delete"
+        },
+        {
+          "text": "提到 update_postimage 或 delete 变更类型",
+          "passed": true,
+          "evidence": "update_postimage：UPDATE 后的新值；delete：删除行"
+        },
+        {
+          "text": "提供消费 stream 的方案（MERGE INTO 或 Dynamic Table）",
+          "passed": true,
+          "evidence": "方案 A 使用 Dynamic Table，方案 B 使用 Task + MERGE INTO"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 5,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "包含 CREATE MATERIALIZED VIEW",
+          "passed": true,
+          "evidence": "CREATE OR REPLACE MATERIALIZED VIEW dws.mv_daily_revenue"
+        },
+        {
+          "text": "包含 dws.mv_daily_revenue 作为视图名",
+          "passed": true,
+          "evidence": "CREATE OR REPLACE MATERIALIZED VIEW dws.mv_daily_revenue"
+        },
+        {
+          "text": "包含 REFRESH AUTO EVERY '1 hours' 或等效写法",
+          "passed": true,
+          "evidence": "REFRESH AUTO EVERY '1 hours'"
+        },
+        {
+          "text": "包含 FROM dwd.orders_clean",
+          "passed": true,
+          "evidence": "FROM dwd.orders_clean"
+        },
+        {
+          "text": "包含 SUM 聚合 revenue 或 amount",
+          "passed": true,
+          "evidence": "SUM(amount) AS revenue"
+        },
+        {
+          "text": "包含 GROUP BY 包括日期和 region",
+          "passed": true,
+          "evidence": "GROUP BY 1, 2 (DATE(created_at) AS day, region)"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 6,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "包含两个 CREATE DYNAMIC TABLE 语句（DWD 和 DWS 层）",
+          "passed": true,
+          "evidence": "CREATE OR REPLACE DYNAMIC TABLE dwd.orders_clean 和 CREATE OR REPLACE DYNAMIC TABLE dws.order_stats_hourly"
+        },
+        {
+          "text": "DWD 层包含 TARGET_LAG = '1 minutes'",
+          "passed": true,
+          "evidence": "TARGET_LAG = '1 minutes' 在 dwd.orders_clean 定义中"
+        },
+        {
+          "text": "DWS 层包含 TARGET_LAG = DOWNSTREAM",
+          "passed": true,
+          "evidence": "TARGET_LAG = DOWNSTREAM 在 dws.order_stats_hourly 和 dws.order_stats_daily 中"
+        },
+        {
+          "text": "解释 DOWNSTREAM 的含义（跟随上游刷新）",
+          "passed": true,
+          "evidence": "DOWNSTREAM 意味着等上游动态表刷新完成后再刷新，DWD 刷新完后 DWS 自动触发"
+        },
+        {
+          "text": "DWS 层查询来自 DWD 层表",
+          "passed": true,
+          "evidence": "FROM dwd.orders_clean 在 dws.order_stats_hourly 和 dws.order_stats_daily 的查询中"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 7,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "包含 ALTER DYNAMIC TABLE ... SUSPEND",
+          "passed": true,
+          "evidence": "ALTER DYNAMIC TABLE dwd.orders_clean SUSPEND; ALTER DYNAMIC TABLE dws.order_hourly SUSPEND;"
+        },
+        {
+          "text": "包含 ALTER DYNAMIC TABLE ... RESUME",
+          "passed": true,
+          "evidence": "ALTER DYNAMIC TABLE dwd.orders_clean RESUME; ALTER DYNAMIC TABLE dws.order_hourly RESUME;"
+        },
+        {
+          "text": "提到 SHOW TABLES WHERE is_dynamic=true 或等效方式列出动态表",
+          "passed": true,
+          "evidence": "SHOW TABLES WHERE is_dynamic = true;"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 8,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "说明动态表适合实时或增量计算场景",
+          "passed": true,
+          "evidence": "适用场景：实时/近实时 ETL、多层级联转换；支持增量刷新，系统持续监测上游变化"
+        },
+        {
+          "text": "说明物化视图适合低频或手动刷新场景",
+          "passed": true,
+          "evidence": "适用场景：固定聚合加速查询、低频批量刷新；刷新方式：全量刷新，手动触发或定时触发"
+        },
+        {
+          "text": "明确推荐物化视图用于每天一次的报表场景",
+          "passed": true,
+          "evidence": "推荐使用物化视图（Materialized View），刷新频率是每天一次，属于低频批量刷新"
+        },
+        {
+          "text": "提到 REFRESH MANUAL 或 REFRESH AUTO EVERY '1 days' 等具体语法",
+          "passed": true,
+          "evidence": "REFRESH AUTO EVERY '1 days' 和 REFRESH MANUAL 均在推荐 SQL 示例中出现"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 9,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 7,
+        "failed": 0,
+        "total": 7,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "包含 ODS 层建表语句（CREATE TABLE）",
+          "passed": true,
+          "evidence": "CREATE TABLE IF NOT EXISTS ods.user_events (...)"
+        },
+        {
+          "text": "包含 CREATE PIPE 使用 READ_KAFKA 从 kafka.prod.com:9092 摄入数据",
+          "passed": true,
+          "evidence": "CREATE OR REPLACE PIPE kafka_user_events_pipe ... READ_KAFKA(KAFKA_BROKER => 'kafka.prod.com:9092', ...)"
+        },
+        {
+          "text": "包含 DWD 层 CREATE DYNAMIC TABLE，TARGET_LAG = '2 minutes'，VCLUSTER",
+          "passed": true,
+          "evidence": "CREATE OR REPLACE DYNAMIC TABLE dwd.user_events_clean TARGET_LAG = '2 minutes' VCLUSTER = default_ap"
+        },
+        {
+          "text": "包含 DWS 层 CREATE DYNAMIC TABLE，TARGET_LAG = DOWNSTREAM",
+          "passed": true,
+          "evidence": "CREATE OR REPLACE DYNAMIC TABLE dws.page_uv_pv_daily TARGET_LAG = DOWNSTREAM"
+        },
+        {
+          "text": "DWS 层包含 COUNT(DISTINCT user_id) 统计 UV 或 COUNT(*) 统计 PV",
+          "passed": true,
+          "evidence": "COUNT(DISTINCT user_id) AS uv, COUNT(*) AS pv"
+        },
+        {
+          "text": "DWS 层按日期和 page_id 分组（GROUP BY）",
+          "passed": true,
+          "evidence": "GROUP BY dt, page_id"
+        },
+        {
+          "text": "包含验证命令（SHOW 或 DESC）",
+          "passed": true,
+          "evidence": "SHOW PIPES; DESC PIPE kafka_user_events_pipe; SHOW TABLES WHERE is_dynamic = true; SHOW DYNAMIC TABLE REFRESH HISTORY ..."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 10,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "包含 CREATE TABLE STREAM ON TABLE ods.orders，MODE = STANDARD",
+          "passed": true,
+          "evidence": "CREATE TABLE STREAM ods.orders_stream ON TABLE ods.orders MODE = STANDARD"
+        },
+        {
+          "text": "DWD 层动态表消费 stream，过滤 _change_type IN ('insert', 'update_postimage')",
+          "passed": true,
+          "evidence": "FROM ods.orders_stream WHERE _change_type IN ('insert', 'update_postimage')"
+        },
+        {
+          "text": "DWD 层包含 TARGET_LAG = '1 minutes'，VCLUSTER",
+          "passed": true,
+          "evidence": "CREATE OR REPLACE DYNAMIC TABLE dwd.orders_latest TARGET_LAG = '1 minutes' VCLUSTER = default_ap"
+        },
+        {
+          "text": "DWS 层包含 TARGET_LAG = DOWNSTREAM",
+          "passed": true,
+          "evidence": "CREATE OR REPLACE DYNAMIC TABLE dws.orders_daily_status_agg TARGET_LAG = DOWNSTREAM"
+        },
+        {
+          "text": "DWS 层按日期和 status 分组，包含 COUNT 和 SUM 聚合",
+          "passed": true,
+          "evidence": "GROUP BY DATE(updated_at), status; COUNT(*) AS order_cnt, SUM(amount) AS total_amount"
+        },
+        {
+          "text": "包含验证命令（SHOW DYNAMIC TABLE REFRESH HISTORY 或 SHOW TABLE STREAMS）",
+          "passed": true,
+          "evidence": "SHOW TABLE STREAMS IN ods; SHOW DYNAMIC TABLE REFRESH HISTORY dwd.orders_latest LIMIT 5; SHOW DYNAMIC TABLE REFRESH HISTORY dws.orders_daily_status_agg LIMIT 5"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 11,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "包含 CREATE PIPE 使用 COPY INTO FROM '@my_oss_vol/logs/app/'",
+          "passed": true,
+          "evidence": "CREATE OR REPLACE PIPE oss_app_logs_pipe ... COPY INTO ods.app_logs FROM '@my_oss_vol/logs/app/'"
+        },
+        {
+          "text": "包含 FILE_FORMAT = (TYPE = 'parquet') 或等效写法",
+          "passed": true,
+          "evidence": "FILE_FORMAT = ( TYPE = 'parquet' )"
+        },
+        {
+          "text": "DWD 层包含 CREATE DYNAMIC TABLE，TARGET_LAG = '1 hours'，VCLUSTER，过滤 duration_ms <= 0",
+          "passed": true,
+          "evidence": "CREATE OR REPLACE DYNAMIC TABLE dwd.app_logs_clean TARGET_LAG = '1 hours' VCLUSTER = default_ap ... WHERE duration_ms > 0"
+        },
+        {
+          "text": "DWS 层包含 TARGET_LAG = DOWNSTREAM",
+          "passed": true,
+          "evidence": "CREATE OR REPLACE DYNAMIC TABLE dws.app_action_daily_stats TARGET_LAG = DOWNSTREAM"
+        },
+        {
+          "text": "DWS 层包含 AVG(duration_ms) 统计平均耗时",
+          "passed": true,
+          "evidence": "AVG(duration_ms) AS avg_duration_ms"
+        },
+        {
+          "text": "DWS 层按日期和 action 分组",
+          "passed": true,
+          "evidence": "GROUP BY dt, action"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 12,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "使用 bronze/silver/gold schema 命名（不使用 ods/dwd/dws）",
+          "passed": true,
+          "evidence": "CREATE SCHEMA IF NOT EXISTS bronze; silver; gold; 表名为 bronze.events_raw, silver.events_clean, gold.events_daily_stats"
+        },
+        {
+          "text": "包含 CREATE PIPE 使用 COPY INTO FROM '@s3_raw_vol/events/'，FILE_FORMAT TYPE = 'json'",
+          "passed": true,
+          "evidence": "CREATE OR REPLACE PIPE pipe_bronze_events_raw ... COPY INTO bronze.events_raw ... FROM '@s3_raw_vol/events/' FILE_FORMAT = ( TYPE = 'json' )"
+        },
+        {
+          "text": "Silver 层包含 CREATE DYNAMIC TABLE，TARGET_LAG = '5 minutes'，VCLUSTER，过滤 event_name IS NULL",
+          "passed": true,
+          "evidence": "CREATE OR REPLACE DYNAMIC TABLE silver.events_clean TARGET_LAG = '5 minutes' VCLUSTER = default_ap ... WHERE event_name IS NOT NULL AND TRIM(event_name) != ''"
+        },
+        {
+          "text": "Silver 层展开 JSON 嵌套字段（properties:page_url 或 $1:page_url 等语法）",
+          "passed": true,
+          "evidence": "JSON_EXTRACT_STRING(properties, '$.page_url') AS page_url, JSON_EXTRACT_STRING(properties, '$.referrer') AS referrer"
+        },
+        {
+          "text": "Gold 层包含 CREATE DYNAMIC TABLE，TARGET_LAG = DOWNSTREAM",
+          "passed": true,
+          "evidence": "CREATE OR REPLACE DYNAMIC TABLE gold.events_daily_stats TARGET_LAG = DOWNSTREAM"
+        },
+        {
+          "text": "Gold 层包含 COUNT(DISTINCT user_id) 和 COUNT(*) 或 COUNT(event_id)，按日期和 event_name 分组",
+          "passed": true,
+          "evidence": "COUNT(*) AS event_count, COUNT(DISTINCT user_id) AS unique_users ... GROUP BY event_date, event_name"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8333333333333334,
+        "passed": 5,
+        "failed": 1,
+        "total": 6,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "包含 CREATE DYNAMIC TABLE 或 CREATE OR REPLACE DYNAMIC TABLE",
+          "passed": true,
+          "evidence": "CREATE DYNAMIC TABLE dwd.orders_clean"
+        },
+        {
+          "text": "包含 dwd.orders_clean 作为表名",
+          "passed": true,
+          "evidence": "CREATE DYNAMIC TABLE dwd.orders_clean"
+        },
+        {
+          "text": "包含 TARGET_LAG = '1 minutes' 或等效写法",
+          "passed": true,
+          "evidence": "TARGET_LAG = '1 minute'（等效写法）"
+        },
+        {
+          "text": "包含 VCLUSTER = default_ap",
+          "passed": false,
+          "evidence": "使用了 COMPUTE_CLUSTER = 'default_ap' 而非 VCLUSTER = default_ap"
+        },
+        {
+          "text": "包含 WHERE amount > 0 过滤条件",
+          "passed": true,
+          "evidence": "WHERE amount > 0"
+        },
+        {
+          "text": "包含 FROM ods.orders",
+          "passed": true,
+          "evidence": "FROM ods.orders"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "包含 SHOW DYNAMIC TABLE REFRESH HISTORY 命令",
+          "passed": true,
+          "evidence": "SHOW DYNAMIC TABLE REFRESH HISTORY dws.order_hourly LIMIT 20;"
+        },
+        {
+          "text": "包含 dws.order_hourly 表名",
+          "passed": true,
+          "evidence": "SHOW DYNAMIC TABLE REFRESH HISTORY dws.order_hourly"
+        },
+        {
+          "text": "提到至少一种常见失败原因（SQL报错/源表变更/集群不可用）",
+          "passed": true,
+          "evidence": "提到：集群不存在或已暂停、SQL 逻辑有问题（如引用了被删除的列）、资源不足/超时"
+        },
+        {
+          "text": "提供具体的排查步骤或命令",
+          "passed": true,
+          "evidence": "提供了7步排查流程，包含 DESC DYNAMIC TABLE、EXPLAIN SELECT、ALTER DYNAMIC TABLE REFRESH 等具体命令"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8333333333333334,
+        "passed": 5,
+        "failed": 1,
+        "total": 6,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "包含 CREATE PIPE 语句",
+          "passed": true,
+          "evidence": "CREATE PIPE ods.pipe_kafka_orders"
+        },
+        {
+          "text": "包含 READ_KAFKA 函数",
+          "passed": false,
+          "evidence": "未使用 READ_KAFKA 函数，而是使用了 FROM STREAM(...) 语法"
+        },
+        {
+          "text": "包含 kafka.prod.com:9092 作为 broker 地址",
+          "passed": true,
+          "evidence": "KAFKA_BOOTSTRAP_SERVERS = 'kafka.prod.com:9092'"
+        },
+        {
+          "text": "包含 KAFKA_TOPIC 设置为 orders",
+          "passed": true,
+          "evidence": "KAFKA_TOPIC = 'orders'"
+        },
+        {
+          "text": "包含 KAFKA_DATA_FORMAT = 'json' 或等效写法",
+          "passed": true,
+          "evidence": "KAFKA_DATA_FORMAT = 'JSON'"
+        },
+        {
+          "text": "包含 INSERT INTO ods.orders",
+          "passed": true,
+          "evidence": "INSERT INTO ods.orders"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 4,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "包含 CREATE TABLE STREAM",
+          "passed": true,
+          "evidence": "CREATE TABLE STREAM ods.orders_stream"
+        },
+        {
+          "text": "包含 ON TABLE ods.orders",
+          "passed": true,
+          "evidence": "ON TABLE ods.orders"
+        },
+        {
+          "text": "包含 MODE = STANDARD 或说明标准模式",
+          "passed": true,
+          "evidence": "MODE = STANDARD，并说明'MODE = STANDARD 是关键'"
+        },
+        {
+          "text": "提到 _change_type 字段",
+          "passed": true,
+          "evidence": "_change_type 字段在 WHERE 条件和注意事项中均有提及"
+        },
+        {
+          "text": "提到 update_postimage 或 delete 变更类型",
+          "passed": true,
+          "evidence": "update_postimage：更新后的新值；_change_type = 'delete'"
+        },
+        {
+          "text": "提供消费 stream 的方案（MERGE INTO 或 Dynamic Table）",
+          "passed": true,
+          "evidence": "方式 A 和方式 B 均使用 Dynamic Table 消费 Stream"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 5,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8333333333333334,
+        "passed": 5,
+        "failed": 1,
+        "total": 6,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "包含 CREATE MATERIALIZED VIEW",
+          "passed": true,
+          "evidence": "CREATE MATERIALIZED VIEW dws.mv_daily_revenue"
+        },
+        {
+          "text": "包含 dws.mv_daily_revenue 作为视图名",
+          "passed": true,
+          "evidence": "CREATE MATERIALIZED VIEW dws.mv_daily_revenue"
+        },
+        {
+          "text": "包含 REFRESH AUTO EVERY '1 hours' 或等效写法",
+          "passed": false,
+          "evidence": "使用了 'REFRESH EVERY 1 HOUR'，缺少 AUTO 关键字，不符合 ClickZetta 特有语法 REFRESH AUTO EVERY '1 hours'"
+        },
+        {
+          "text": "包含 FROM dwd.orders_clean",
+          "passed": true,
+          "evidence": "FROM dwd.orders_clean"
+        },
+        {
+          "text": "包含 SUM 聚合 revenue 或 amount",
+          "passed": true,
+          "evidence": "SUM(revenue) AS total_revenue"
+        },
+        {
+          "text": "包含 GROUP BY 包括日期和 region",
+          "passed": true,
+          "evidence": "GROUP BY DATE(order_time), region"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 6,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "包含两个 CREATE DYNAMIC TABLE 语句（DWD 和 DWS 层）",
+          "passed": true,
+          "evidence": "CREATE DYNAMIC TABLE dwd_orders_clean 和 CREATE DYNAMIC TABLE dws_orders_daily_summary（方案A/B）"
+        },
+        {
+          "text": "DWD 层包含 TARGET_LAG = '1 minutes'",
+          "passed": false,
+          "evidence": "使用了 TARGET_LAG = '1 minute'（单数形式），而非 '1 minutes'"
+        },
+        {
+          "text": "DWS 层包含 TARGET_LAG = DOWNSTREAM",
+          "passed": true,
+          "evidence": "TARGET_LAG = 'DOWNSTREAM' 在方案A的 dws_orders_daily_summary 中"
+        },
+        {
+          "text": "解释 DOWNSTREAM 的含义（跟随上游刷新）",
+          "passed": true,
+          "evidence": "表示 DWS 跟随其上游（DWD）的刷新节奏，DWD 刷新后 DWS 立即触发刷新"
+        },
+        {
+          "text": "DWS 层查询来自 DWD 层表",
+          "passed": true,
+          "evidence": "FROM dwd_orders_clean 在 dws_orders_daily_summary 的查询中"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 7,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "包含 ALTER DYNAMIC TABLE ... SUSPEND",
+          "passed": true,
+          "evidence": "ALTER DYNAMIC TABLE <schema_name>.<table_name> SUSPEND; 及具体示例 ALTER DYNAMIC TABLE dw.order_summary SUSPEND;"
+        },
+        {
+          "text": "包含 ALTER DYNAMIC TABLE ... RESUME",
+          "passed": true,
+          "evidence": "ALTER DYNAMIC TABLE dw.order_summary RESUME; 等多个示例"
+        },
+        {
+          "text": "提到 SHOW TABLES WHERE is_dynamic=true 或等效方式列出动态表",
+          "passed": true,
+          "evidence": "SHOW TABLES WHERE is_dynamic = true;"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 8,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 2,
+        "failed": 2,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "说明动态表适合实时或增量计算场景",
+          "passed": true,
+          "evidence": "适合持续更新的流式或批量数据管道场景；支持增量刷新（Incremental Refresh）"
+        },
+        {
+          "text": "说明物化视图适合低频或手动刷新场景",
+          "passed": true,
+          "evidence": "刷新方式通常为手动触发或基于规则触发；更多用于查询加速"
+        },
+        {
+          "text": "明确推荐物化视图用于每天一次的报表场景",
+          "passed": false,
+          "evidence": "推荐使用动态表（Dynamic Table），而非物化视图，与正确答案相反"
+        },
+        {
+          "text": "提到 REFRESH MANUAL 或 REFRESH AUTO EVERY '1 days' 等具体语法",
+          "passed": false,
+          "evidence": "未提及 REFRESH MANUAL 或 REFRESH AUTO EVERY '1 days'，仅给出了动态表示例 TARGET_LAG = '1 day'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 9,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5714285714285714,
+        "passed": 4,
+        "failed": 3,
+        "total": 7,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "包含 ODS 层建表语句（CREATE TABLE）",
+          "passed": true,
+          "evidence": "CREATE TABLE ods_user_events (...) USING DELTA PARTITIONED BY (dt STRING)"
+        },
+        {
+          "text": "包含 CREATE PIPE 使用 READ_KAFKA 从 kafka.prod.com:9092 摄入数据",
+          "passed": false,
+          "evidence": "使用了 CREATE EXTERNAL SOURCE + CREATE PIPELINE ... FROM STREAM(kafka_user_events)，未使用 CREATE PIPE 和 READ_KAFKA 函数"
+        },
+        {
+          "text": "包含 DWD 层 CREATE DYNAMIC TABLE，TARGET_LAG = '2 minutes'，VCLUSTER",
+          "passed": false,
+          "evidence": "DWD 层使用 CREATE PIPELINE dwd_clean_pipeline SCHEDULE EVERY 2 MINUTES，未使用 CREATE DYNAMIC TABLE 和 TARGET_LAG/VCLUSTER"
+        },
+        {
+          "text": "包含 DWS 层 CREATE DYNAMIC TABLE，TARGET_LAG = DOWNSTREAM",
+          "passed": false,
+          "evidence": "DWS 层使用 CREATE PIPELINE dws_agg_pipeline SCHEDULE EVERY 2 MINUTES + MERGE INTO，未使用 CREATE DYNAMIC TABLE 和 TARGET_LAG = DOWNSTREAM"
+        },
+        {
+          "text": "DWS 层包含 COUNT(DISTINCT user_id) 统计 UV 或 COUNT(*) 统计 PV",
+          "passed": true,
+          "evidence": "COUNT(*) AS pv, COUNT(DISTINCT user_id) AS uv 出现在 DWS Pipeline 的聚合查询中"
+        },
+        {
+          "text": "DWS 层按日期和 page_id 分组（GROUP BY）",
+          "passed": true,
+          "evidence": "GROUP BY dt, page_id 出现在 DWS Pipeline 的聚合查询中"
+        },
+        {
+          "text": "包含验证命令（SHOW 或 DESC）",
+          "passed": true,
+          "evidence": "SHOW PIPELINES;"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 10,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.16666666666666666,
+        "passed": 1,
+        "failed": 5,
+        "total": 6,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "包含 CREATE TABLE STREAM ON TABLE ods.orders，MODE = STANDARD",
+          "passed": false,
+          "evidence": "未使用 CREATE TABLE STREAM，而是直接对 ods.orders 使用 MERGE INTO，通过 WHERE updated_at >= CURRENT_TIMESTAMP() - INTERVAL 2 MINUTES 做增量"
+        },
+        {
+          "text": "DWD 层动态表消费 stream，过滤 _change_type IN ('insert', 'update_postimage')",
+          "passed": false,
+          "evidence": "DWD 层使用 MERGE INTO dwd.orders_latest，无 stream 消费，无 _change_type 过滤"
+        },
+        {
+          "text": "DWD 层包含 TARGET_LAG = '1 minutes'，VCLUSTER",
+          "passed": false,
+          "evidence": "DWD 层使用 CREATE TASK task_ods_to_dwd SCHEDULE = '1 MINUTE'，未使用 CREATE DYNAMIC TABLE 和 TARGET_LAG/VCLUSTER"
+        },
+        {
+          "text": "DWS 层包含 TARGET_LAG = DOWNSTREAM",
+          "passed": false,
+          "evidence": "DWS 层使用 CREATE TASK task_dwd_to_dws SCHEDULE = '1 MINUTE'，未使用 CREATE DYNAMIC TABLE 和 TARGET_LAG = DOWNSTREAM"
+        },
+        {
+          "text": "DWS 层按日期和 status 分组，包含 COUNT 和 SUM 聚合",
+          "passed": true,
+          "evidence": "GROUP BY CAST(updated_at AS DATE), status; COUNT(*) AS order_cnt, SUM(amount) AS total_amount"
+        },
+        {
+          "text": "包含验证命令（SHOW DYNAMIC TABLE REFRESH HISTORY 或 SHOW TABLE STREAMS）",
+          "passed": false,
+          "evidence": "验证部分只有 SELECT 查询，无 SHOW DYNAMIC TABLE REFRESH HISTORY 或 SHOW TABLE STREAMS 命令"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 11,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 3,
+        "failed": 3,
+        "total": 6,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "包含 CREATE PIPE 使用 COPY INTO FROM '@my_oss_vol/logs/app/'",
+          "passed": false,
+          "evidence": "未使用 CREATE PIPE，而是创建 EXTERNAL TABLE LOCATION 'volume://my_oss_vol/logs/app/' 加定时 INSERT INTO 任务"
+        },
+        {
+          "text": "包含 FILE_FORMAT = (TYPE = 'parquet') 或等效写法",
+          "passed": true,
+          "evidence": "CREATE EXTERNAL TABLE ... STORED AS PARQUET，等效指定了 Parquet 格式"
+        },
+        {
+          "text": "DWD 层包含 CREATE DYNAMIC TABLE，TARGET_LAG = '1 hours'，VCLUSTER，过滤 duration_ms <= 0",
+          "passed": false,
+          "evidence": "DWD 层使用 CREATE TABLE + INSERT OVERWRITE 定时任务，未使用 CREATE DYNAMIC TABLE 和 TARGET_LAG/VCLUSTER；过滤条件 duration_ms > 0 存在"
+        },
+        {
+          "text": "DWS 层包含 TARGET_LAG = DOWNSTREAM",
+          "passed": false,
+          "evidence": "DWS 层使用 CREATE TABLE + INSERT OVERWRITE 定时任务，未使用 CREATE DYNAMIC TABLE 和 TARGET_LAG = DOWNSTREAM"
+        },
+        {
+          "text": "DWS 层包含 AVG(duration_ms) 统计平均耗时",
+          "passed": true,
+          "evidence": "AVG(duration_ms) AS avg_duration_ms 出现在 DWS 聚合查询中"
+        },
+        {
+          "text": "DWS 层按日期和 action 分组",
+          "passed": true,
+          "evidence": "GROUP BY action（分区字段 dt 通过 PARTITION BY 隐式处理，但 GROUP BY 子句中只有 action）"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 12,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 6,
+        "total": 6,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "使用 bronze/silver/gold schema 命名（不使用 ods/dwd/dws）",
+          "passed": false,
+          "evidence": "未使用 bronze/silver/gold 命名，而是使用了 ods/dwd/dws 分层命名（CREATE SCHEMA ods; dwd; dws）"
+        },
+        {
+          "text": "包含 CREATE PIPE 使用 COPY INTO FROM '@s3_raw_vol/events/'，FILE_FORMAT TYPE = 'json'",
+          "passed": false,
+          "evidence": "未使用 CREATE PIPE，而是使用 CREATE EXTERNAL TABLE LOCATION 'volume://my_oss_vol/logs/app/' 加定时任务，路径和格式均不符合"
+        },
+        {
+          "text": "Silver 层包含 CREATE DYNAMIC TABLE，TARGET_LAG = '5 minutes'，VCLUSTER，过滤 event_name IS NULL",
+          "passed": false,
+          "evidence": "无 Silver 层，DWD 层使用 CREATE TABLE + INSERT OVERWRITE 定时任务，未使用 CREATE DYNAMIC TABLE"
+        },
+        {
+          "text": "Silver 层展开 JSON 嵌套字段（properties:page_url 或 $1:page_url 等语法）",
+          "passed": false,
+          "evidence": "无 Silver 层，且无 JSON 嵌套字段展开操作"
+        },
+        {
+          "text": "Gold 层包含 CREATE DYNAMIC TABLE，TARGET_LAG = DOWNSTREAM",
+          "passed": false,
+          "evidence": "无 Gold 层，DWS 层使用 CREATE TABLE + INSERT OVERWRITE 定时任务，未使用 CREATE DYNAMIC TABLE 和 TARGET_LAG = DOWNSTREAM"
+        },
+        {
+          "text": "Gold 层包含 COUNT(DISTINCT user_id) 和 COUNT(*) 或 COUNT(event_id)，按日期和 event_name 分组",
+          "passed": false,
+          "evidence": "无 Gold 层，DWS 层按 action 分组统计 AVG(duration_ms) 和 COUNT(*)，无 event_name 分组，无 COUNT(DISTINCT user_id)"
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "tokens": {
+        "mean": 0,
+        "stddev": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.6698,
+        "stddev": 0.0,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "tokens": {
+        "mean": 0,
+        "stddev": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.33",
+      "time_seconds": "+0.0",
+      "tokens": "+0"
+    }
+  },
+  "notes": [
+    "全量认证评估：12 个 eval，覆盖 Dynamic Table、Materialized View、Table Stream、Pipe、Kafka、CDC、OSS、Medallion 等场景",
+    "with_skill 通过率 100%（65/65 assertions），without_skill 通过率 64.6%（42/65 assertions）",
+    "差距最大的场景：eval-12 Medallion（without_skill 0%）、eval-10 CDC 全链路（17%）、eval-8 DT vs MV 选型（50%）",
+    "注意：eval-4、eval-7 without_skill 因 agent 读取了 skill 参考文件（table-stream.md、dynamic-table.md）导致得分偏高（contamination）",
+    "核心价值：skill 确保了 VCLUSTER 语法、READ_KAFKA 函数、CREATE TABLE STREAM 语法、Medallion 层命名等 ClickZetta 特有知识的正确输出"
+  ]
+}

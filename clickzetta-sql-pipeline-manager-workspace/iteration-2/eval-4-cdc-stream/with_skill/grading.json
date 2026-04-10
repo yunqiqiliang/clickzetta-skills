@@ -1,0 +1,36 @@
+{
+  "eval_id": 4,
+  "run_type": "with_skill",
+  "assertions": [
+    {
+      "text": "包含 CREATE TABLE STREAM",
+      "passed": true,
+      "evidence": "CREATE TABLE STREAM ods.orders_stream"
+    },
+    {
+      "text": "包含 ON TABLE ods.orders",
+      "passed": true,
+      "evidence": "ON TABLE ods.orders"
+    },
+    {
+      "text": "包含 MODE = STANDARD 或说明标准模式",
+      "passed": true,
+      "evidence": "MODE = STANDARD"
+    },
+    {
+      "text": "提到 _change_type 字段",
+      "passed": true,
+      "evidence": "_change_type：insert / update_preimage / update_postimage / delete"
+    },
+    {
+      "text": "提到 update_postimage 或 delete 变更类型",
+      "passed": true,
+      "evidence": "WHERE _change_type IN ('insert', 'update_postimage') 以及 WHERE _change_type IN ('insert', 'update_postimage', 'delete')"
+    },
+    {
+      "text": "提供消费 stream 的方案（MERGE INTO 或 Dynamic Table）",
+      "passed": true,
+      "evidence": "提供了两种方案：方案A和方案B均使用 CREATE OR REPLACE DYNAMIC TABLE 消费 ods.orders_stream"
+    }
+  ]
+}

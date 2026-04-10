@@ -1,0 +1,88 @@
+根据你的需求，使用 Pipe 对象从 Kafka 持续导入数据到 ods.orders 表。
+
+## 第一步（可选）：创建前验证 Kafka 连接
+
+建议先用 READ_KAFKA 函数验证连接和数据格式，确认能正常读取数据：
+
+```sql
+SELECT *
+FROM TABLE(
+  READ_KAFKA(
+    KAFKA_BROKER => 'kafka.prod.com:9092',
+    KAFKA_TOPIC  => 'orders',
+    KAFKA_GROUP_ID => 'test_group',
+    KAFKA_OFFSET => 'earliest',
+    KAFKA_DATA_FORMAT => 'json'
+  )
+)
+LIMIT 10;
+```
+
+## 第二步：创建 Pipe
+
+根据你的 JSON 数据结构，使用 $1:<field_name> 语法提取字段。以下 SQL 包含订单数据的常见字段，请按实际 JSON 结构调整列名和类型：
+
+```sql
+CREATE OR REPLACE PIPE kafka_orders_pipe
+  COMMENT '从 Kafka 持续导入订单数据到 ods.orders'
+AS
+INSERT INTO ods.orders (order_id, user_id, amount, status, created_at)
+SELECT
+  $1:order_id::STRING,
+  $1:user_id::STRING,
+  $1:amount::DECIMAL(10,2),
+  $1:status::STRING,
+  $1:created_at::TIMESTAMP
+FROM TABLE(
+  READ_KAFKA(
+    KAFKA_BROKER    => 'kafka.prod.com:9092',
+    KAFKA_TOPIC     => 'orders',
+    KAFKA_GROUP_ID  => 'lakehouse_orders_consumer',
+    KAFKA_OFFSET    => 'latest',
+    KAFKA_DATA_FORMAT => 'json'
+  )
+);
+```
+
+参数说明：
+- KAFKA_GROUP_ID：消费者组 ID，可自定义，建议使用有意义的名称
+- KAFKA_OFFSET：latest 表示从最新消息开始消费；如需从头消费历史数据，改为 earliest
+- $1 代表 Kafka 消息体，$1:<field> 提取 JSON 字段，::TYPE 做类型转换
+
+如果 Kafka 需要认证，在 READ_KAFKA 中补充：
+```sql
+    KAFKA_SASL_USERNAME => '<your_username>',
+    KAFKA_SASL_PASSWORD => '<your_password>',
+```
+
+## 第三步：验证 Pipe 状态
+
+Pipe 创建后默认自动启动，执行以下命令确认运行状态：
+
+```sql
+-- 查看所有 Pipe
+SHOW PIPES;
+
+-- 查看该 Pipe 详情
+DESC PIPE kafka_orders_pipe;
+```
+
+## 日常运维
+
+```sql
+-- 暂停 Pipe（如需维护）
+ALTER PIPE kafka_orders_pipe PAUSE;
+
+-- 恢复 Pipe
+ALTER PIPE kafka_orders_pipe RESUME;
+
+-- 删除 Pipe
+DROP PIPE IF EXISTS kafka_orders_pipe;
+```
+
+## 注意事项
+
+1. ods.orders 表需要提前创建，Pipe 不会自动建表。
+2. Pipe 不支持修改 AS 子句，如需调整字段映射，使用 CREATE OR REPLACE PIPE 重建。
+3. 重建 Pipe 时注意 KAFKA_GROUP_ID 和 KAFKA_OFFSET 的设置，避免重复消费或跳过数据。
+4. 如果 JSON 字段名与上面示例不符，请将 $1:order_id、$1:user_id 等替换为实际字段名。

@@ -1,0 +1,44 @@
+要暂停所有动态表的刷新，然后在维护结束后恢复，可以按以下步骤操作：
+
+## 第一步：查询当前 schema 下所有动态表
+
+```sql
+SHOW TABLES WHERE is_dynamic = true;
+```
+
+如果动态表分布在多个 schema，可以指定 schema 查询：
+
+```sql
+SHOW TABLES IN <schema_name> WHERE is_dynamic = true;
+```
+
+## 第二步：逐一暂停所有动态表的刷新
+
+对每张动态表执行：
+
+```sql
+ALTER DYNAMIC TABLE <schema_name>.<table_name> SUSPEND;
+```
+
+例如，如果有以下动态表：
+
+```sql
+ALTER DYNAMIC TABLE dw.order_summary SUSPEND;
+ALTER DYNAMIC TABLE dw.order_daily SUSPEND;
+ALTER DYNAMIC TABLE dw.sales_by_date SUSPEND;
+```
+
+## 第三步：维护结束后，逐一恢复所有动态表的刷新
+
+```sql
+ALTER DYNAMIC TABLE dw.order_summary RESUME;
+ALTER DYNAMIC TABLE dw.order_daily RESUME;
+ALTER DYNAMIC TABLE dw.sales_by_date RESUME;
+```
+
+## 注意事项
+
+- SUSPEND 后动态表仍然可以正常查询，返回的是最后一次成功刷新的数据版本。
+- RESUME 后动态表会按照原来配置的 TARGET_LAG 重新开始自动刷新。
+- 如果动态表之间存在上下游依赖关系（TARGET_LAG = DOWNSTREAM），建议先暂停下游表，再暂停上游表；恢复时先恢复上游表，再恢复下游表。
+- 目前 ClickZetta 不支持一条命令批量暂停/恢复所有动态表，需要逐表操作。

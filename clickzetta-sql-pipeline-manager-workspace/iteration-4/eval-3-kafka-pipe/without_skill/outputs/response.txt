@@ -1,0 +1,82 @@
+要从 Kafka 持续导入订单数据到 ods.orders 表，在 ClickZetta Lakehouse 中可以使用 PIPE 功能来实现持续的流式数据导入。
+
+以下是完整的操作步骤：
+
+## 第一步：确认目标表存在
+
+确保 ods.orders 表已经创建，表结构需要与 Kafka 中的 JSON 数据字段对应。例如：
+
+```sql
+CREATE TABLE IF NOT EXISTS ods.orders (
+    order_id    BIGINT,
+    user_id     BIGINT,
+    amount      DECIMAL(18, 2),
+    status      STRING,
+    created_at  TIMESTAMP,
+    -- 根据实际 JSON 字段调整
+    raw_data    STRING  -- 可选：保留原始 JSON
+);
+```
+
+## 第二步：创建 Kafka PIPE
+
+使用 CREATE PIPE 语句创建一个持续从 Kafka 消费数据的管道：
+
+```sql
+CREATE PIPE ods.pipe_kafka_orders
+AS
+INSERT INTO ods.orders
+SELECT
+    GET_JSON_OBJECT(data, '$.order_id')::BIGINT      AS order_id,
+    GET_JSON_OBJECT(data, '$.user_id')::BIGINT       AS user_id,
+    GET_JSON_OBJECT(data, '$.amount')::DECIMAL(18,2) AS amount,
+    GET_JSON_OBJECT(data, '$.status')::STRING        AS status,
+    GET_JSON_OBJECT(data, '$.created_at')::TIMESTAMP AS created_at
+FROM STREAM (
+    SOURCE = KAFKA,
+    KAFKA_BOOTSTRAP_SERVERS = 'kafka.prod.com:9092',
+    KAFKA_TOPIC = 'orders',
+    KAFKA_DATA_FORMAT = 'JSON',
+    KAFKA_CONSUMER_GROUP = 'clickzetta_orders_cg'
+);
+```
+
+## 第三步：启动 PIPE
+
+创建后 PIPE 默认处于暂停状态，需要手动启动：
+
+```sql
+ALTER PIPE ods.pipe_kafka_orders RESUME;
+```
+
+## 第四步：查看 PIPE 状态
+
+```sql
+SHOW PIPES IN SCHEMA ods;
+```
+
+或查看指定 PIPE 的详情：
+
+```sql
+DESCRIBE PIPE ods.pipe_kafka_orders;
+```
+
+## 常用管理命令
+
+暂停 PIPE（停止消费）：
+```sql
+ALTER PIPE ods.pipe_kafka_orders SUSPEND;
+```
+
+删除 PIPE：
+```sql
+DROP PIPE ods.pipe_kafka_orders;
+```
+
+## 注意事项
+
+1. KAFKA_CONSUMER_GROUP 建议设置一个有意义的名称，便于在 Kafka 端追踪消费进度。
+2. 如果 JSON 字段结构不固定，可以先将整条消息存入 STRING 类型字段，后续再做解析。
+3. PIPE 会持续运行并自动处理断线重连，无需手动干预。
+4. 确保 ClickZetta 集群网络可以访问 kafka.prod.com:9092。
+5. 如果 Kafka 开启了认证（SASL/SSL），需要在 STREAM 参数中额外配置认证信息。

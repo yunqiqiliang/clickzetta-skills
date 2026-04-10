@@ -1,0 +1,134 @@
+要捕获 ods.orders 表的 UPDATE 和 DELETE 变更并同步到 dwd.orders_dim，需要使用 Table Stream（MODE = STANDARD）+ Dynamic Table 的组合方案。
+
+## 核心原理
+
+- UPDATE/DELETE 变更捕获必须使用 MODE = STANDARD 的 Table Stream
+- STANDARD 模式下，UPDATE 产生两条记录：update_preimage（更新前）和 update_postimage（更新后）
+- DELETE 产生 _change_type = 'delete' 的记录
+- 用 Dynamic Table 自动消费 Stream，执行 MERGE 写入目标表
+
+---
+
+## Step 1：在 ods.orders 上创建 STANDARD 模式的 Table Stream
+
+```sql
+CREATE TABLE STREAM ods.orders_stream
+  ON TABLE ods.orders
+  MODE = STANDARD
+  COMMENT '捕获 orders 表的 INSERT/UPDATE/DELETE 变更';
+```
+
+---
+
+## Step 2：（如果 dwd.orders_dim 尚未存在）先建目标表
+
+```sql
+CREATE TABLE IF NOT EXISTS dwd.orders_dim (
+  order_id   STRING,
+  user_id    STRING,
+  amount     DECIMAL(10, 2),
+  status     STRING,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+);
+```
+
+---
+
+## Step 3：创建 Dynamic Table 消费 Stream，MERGE 到 dwd.orders_dim
+
+Dynamic Table 不支持直接在 AS 子句中写 MERGE INTO，正确做法是用 Dynamic Table 作为中间层处理变更，再通过 Task 执行 MERGE，或者用 Dynamic Table 的增量查询方式。
+
+实际上，在 ClickZetta 中推荐的模式是：
+
+**方案 A：Dynamic Table 过滤 postimage，直接作为 dwd.orders_dim（适合全量替换语义）**
+
+```sql
+-- 如果 dwd.orders_dim 只需要保留当前存活的最新状态（不需要物理 DELETE）
+CREATE OR REPLACE DYNAMIC TABLE dwd.orders_dim
+  TARGET_LAG = '1 minutes'
+  VCLUSTER = default_ap
+  COMMENT 'CDC 同步自 ods.orders，保留最新状态'
+AS
+SELECT
+  order_id,
+  user_id,
+  amount,
+  status,
+  created_at,
+  updated_at
+FROM ods.orders_stream
+WHERE _change_type IN ('insert', 'update_postimage');
+-- 注意：此方案 Dynamic Table 会自动管理快照，DELETE 的行不会出现在结果中
+```
+
+**方案 B：Task + MERGE INTO，精确处理 UPDATE 和 DELETE（推荐，语义最准确）**
+
+```sql
+-- 创建定时 Task，每分钟消费 Stream 并 MERGE 到目标表
+CREATE TASK IF NOT EXISTS task_sync_orders_dim
+  WAREHOUSE = 'default_ap'
+  SCHEDULE  = '1 MINUTE'
+AS
+MERGE INTO dwd.orders_dim AS target
+USING (
+  SELECT *
+  FROM ods.orders_stream
+  WHERE _change_type IN ('insert', 'update_postimage', 'delete')
+) AS src
+ON target.order_id = src.order_id
+WHEN MATCHED AND src._change_type = 'delete'
+  THEN DELETE
+WHEN MATCHED AND src._change_type = 'update_postimage'
+  THEN UPDATE SET
+    target.user_id    = src.user_id,
+    target.amount     = src.amount,
+    target.status     = src.status,
+    target.updated_at = src._change_timestamp
+WHEN NOT MATCHED AND src._change_type = 'insert'
+  THEN INSERT (order_id, user_id, amount, status, created_at, updated_at)
+       VALUES (src.order_id, src.user_id, src.amount, src.status,
+               src.created_at, src._change_timestamp);
+
+-- 启动 Task
+ALTER TASK task_sync_orders_dim RESUME;
+```
+
+---
+
+## 验证
+
+```sql
+-- 确认 Stream 已创建
+SHOW TABLE STREAMS IN ods;
+
+-- 查看当前未消费的变更（消费后数据会被标记已读）
+SELECT _change_type, COUNT(*) FROM ods.orders_stream GROUP BY 1;
+
+-- 确认 Task 已启动
+SHOW TASKS LIKE 'task_sync_orders_dim';
+
+-- 查看目标表数据
+SELECT * FROM dwd.orders_dim LIMIT 20;
+```
+
+---
+
+## _change_type 字段说明
+
+| _change_type     | 含义                    | 处理方式        |
+|------------------|-------------------------|-----------------|
+| insert           | 新增行                  | INSERT 到目标表 |
+| update_preimage  | UPDATE 前的旧值（忽略） | 不处理          |
+| update_postimage | UPDATE 后的新值         | UPDATE 目标表   |
+| delete           | 删除行                  | DELETE 目标表   |
+
+---
+
+## 关键注意事项
+
+1. Stream 数据只能消费一次，Task 或 Dynamic Table 会自动管理消费状态，无需手动干预
+2. 若长时间不消费（超出源表 data_retention_days），变更数据会丢失，建议保持 Task 处于 RESUME 状态
+3. TARGET_LAG 或 Task 调度间隔可根据业务延迟要求调整，最低支持秒级（如 '30 seconds'）
+4. update_preimage 记录通常直接忽略，只需要 update_postimage 获取最新值
+5. 方案 A（Dynamic Table）适合下游只读查询场景；方案 B（Task + MERGE）适合需要精确 DELETE 语义的场景

@@ -1,0 +1,11 @@
+{
+  "eval_id": 6,
+  "run_type": "without_skill",
+  "expectations": [
+    {"text": "包含两个 CREATE DYNAMIC TABLE 语句（DWD 和 DWS 层）", "passed": true, "evidence": "CREATE DYNAMIC TABLE dwd_orders 和 CREATE DYNAMIC TABLE dws_order_daily_summary"},
+    {"text": "DWD 层包含 TARGET_LAG = '1 minutes'", "passed": true, "evidence": "TARGET_LAG = '1 minute' 在 dwd_orders 中"},
+    {"text": "DWS 层包含 TARGET_LAG = DOWNSTREAM", "passed": true, "evidence": "TARGET_LAG = DOWNSTREAM 在 dws_order_daily_summary 中"},
+    {"text": "解释 DOWNSTREAM 的含义（跟随上游刷新）", "passed": true, "evidence": "DWS 设置 TARGET_LAG = DOWNSTREAM 表示：不独立调度，而是在其依赖的 DWD 动态表刷新完成后立即触发刷新"},
+    {"text": "DWS 层查询来自 DWD 层表", "passed": true, "evidence": "FROM dwd_orders 在 dws_order_daily_summary 的 AS 查询中"}
+  ]
+}

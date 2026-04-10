@@ -1,0 +1,15 @@
+以下是创建动态表 dwd.orders_clean 的 SQL 语句：
+
+CREATE DYNAMIC TABLE dwd.orders_clean
+  TARGET_LAG = '1 minute'
+  COMPUTE_CLUSTER = default_ap
+AS
+SELECT *
+FROM ods.orders
+WHERE amount > 0;
+
+说明：
+- TARGET_LAG = '1 minute'：设置动态表每分钟刷新一次。
+- COMPUTE_CLUSTER = default_ap：指定计算集群为 default_ap。
+- WHERE amount > 0：过滤掉 amount 不大于 0 的数据，只保留有效订单。
+- SELECT * FROM ods.orders：从源表 ods.orders 读取数据。

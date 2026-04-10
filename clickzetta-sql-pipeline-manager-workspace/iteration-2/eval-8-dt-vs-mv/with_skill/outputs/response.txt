@@ -1,0 +1,76 @@
+## 动态表 vs 物化视图：核心区别
+
+| 维度 | 动态表（Dynamic Table） | 物化视图（Materialized View） |
+|---|---|---|
+| 刷新方式 | 自动增量刷新（系统检测上游变化后触发） | 全量刷新（手动触发或定时全量重算） |
+| 刷新粒度 | 增量（只处理新增/变更数据） | 全量（每次刷新重新计算全部数据） |
+| 延迟 | 秒/分钟级，适合实时或近实时 | 分钟/小时/天级，适合低频场景 |
+| 调度控制 | 由 TARGET_LAG 参数驱动，系统自动调度 | REFRESH MANUAL（手动）或 REFRESH AUTO EVERY（定时） |
+| CDC 感知 | 支持（配合 Table Stream 感知 UPDATE/DELETE） | 不支持 |
+| 适用场景 | 实时 ETL、多层级联管道、增量聚合 | 固定维度聚合、BI 查询加速、低频报表 |
+
+
+## 你的场景：每天凌晨跑一次聚合报表
+
+**推荐使用物化视图（Materialized View）。**
+
+理由：
+- 你的刷新频率是"每天一次"，不需要增量刷新能力，全量重算完全够用
+- 物化视图的定时刷新（REFRESH AUTO EVERY）语义更直接，配置更简单
+- 每天凌晨固定时间触发，物化视图的 `REFRESH AUTO EVERY '1 days'` 完全匹配
+- 动态表的增量刷新能力在这个场景下是浪费，且动态表会持续占用计算资源轮询上游变化
+
+动态表更适合需要分钟级甚至秒级延迟的场景，对于日级报表来说是"大炮打蚊子"。
+
+
+## 推荐 SQL 示例
+
+```sql
+-- 创建每天自动刷新的聚合报表物化视图
+CREATE OR REPLACE MATERIALIZED VIEW dws.mv_daily_report
+  COMMENT '每日聚合报表，凌晨自动刷新'
+  REFRESH AUTO EVERY '1 days'
+  VCLUSTER = default_ap
+AS
+SELECT
+  DATE(created_at) AS day,
+  region,
+  COUNT(*) AS order_cnt,
+  SUM(amount) AS total_amount,
+  COUNT(DISTINCT user_id) AS uv
+FROM dwd.orders_clean
+GROUP BY 1, 2;
+
+-- 如果需要手动触发（比如临时补跑）
+REFRESH MATERIALIZED VIEW dws.mv_daily_report;
+
+-- 验证
+SHOW TABLES WHERE is_materialized_view = true;
+```
+
+**注意 ClickZetta 特有语法：**
+- 定时刷新必须写 `REFRESH AUTO EVERY '1 days'`，带引号，带 AUTO 关键字
+- 错误写法：`REFRESH EVERY 1 DAY`（无引号无 AUTO，会报错）
+- 计算集群参数是 `VCLUSTER`，不是 `WAREHOUSE`
+
+
+## 如果未来需要升级为实时
+
+如果业务发展要求报表延迟从"天级"降到"分钟级"，再考虑切换到动态表：
+
+```sql
+CREATE OR REPLACE DYNAMIC TABLE dws.dt_daily_report
+  TARGET_LAG = '5 minutes'
+  VCLUSTER = default_ap
+AS
+SELECT
+  DATE(created_at) AS day,
+  region,
+  COUNT(*) AS order_cnt,
+  SUM(amount) AS total_amount,
+  COUNT(DISTINCT user_id) AS uv
+FROM dwd.orders_clean
+GROUP BY 1, 2;
+```
+
+当前场景无需这样做，物化视图已经足够。

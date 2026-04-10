@@ -1,0 +1,36 @@
+{
+  "eval_id": 3,
+  "run_type": "without_skill",
+  "assertions": [
+    {
+      "text": "包含 CREATE PIPE 语句",
+      "passed": true,
+      "evidence": "CREATE PIPE ods.kafka_orders_pipe"
+    },
+    {
+      "text": "包含 READ_KAFKA 函数",
+      "passed": false,
+      "evidence": "未使用 READ_KAFKA 函数，而是使用了 FROM KAFKA(...) 语法和 GET_JSON_OBJECT() 函数提取字段，语法不正确"
+    },
+    {
+      "text": "包含 kafka.prod.com:9092 作为 broker 地址",
+      "passed": true,
+      "evidence": "'kafka.bootstrap.servers' = 'kafka.prod.com:9092'"
+    },
+    {
+      "text": "包含 KAFKA_TOPIC 设置为 orders",
+      "passed": false,
+      "evidence": "使用了 'kafka.topic' = 'orders' 而非 KAFKA_TOPIC 参数名，语法不符合 ClickZetta READ_KAFKA 规范"
+    },
+    {
+      "text": "包含 KAFKA_DATA_FORMAT = 'json' 或等效写法",
+      "passed": false,
+      "evidence": "使用了 'kafka.value.format' = 'json' 而非 KAFKA_DATA_FORMAT，语法不符合 ClickZetta READ_KAFKA 规范"
+    },
+    {
+      "text": "包含 INSERT INTO ods.orders",
+      "passed": true,
+      "evidence": "INSERT INTO ods.orders"
+    }
+  ]
+}

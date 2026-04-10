@@ -1,0 +1,26 @@
+{
+  "eval_id": 8,
+  "run_type": "without_skill",
+  "assertions": [
+    {
+      "text": "说明动态表适合实时或增量计算场景",
+      "passed": true,
+      "evidence": "动态表的设计初衷是'尽量保持数据新鲜'，适合 lag 在分钟级的场景；更偏向'流式/近实时'场景，适合数据管道（pipeline）中的中间层"
+    },
+    {
+      "text": "说明物化视图适合低频或手动刷新场景",
+      "passed": true,
+      "evidence": "适合查询加速场景，尤其是复杂聚合查询被频繁访问时；批量报表、查询加速"
+    },
+    {
+      "text": "明确推荐物化视图用于每天一次的报表场景",
+      "passed": true,
+      "evidence": "推荐：使用物化视图（Materialized View）"
+    },
+    {
+      "text": "提到 REFRESH MANUAL 或 REFRESH AUTO EVERY '1 days' 等具体语法",
+      "passed": false,
+      "evidence": "仅提供了 PostgreSQL 语法 REFRESH MATERIALIZED VIEW CONCURRENTLY，未提到 ClickZetta 的 REFRESH MANUAL 或 REFRESH AUTO EVERY '1 days' 语法"
+    }
+  ]
+}

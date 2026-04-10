@@ -1,0 +1,36 @@
+{
+  "eval_id": 12,
+  "run_type": "with_skill",
+  "assertions": [
+    {
+      "text": "使用 bronze/silver/gold schema 命名（不使用 ods/dwd/dws）",
+      "passed": true,
+      "evidence": "CREATE SCHEMA IF NOT EXISTS bronze; silver; gold; 表名为 bronze.events_raw, silver.events_clean, gold.events_daily_stats"
+    },
+    {
+      "text": "包含 CREATE PIPE 使用 COPY INTO FROM '@s3_raw_vol/events/'，FILE_FORMAT TYPE = 'json'",
+      "passed": true,
+      "evidence": "CREATE OR REPLACE PIPE pipe_bronze_events_raw ... COPY INTO bronze.events_raw ... FROM '@s3_raw_vol/events/' FILE_FORMAT = ( TYPE = 'json' )"
+    },
+    {
+      "text": "Silver 层包含 CREATE DYNAMIC TABLE，TARGET_LAG = '5 minutes'，VCLUSTER，过滤 event_name IS NULL",
+      "passed": true,
+      "evidence": "CREATE OR REPLACE DYNAMIC TABLE silver.events_clean TARGET_LAG = '5 minutes' VCLUSTER = default_ap ... WHERE event_name IS NOT NULL AND TRIM(event_name) != ''"
+    },
+    {
+      "text": "Silver 层展开 JSON 嵌套字段（properties:page_url 或 $1:page_url 等语法）",
+      "passed": true,
+      "evidence": "JSON_EXTRACT_STRING(properties, '$.page_url') AS page_url, JSON_EXTRACT_STRING(properties, '$.referrer') AS referrer"
+    },
+    {
+      "text": "Gold 层包含 CREATE DYNAMIC TABLE，TARGET_LAG = DOWNSTREAM",
+      "passed": true,
+      "evidence": "CREATE OR REPLACE DYNAMIC TABLE gold.events_daily_stats TARGET_LAG = DOWNSTREAM"
+    },
+    {
+      "text": "Gold 层包含 COUNT(DISTINCT user_id) 和 COUNT(*) 或 COUNT(event_id)，按日期和 event_name 分组",
+      "passed": true,
+      "evidence": "COUNT(*) AS event_count, COUNT(DISTINCT user_id) AS unique_users ... GROUP BY event_date, event_name"
+    }
+  ]
+}

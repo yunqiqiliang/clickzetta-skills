@@ -1,0 +1,71 @@
+排查动态表 dws.order_hourly 刷新失败，按以下步骤操作：
+
+## 第一步：查看刷新历史，获取错误详情
+
+```sql
+SHOW DYNAMIC TABLE REFRESH HISTORY dws.order_hourly LIMIT 10;
+```
+
+这条命令会返回最近 10 次刷新记录，包含状态（SUCCESS / FAILED）、耗时、触发方式、增量行数，以及失败时的错误信息。重点看 FAILED 记录的错误描述。
+
+## 第二步：查看动态表当前配置
+
+```sql
+DESC DYNAMIC TABLE dws.order_hourly;
+-- 或查看完整建表语句
+SHOW CREATE TABLE dws.order_hourly;
+```
+
+确认 VCLUSTER、TARGET_LAG 配置是否正常，以及 AS 查询的源表是否存在。
+
+## 第三步：根据错误类型对症处理
+
+常见失败原因及解决方案：
+
+| 错误现象 | 可能原因 | 解决方案 |
+|---|---|---|
+| `VCluster not available` | 计算集群未启动或名称错误 | 确认 VCLUSTER 名称，检查集群状态是否运行中 |
+| SQL 执行报错 | AS 查询中引用的源表结构变更（列被删除/重命名） | 检查上游表结构，用 `CREATE OR REPLACE DYNAMIC TABLE` 更新 SQL |
+| 上游动态表失败 | dws.order_hourly 的 TARGET_LAG = DOWNSTREAM，上游刷新失败导致连锁失败 | 先排查上游动态表（如 dwd.orders_clean）的刷新历史 |
+| 权限问题 | 刷新任务无权访问源表 | 检查 VCLUSTER 对应账号对源表的 SELECT 权限 |
+
+## 第四步：检查上游依赖（如适用）
+
+如果 dws.order_hourly 使用了 `TARGET_LAG = DOWNSTREAM`，说明它依赖上游动态表驱动刷新。需要同时排查上游：
+
+```sql
+-- 查看上游动态表刷新历史（以 dwd.orders_clean 为例）
+SHOW DYNAMIC TABLE REFRESH HISTORY dwd.orders_clean LIMIT 10;
+```
+
+## 第五步：验证修复后的状态
+
+修复问题后，确认动态表恢复正常刷新：
+
+```sql
+-- 如果动态表被暂停，先恢复
+ALTER DYNAMIC TABLE dws.order_hourly RESUME;
+
+-- 再次查看刷新历史，确认最新记录状态为 SUCCESS
+SHOW DYNAMIC TABLE REFRESH HISTORY dws.order_hourly LIMIT 5;
+```
+
+## 补充说明
+
+- 刷新失败不影响表的可查询性，查询会返回上次成功刷新的数据版本。
+- 如果需要修改 AS 查询逻辑来修复问题，必须使用 `CREATE OR REPLACE DYNAMIC TABLE`，ALTER 不支持修改 AS 子句。
+- 修改示例：
+
+```sql
+CREATE OR REPLACE DYNAMIC TABLE dws.order_hourly
+  TARGET_LAG = DOWNSTREAM
+  VCLUSTER = default_ap
+AS
+SELECT
+  DATE_TRUNC('hour', created_at) AS hour,
+  status,
+  COUNT(*) AS order_cnt,
+  SUM(amount) AS total_amount
+FROM dwd.orders_clean
+GROUP BY 1, 2;
+```

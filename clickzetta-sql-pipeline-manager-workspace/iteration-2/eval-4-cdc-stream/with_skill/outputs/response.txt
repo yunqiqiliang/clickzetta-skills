@@ -1,0 +1,120 @@
+## 方案：用 Table Stream + Dynamic Table 捕获 UPDATE/DELETE 并同步到 dwd.orders_dim
+
+### 分析
+
+你的需求是：
+- 源表：`ods.orders`
+- 需要感知 UPDATE 和 DELETE 变更
+- 目标表：`dwd.orders_dim`
+
+根据决策树：**已有表 + 需要感知 UPDATE/DELETE → Table Stream + Dynamic Table**
+
+---
+
+### Step 1：在 ods.orders 上创建 Table Stream（STANDARD 模式）
+
+```sql
+CREATE TABLE STREAM ods.orders_stream
+  ON TABLE ods.orders
+  MODE = STANDARD
+  COMMENT 'CDC 流，捕获 ods.orders 的 INSERT/UPDATE/DELETE 变更';
+```
+
+`MODE = STANDARD` 会捕获所有变更类型，每条变更记录附带系统字段：
+- `_change_type`：`insert` / `update_preimage` / `update_postimage` / `delete`
+- `_change_timestamp`：变更发生时间
+
+注意：UPDATE 会产生两条记录——`update_preimage`（更新前）和 `update_postimage`（更新后）。通常只需要 `update_postimage`。
+
+---
+
+### Step 2：创建 Dynamic Table 消费 Stream，同步到 dwd.orders_dim
+
+根据你的目标表是维度表（orders_dim），需要处理 UPSERT 和 DELETE 逻辑。有两种方案：
+
+#### 方案 A：仅保留最新状态（过滤掉 DELETE，适合维度表只做 UPSERT）
+
+```sql
+CREATE OR REPLACE DYNAMIC TABLE dwd.orders_dim
+  TARGET_LAG = '1 minutes'
+  VCLUSTER = default_ap
+  COMMENT '订单维度表，从 ods.orders_stream 消费 CDC 变更'
+AS
+SELECT
+  order_id,
+  user_id,
+  amount,
+  status,
+  created_at,
+  _change_timestamp AS last_updated_at
+FROM ods.orders_stream
+WHERE _change_type IN ('insert', 'update_postimage');
+```
+
+这个方案会将 INSERT 和 UPDATE（取更新后的值）同步到 `dwd.orders_dim`，DELETE 操作不会同步（维度表通常不物理删除）。
+
+#### 方案 B：完整 CDC，包含 DELETE 标记（软删除，推荐）
+
+```sql
+CREATE OR REPLACE DYNAMIC TABLE dwd.orders_dim
+  TARGET_LAG = '1 minutes'
+  VCLUSTER = default_ap
+  COMMENT '订单维度表，含软删除标记'
+AS
+SELECT
+  order_id,
+  user_id,
+  amount,
+  status,
+  created_at,
+  _change_type,
+  _change_timestamp AS last_updated_at,
+  CASE WHEN _change_type = 'delete' THEN TRUE ELSE FALSE END AS is_deleted
+FROM ods.orders_stream
+WHERE _change_type IN ('insert', 'update_postimage', 'delete');
+```
+
+这个方案保留 DELETE 记录，用 `is_deleted` 标记软删除，下游查询时加 `WHERE is_deleted = FALSE` 过滤即可。
+
+---
+
+### Step 3：验证
+
+```sql
+-- 验证 Stream 已创建
+SHOW TABLE STREAMS;
+DESC TABLE STREAM ods.orders_stream;
+
+-- 查看 Stream 中待消费的变更数量
+SELECT COUNT(*) FROM ods.orders_stream;
+
+-- 验证动态表已创建并开始刷新
+SHOW TABLES WHERE is_dynamic = true;
+SHOW DYNAMIC TABLE REFRESH HISTORY dwd.orders_dim LIMIT 5;
+
+-- 查询目标表数据
+SELECT * FROM dwd.orders_dim LIMIT 10;
+```
+
+---
+
+### 注意事项
+
+1. **Stream 一次性消费**：Dynamic Table 每次刷新会消费 Stream 中的变更，消费后数据标记为已读，下次只返回新增变更。
+
+2. **数据保留**：如果 Dynamic Table 长时间暂停，Stream 中未消费的数据可能超出源表 `data_retention_days` 而丢失。建议保持 Dynamic Table 运行，或定期检查 Stream 状态。
+
+3. **TARGET_LAG 调整**：`'1 minutes'` 表示最多延迟 1 分钟同步。如需更实时，可改为 `'30 seconds'`；如对延迟不敏感，可改为 `'5 minutes'` 节省计算资源。
+
+4. **VCLUSTER**：示例使用默认集群 `default_ap`，根据实际环境替换为正确的集群名称。
+
+5. **修改 SQL 逻辑**：如需修改动态表的查询逻辑，必须使用 `CREATE OR REPLACE DYNAMIC TABLE`，不能用 `ALTER`。
+
+---
+
+### 推荐方案总结
+
+| 场景 | 推荐方案 |
+|---|---|
+| 维度表只需最新状态，不关心删除 | 方案 A（过滤 delete） |
+| 需要追踪删除记录，下游做软删除处理 | 方案 B（含 is_deleted 标记） |

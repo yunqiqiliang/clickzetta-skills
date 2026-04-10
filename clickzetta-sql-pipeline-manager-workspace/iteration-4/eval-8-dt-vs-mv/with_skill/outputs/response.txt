@@ -1,0 +1,91 @@
+## 动态表 vs 物化视图：核心区别
+
+| 维度 | 动态表（Dynamic Table） | 物化视图（Materialized View） |
+|---|---|---|
+| 刷新方式 | 自动增量刷新，系统持续监测上游变化 | 全量刷新，手动触发或定时触发 |
+| 刷新粒度 | 增量（只处理新增/变更数据） | 全量（每次重新计算全部数据） |
+| 延迟 | 秒级到分钟级 | 取决于刷新频率，通常分钟级到小时级 |
+| 调度方式 | 无需外部调度，TARGET_LAG 自动驱动 | 需要设置 REFRESH AUTO EVERY 或手动触发 |
+| 适用场景 | 实时/近实时 ETL、多层级联转换 | 固定聚合加速查询、低频批量刷新 |
+| CDC 支持 | 配合 Table Stream 感知 UPDATE/DELETE | 不支持增量感知 |
+
+---
+
+## 你的场景：每天凌晨跑一次聚合报表
+
+**推荐使用物化视图（Materialized View）。**
+
+理由：
+
+1. 你的刷新频率是"每天一次"，属于低频批量刷新，不需要动态表的秒/分钟级增量能力。
+2. 聚合报表是固定维度的预计算，物化视图正是为此设计的。
+3. 物化视图支持 `REFRESH AUTO EVERY '1 days'` 定时刷新，无需外部调度系统，也可以在凌晨手动触发 `REFRESH MATERIALIZED VIEW`。
+4. 动态表的增量刷新能力在这个场景下是浪费——每天只跑一次，增量优势体现不出来，反而增加了不必要的复杂度。
+
+---
+
+## 推荐 SQL
+
+### 方案一：定时自动刷新（每天凌晨自动触发）
+
+```sql
+CREATE OR REPLACE MATERIALIZED VIEW dw.mv_daily_report
+  COMMENT '每日聚合报表'
+  REFRESH AUTO EVERY '1 days'
+  VCLUSTER = default_ap
+AS
+SELECT
+  DATE(created_at) AS day,
+  region,
+  COUNT(*) AS order_cnt,
+  SUM(amount) AS total_revenue,
+  COUNT(DISTINCT user_id) AS uv
+FROM dwd.orders_clean
+GROUP BY 1, 2;
+```
+
+注意：`REFRESH AUTO EVERY '1 days'` 会从创建时间点开始计算间隔，如果需要精确控制在凌晨执行，建议使用方案二。
+
+### 方案二：手动刷新（配合外部调度在凌晨触发）
+
+```sql
+-- 创建物化视图（默认 MANUAL 刷新）
+CREATE OR REPLACE MATERIALIZED VIEW dw.mv_daily_report
+  COMMENT '每日聚合报表'
+  REFRESH MANUAL
+  VCLUSTER = default_ap
+AS
+SELECT
+  DATE(created_at) AS day,
+  region,
+  COUNT(*) AS order_cnt,
+  SUM(amount) AS total_revenue,
+  COUNT(DISTINCT user_id) AS uv
+FROM dwd.orders_clean
+GROUP BY 1, 2;
+
+-- 每天凌晨由调度系统执行此语句触发刷新
+REFRESH MATERIALIZED VIEW dw.mv_daily_report;
+```
+
+---
+
+## 验证命令
+
+```sql
+-- 确认物化视图已创建
+SHOW TABLES WHERE is_materialized_view = true;
+
+-- 查看结构
+DESC MATERIALIZED VIEW dw.mv_daily_report;
+```
+
+---
+
+## 什么时候才该用动态表？
+
+如果你的需求变成以下任一情况，再考虑切换到动态表：
+
+- 报表需要实时或近实时更新（分钟级延迟）
+- 源表有 UPDATE/DELETE 需要感知（配合 Table Stream）
+- 需要多层 ETL 级联（ODS→DWD→DWS，每层自动跟随上游刷新）

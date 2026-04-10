@@ -1,0 +1,166 @@
+根据你的需求，数据来源是 OSS Volume（my_oss_vol，路径 /logs/app/，Parquet 格式），需要构建 ODS → DWD → DWS 三层管道，每小时刷新一次。以下是完整的端到端 SQL。
+
+---
+
+## 完整数据管道 SQL
+
+### Step 1：创建 Schema
+
+```sql
+CREATE SCHEMA IF NOT EXISTS ods;
+CREATE SCHEMA IF NOT EXISTS dwd;
+CREATE SCHEMA IF NOT EXISTS dws;
+```
+
+---
+
+### Step 2：创建 ODS 目标表
+
+```sql
+CREATE TABLE IF NOT EXISTS ods.app_logs (
+  log_id      STRING,
+  user_id     STRING,
+  action      STRING,
+  duration_ms BIGINT,
+  log_time    TIMESTAMP
+);
+```
+
+---
+
+### Step 3：创建 Pipe — 从 OSS 持续导入到 ODS
+
+OSS 每小时上传新文件，Pipe 会自动检测并导入，无需外部调度。
+
+```sql
+CREATE OR REPLACE PIPE oss_app_logs_pipe
+  AUTO_INGEST = TRUE
+  COMMENT '从 OSS my_oss_vol/logs/app/ 持续导入 Parquet 日志到 ODS'
+AS
+COPY INTO ods.app_logs
+FROM '@my_oss_vol/logs/app/'
+FILE_FORMAT = ( TYPE = 'parquet' )
+PATTERN = '.*\.parquet';
+```
+
+---
+
+### Step 4：创建 DWD 动态表 — 清洗过滤（每小时刷新）
+
+过滤掉 duration_ms <= 0 的无效记录，补充日期分区字段。
+
+```sql
+CREATE OR REPLACE DYNAMIC TABLE dwd.app_logs_clean
+  TARGET_LAG = '1 hours'
+  VCLUSTER = default_ap
+  COMMENT 'DWD 清洗层：过滤无效 duration_ms，每小时增量刷新'
+AS
+SELECT
+  log_id,
+  user_id,
+  action,
+  duration_ms,
+  log_time,
+  DATE(log_time) AS dt
+FROM ods.app_logs
+WHERE duration_ms > 0;
+```
+
+---
+
+### Step 5：创建 DWS 动态表 — 按天聚合每个 action 的平均耗时和次数
+
+DWS 层使用 TARGET_LAG = DOWNSTREAM，跟随 DWD 上游自动触发，无需独立调度。
+
+```sql
+CREATE OR REPLACE DYNAMIC TABLE dws.action_daily_stats
+  TARGET_LAG = DOWNSTREAM
+  VCLUSTER = default_ap
+  COMMENT 'DWS 聚合层：按天统计每个 action 的平均耗时和调用次数'
+AS
+SELECT
+  dt,
+  action,
+  COUNT(*)                        AS action_cnt,
+  AVG(duration_ms)                AS avg_duration_ms,
+  MIN(duration_ms)                AS min_duration_ms,
+  MAX(duration_ms)                AS max_duration_ms
+FROM dwd.app_logs_clean
+GROUP BY dt, action;
+```
+
+---
+
+### Step 6：验证命令
+
+```sql
+-- 验证 Pipe 状态
+SHOW PIPES;
+DESC PIPE oss_app_logs_pipe;
+
+-- 验证动态表是否创建成功
+SHOW TABLES IN dwd WHERE is_dynamic = true;
+SHOW TABLES IN dws WHERE is_dynamic = true;
+
+-- 查看 DWD 刷新历史
+SHOW DYNAMIC TABLE REFRESH HISTORY dwd.app_logs_clean LIMIT 5;
+
+-- 查看 DWS 刷新历史
+SHOW DYNAMIC TABLE REFRESH HISTORY dws.action_daily_stats LIMIT 5;
+
+-- 抽查 ODS 数据是否导入
+SELECT COUNT(*) FROM ods.app_logs;
+
+-- 抽查 DWD 清洗结果
+SELECT * FROM dwd.app_logs_clean LIMIT 10;
+
+-- 抽查 DWS 聚合结果
+SELECT * FROM dws.action_daily_stats ORDER BY dt DESC, action_cnt DESC LIMIT 20;
+```
+
+---
+
+### Step 7：运维操作（按需使用）
+
+```sql
+-- 暂停管道（如集群维护）
+ALTER PIPE oss_app_logs_pipe PAUSE;
+ALTER DYNAMIC TABLE dwd.app_logs_clean SUSPEND;
+ALTER DYNAMIC TABLE dws.action_daily_stats SUSPEND;
+
+-- 恢复管道
+ALTER PIPE oss_app_logs_pipe RESUME;
+ALTER DYNAMIC TABLE dwd.app_logs_clean RESUME;
+ALTER DYNAMIC TABLE dws.action_daily_stats RESUME;
+
+-- 调整 DWD 刷新频率（如改为 30 分钟）
+ALTER DYNAMIC TABLE dwd.app_logs_clean SET TARGET_LAG = '30 minutes';
+```
+
+---
+
+## 架构说明
+
+```
+OSS (my_oss_vol/logs/app/*.parquet)
+        │
+        │  Pipe（AUTO_INGEST，自动检测新文件）
+        ▼
+ods.app_logs（原始表，全量存储）
+        │
+        │  Dynamic Table，TARGET_LAG = '1 hours'
+        │  过滤 duration_ms <= 0
+        ▼
+dwd.app_logs_clean（清洗层）
+        │
+        │  Dynamic Table，TARGET_LAG = DOWNSTREAM
+        │  按 dt + action 聚合
+        ▼
+dws.action_daily_stats（聚合层）
+```
+
+**关键设计决策：**
+- Pipe 使用 AUTO_INGEST = TRUE，OSS 每小时上传文件后自动触发导入，无需 cron 调度
+- DWD 设置 TARGET_LAG = '1 hours'，每小时增量处理 ODS 新数据
+- DWS 设置 TARGET_LAG = DOWNSTREAM，DWD 刷新完成后自动触发 DWS 聚合，保证数据一致性
+- 整个链路端到端延迟约 1 小时，满足"每小时刷新一次"的需求

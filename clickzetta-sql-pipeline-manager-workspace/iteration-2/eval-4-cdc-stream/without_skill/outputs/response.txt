@@ -1,0 +1,173 @@
+要捕获 ods.orders 表的 UPDATE 和 DELETE 变更并同步到 dwd.orders_dim 表，可以使用 CDC（Change Data Capture）流式处理方案。以下是基于 ClickZetta（云器科技）平台的实现方式：
+
+## 方案概述
+
+使用 ClickZetta 的 Stream + Task 机制，结合 MERGE 语句实现增量 CDC 同步。
+
+---
+
+## 步骤一：在源表上创建 Stream
+
+首先在 ods.orders 表上创建一个 Stream，用于捕获 INSERT、UPDATE、DELETE 变更：
+
+```sql
+CREATE STREAM ods.orders_cdc_stream
+ON TABLE ods.orders
+APPEND ONLY = FALSE;
+```
+
+说明：
+- APPEND ONLY = FALSE 表示捕获所有类型的变更（INSERT/UPDATE/DELETE），而不仅仅是追加写入。
+- Stream 会自动记录每行变更的元数据列：METADATA$ACTION（INSERT 或 DELETE）和 METADATA$ISUPDATE（是否为 UPDATE 操作的一部分）。
+
+---
+
+## 步骤二：确认目标表结构
+
+确保 dwd.orders_dim 表已存在，结构与 ods.orders 一致（或包含所需字段）：
+
+```sql
+CREATE TABLE IF NOT EXISTS dwd.orders_dim (
+    order_id      BIGINT,
+    customer_id   BIGINT,
+    order_status  STRING,
+    order_amount  DECIMAL(18, 2),
+    created_at    TIMESTAMP,
+    updated_at    TIMESTAMP,
+    -- 可根据实际业务添加其他字段
+    PRIMARY KEY (order_id)
+);
+```
+
+---
+
+## 步骤三：使用 MERGE 语句消费 Stream 数据
+
+通过 MERGE 语句将 Stream 中的变更应用到目标表：
+
+```sql
+MERGE INTO dwd.orders_dim AS target
+USING (
+    -- 从 Stream 中读取变更数据
+    -- 对于 UPDATE：Stream 会产生一条 DELETE 记录（旧值）和一条 INSERT 记录（新值）
+    -- 对于 DELETE：Stream 会产生一条 DELETE 记录
+    SELECT
+        order_id,
+        customer_id,
+        order_status,
+        order_amount,
+        created_at,
+        updated_at,
+        METADATA$ACTION,
+        METADATA$ISUPDATE
+    FROM ods.orders_cdc_stream
+) AS source
+ON target.order_id = source.order_id
+
+-- 处理 DELETE 操作（包括 UPDATE 的旧记录删除）
+WHEN MATCHED AND source.METADATA$ACTION = 'DELETE' AND source.METADATA$ISUPDATE = FALSE THEN
+    DELETE
+
+-- 处理 UPDATE 操作（METADATA$ACTION = 'INSERT' 且 METADATA$ISUPDATE = TRUE 表示更新后的新值）
+WHEN MATCHED AND source.METADATA$ACTION = 'INSERT' AND source.METADATA$ISUPDATE = TRUE THEN
+    UPDATE SET
+        target.customer_id   = source.customer_id,
+        target.order_status  = source.order_status,
+        target.order_amount  = source.order_amount,
+        target.created_at    = source.created_at,
+        target.updated_at    = source.updated_at
+
+-- 处理 INSERT 操作（新增记录）
+WHEN NOT MATCHED AND source.METADATA$ACTION = 'INSERT' THEN
+    INSERT (order_id, customer_id, order_status, order_amount, created_at, updated_at)
+    VALUES (source.order_id, source.customer_id, source.order_status, source.order_amount, source.created_at, source.updated_at);
+```
+
+---
+
+## 步骤四：创建定时 Task 自动执行同步
+
+使用 Task 定期消费 Stream 数据，实现自动化调度：
+
+```sql
+CREATE TASK dwd.sync_orders_dim_task
+    WAREHOUSE = 'your_warehouse_name'
+    SCHEDULE = '5 MINUTE'          -- 每 5 分钟执行一次，可按需调整
+    WHEN SYSTEM$STREAM_HAS_DATA('ods.orders_cdc_stream')  -- 仅当 Stream 有数据时才执行
+AS
+MERGE INTO dwd.orders_dim AS target
+USING (
+    SELECT
+        order_id,
+        customer_id,
+        order_status,
+        order_amount,
+        created_at,
+        updated_at,
+        METADATA$ACTION,
+        METADATA$ISUPDATE
+    FROM ods.orders_cdc_stream
+) AS source
+ON target.order_id = source.order_id
+
+WHEN MATCHED AND source.METADATA$ACTION = 'DELETE' AND source.METADATA$ISUPDATE = FALSE THEN
+    DELETE
+
+WHEN MATCHED AND source.METADATA$ACTION = 'INSERT' AND source.METADATA$ISUPDATE = TRUE THEN
+    UPDATE SET
+        target.customer_id   = source.customer_id,
+        target.order_status  = source.order_status,
+        target.order_amount  = source.order_amount,
+        target.created_at    = source.created_at,
+        target.updated_at    = source.updated_at
+
+WHEN NOT MATCHED AND source.METADATA$ACTION = 'INSERT' THEN
+    INSERT (order_id, customer_id, order_status, order_amount, created_at, updated_at)
+    VALUES (source.order_id, source.customer_id, source.order_status, source.order_amount, source.created_at, source.updated_at);
+
+-- 启动 Task
+ALTER TASK dwd.sync_orders_dim_task RESUME;
+```
+
+---
+
+## Stream 元数据字段说明
+
+| 字段名               | 含义                                                      |
+|----------------------|-----------------------------------------------------------|
+| METADATA$ACTION      | 变更类型：INSERT 或 DELETE                                |
+| METADATA$ISUPDATE    | 是否为 UPDATE 操作的一部分（TRUE 表示是 UPDATE 的前/后镜像）|
+
+UPDATE 操作在 Stream 中的表现：
+- 一条 METADATA$ACTION = 'DELETE'，METADATA$ISUPDATE = TRUE（更新前的旧值）
+- 一条 METADATA$ACTION = 'INSERT'，METADATA$ISUPDATE = TRUE（更新后的新值）
+
+DELETE 操作在 Stream 中的表现：
+- 一条 METADATA$ACTION = 'DELETE'，METADATA$ISUPDATE = FALSE
+
+---
+
+## 注意事项
+
+1. Stream 的消费偏移量：Stream 数据一旦被查询消费（在事务中），偏移量会自动推进。MERGE 语句在事务中执行，确保幂等性。
+
+2. Stream 过期：如果 Stream 长时间未被消费（超过数据保留期），Stream 可能会失效，需要重建。建议 Task 调度频率不要过低。
+
+3. 主键设计：目标表 dwd.orders_dim 需要有明确的主键（如 order_id），MERGE 语句依赖主键进行匹配。
+
+4. 权限：确保执行 Task 的角色对 Stream 和目标表有足够的读写权限。
+
+5. 监控：可通过以下语句检查 Stream 状态和 Task 执行历史：
+
+```sql
+-- 查看 Stream 是否有待消费数据
+SELECT SYSTEM$STREAM_HAS_DATA('ods.orders_cdc_stream');
+
+-- 查看 Stream 详情
+SHOW STREAMS IN SCHEMA ods;
+
+-- 查看 Task 执行历史
+SELECT * FROM TABLE(INFORMATION_SCHEMA.TASK_HISTORY(
+    TASK_NAME => 'sync_orders_dim_task'
+)) ORDER BY SCHEDULED_TIME DESC LIMIT 10;
+```

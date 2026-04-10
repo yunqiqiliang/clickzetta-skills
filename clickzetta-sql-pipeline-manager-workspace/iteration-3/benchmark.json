@@ -1,0 +1,33 @@
+{
+  "skill_name": "clickzetta-sql-pipeline-manager",
+  "iteration": 3,
+  "date": "2026-03-23",
+  "model": "claude-sonnet-4-6",
+  "configurations": [
+    {
+      "name": "with_skill",
+      "evals": [
+        {"eval_id": 9, "eval_name": "kafka-full-pipeline", "passed": 7, "total": 7, "pass_rate": 1.0},
+        {"eval_id": 10, "eval_name": "cdc-full-pipeline", "passed": 6, "total": 6, "pass_rate": 1.0},
+        {"eval_id": 11, "eval_name": "oss-full-pipeline", "passed": 6, "total": 6, "pass_rate": 1.0},
+        {"eval_id": 12, "eval_name": "medallion", "passed": 6, "total": 6, "pass_rate": 1.0}
+      ],
+      "total_passed": 25,
+      "total_assertions": 25,
+      "pass_rate": 1.0
+    },
+    {
+      "name": "without_skill",
+      "evals": [
+        {"eval_id": 9, "eval_name": "kafka-full-pipeline", "passed": 3, "total": 7, "pass_rate": 0.4286},
+        {"eval_id": 10, "eval_name": "cdc-full-pipeline", "passed": 1, "total": 6, "pass_rate": 0.1667},
+        {"eval_id": 11, "eval_name": "oss-full-pipeline", "passed": 1, "total": 6, "pass_rate": 0.1667},
+        {"eval_id": 12, "eval_name": "medallion", "passed": 4, "total": 6, "pass_rate": 0.6667}
+      ],
+      "total_passed": 9,
+      "total_assertions": 25,
+      "pass_rate": 0.36
+    }
+  ],
+  "delta": 0.64
+}

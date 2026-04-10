@@ -1,0 +1,82 @@
+[
+  {
+    "query": "我在 ClickZetta 上有个 ods.orders 表，想每 5 分钟自动把清洗后的数据同步到 dwd.orders_clean，过滤掉 amount <= 0 的记录，用什么对象实现？",
+    "should_trigger": true
+  },
+  {
+    "query": "clickzetta 的动态表刷新一直失败，SHOW DYNAMIC TABLE REFRESH HISTORY 看到 error_message 是 VCluster not available，怎么排查？",
+    "should_trigger": true
+  },
+  {
+    "query": "我要从 kafka broker kafka.prod.internal:9092 的 topic user_clicks 实时接入数据到 ClickZetta，JSON 格式，怎么建 pipe？",
+    "should_trigger": true
+  },
+  {
+    "query": "ClickZetta 里 Dynamic Table 和 Materialized View 有什么区别？我有个每天跑一次的报表聚合，用哪个更合适？",
+    "should_trigger": true
+  },
+  {
+    "query": "帮我在 ClickZetta 上设计一个 Medallion 架构，数据源是 S3 上的 JSON 文件，需要 Bronze/Silver/Gold 三层，Silver 每 5 分钟刷新",
+    "should_trigger": true
+  },
+  {
+    "query": "我的 ClickZetta 动态表 dws.order_hourly 被暂停了，怎么恢复？另外怎么查看所有动态表的状态？",
+    "should_trigger": true
+  },
+  {
+    "query": "想在 ClickZetta 上捕获 ods.orders 表的 UPDATE 和 DELETE 变更，同步到 dwd.orders_dim，需要用 Table Stream 吗？",
+    "should_trigger": true
+  },
+  {
+    "query": "ClickZetta 的 pipe 怎么从 OSS 持续导入 parquet 文件？AUTO_INGEST 怎么配置？",
+    "should_trigger": true
+  },
+  {
+    "query": "我在 clickzetta 上建了个 dynamic table，TARGET_LAG 设的 DOWNSTREAM，但上游动态表刷新了它却没触发，什么原因？",
+    "should_trigger": true
+  },
+  {
+    "query": "帮我写一个 ClickZetta 的三层数据管道：ODS 接 Kafka 原始数据，DWD 做清洗每 2 分钟刷新，DWS 做 UV/PV 聚合跟随 DWD",
+    "should_trigger": true
+  },
+  {
+    "query": "ClickZetta 里怎么修改动态表的 TARGET_LAG？我想从 5 minutes 改成 1 minutes",
+    "should_trigger": true
+  },
+  {
+    "query": "我想在 ClickZetta 上创建一个物化视图，每小时自动刷新，基于 dwd.orders_clean 做小时级聚合",
+    "should_trigger": true
+  },
+  {
+    "query": "ClickZetta 上怎么查看 pipe 的运行状态和最近的导入记录？",
+    "should_trigger": true
+  },
+  {
+    "query": "我在 ClickZetta 上做 CDC，用 Table Stream 捕获变更，_change_type 字段有哪些值，update_preimage 和 update_postimage 分别是什么意思？",
+    "should_trigger": true
+  },
+  {
+    "query": "ClickZetta 的 VCLUSTER 和 Snowflake 的 WAREHOUSE 有什么区别？动态表里必须指定 VCLUSTER 吗？",
+    "should_trigger": true
+  },
+  {
+    "query": "ClickZetta 上怎么对一张大表做分区裁剪优化？我的 dwd.orders 按 dt 分区，查询很慢",
+    "should_trigger": false
+  },
+  {
+    "query": "帮我写一个 Python 脚本，用 ClickZetta 的 Python SDK 查询 dwd.orders_clean 表，返回最近 7 天的数据",
+    "should_trigger": false
+  },
+  {
+    "query": "我的 ClickZetta 某个 SQL 查询跑了 10 分钟还没出结果，怎么看执行计划和 query profile？",
+    "should_trigger": false
+  },
+  {
+    "query": "我想在 Snowflake 上创建一个 Dynamic Table，每 5 分钟刷新，从 raw.events 表清洗数据到 clean.events",
+    "should_trigger": false
+  },
+  {
+    "query": "帮我设计一个 Flink 实时数仓方案，从 Kafka 接入用户行为数据，经过 ODS/DWD/DWS 三层处理，最终写入 ClickHouse",
+    "should_trigger": false
+  }
+]

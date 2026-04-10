@@ -1,0 +1,10 @@
+{
+  "eval_id": 8,
+  "run_type": "without_skill",
+  "assertions": [
+    {"text": "说明动态表适合实时或增量计算场景", "passed": true, "evidence": "适合持续更新的流式或批量数据管道场景；支持增量刷新（Incremental Refresh）"},
+    {"text": "说明物化视图适合低频或手动刷新场景", "passed": true, "evidence": "刷新方式通常为手动触发或基于规则触发；更多用于查询加速"},
+    {"text": "明确推荐物化视图用于每天一次的报表场景", "passed": false, "evidence": "推荐使用动态表（Dynamic Table），而非物化视图，与正确答案相反"},
+    {"text": "提到 REFRESH MANUAL 或 REFRESH AUTO EVERY '1 days' 等具体语法", "passed": false, "evidence": "未提及 REFRESH MANUAL 或 REFRESH AUTO EVERY '1 days'，仅给出了动态表示例 TARGET_LAG = '1 day'"}
+  ]
+}

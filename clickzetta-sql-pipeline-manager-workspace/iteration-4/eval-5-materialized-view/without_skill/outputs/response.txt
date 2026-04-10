@@ -1,0 +1,39 @@
+以下是在 ClickZetta Lakehouse 中创建物化视图 dws.mv_daily_revenue 的 SQL：
+
+-- 创建物化视图：每天每个 region 的 revenue 总和
+-- 数据来源：dwd.orders_clean
+-- 刷新策略：每小时自动刷新
+
+CREATE MATERIALIZED VIEW dws.mv_daily_revenue
+REFRESH EVERY 1 HOUR
+AS
+SELECT
+    DATE(order_time) AS order_date,
+    region,
+    SUM(revenue) AS total_revenue
+FROM dwd.orders_clean
+GROUP BY DATE(order_time), region;
+
+说明：
+
+1. REFRESH EVERY 1 HOUR：设置物化视图每小时自动刷新一次。
+
+2. DATE(order_time)：将时间戳字段转换为日期，按天聚合。如果源表中日期字段名不同（如 created_at、order_date 等），请替换为实际字段名。
+
+3. SUM(revenue)：对 revenue 字段求和。如果字段名不同（如 amount、sale_amount 等），请替换为实际字段名。
+
+4. GROUP BY DATE(order_time), region：按日期和 region 分组统计。
+
+如果 dws schema 尚未创建，需先执行：
+
+CREATE SCHEMA IF NOT EXISTS dws;
+
+查询物化视图：
+
+SELECT order_date, region, total_revenue
+FROM dws.mv_daily_revenue
+ORDER BY order_date DESC, total_revenue DESC;
+
+手动触发刷新（如需立即刷新）：
+
+REFRESH MATERIALIZED VIEW dws.mv_daily_revenue;

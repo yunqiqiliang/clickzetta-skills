@@ -1,0 +1,6 @@
+{
+  "eval_id": 6,
+  "eval_name": "eval-6-multi-layer-etl",
+  "prompt": "帮我创建一个物化视图 dws.mv_daily_revenue，每小时自动刷新，统计每天每个 region 的 revenue 总和，数据来自 dwd.orders_clean。",
+  "assertions": []
+}

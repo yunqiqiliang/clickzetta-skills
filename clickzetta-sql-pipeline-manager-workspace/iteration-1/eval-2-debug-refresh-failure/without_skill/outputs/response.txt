@@ -1,0 +1,99 @@
+排查 dws.order_hourly 动态表刷新失败的步骤如下：
+
+## 第一步：查看刷新历史，获取错误信息
+
+```sql
+SHOW DYNAMIC TABLE REFRESH HISTORY dws.order_hourly LIMIT 20;
+```
+
+这条命令会返回最近的刷新记录，包括状态（成功/失败）、耗时、触发方式、增量行数，以及失败时的错误信息。重点看 `state` 列和 `error_message` 列。
+
+## 第二步：查看动态表当前配置
+
+```sql
+DESCRIBE DYNAMIC TABLE dws.order_hourly EXTENDED;
+```
+
+确认 TARGET_LAG、VCLUSTER、当前状态（是否被 SUSPEND）等配置是否正常。
+
+## 第三步：根据错误信息排查常见原因
+
+### 原因 1：计算集群不可用
+错误特征：`VCluster not available` 或类似提示
+排查：确认 VCLUSTER 名称是否正确，集群是否已启动。
+修复：
+```sql
+ALTER DYNAMIC TABLE dws.order_hourly SET VCLUSTER = <正确的集群名>;
+```
+
+### 原因 2：上游表结构变更
+错误特征：列名不存在、类型不匹配等 SQL 报错
+排查：检查 dws.order_hourly 依赖的上游表（如 dwd.orders_clean）是否有 DDL 变更，导致查询 SQL 失效。
+修复：用 CREATE OR REPLACE 重建动态表，更新 AS 子句适配新结构：
+```sql
+CREATE OR REPLACE DYNAMIC TABLE dws.order_hourly
+  TARGET_LAG = DOWNSTREAM
+  VCLUSTER = default_ap
+AS
+-- 更新后的查询 SQL
+SELECT ...;
+```
+
+### 原因 3：上游动态表本身刷新失败
+如果 dws.order_hourly 的 TARGET_LAG = DOWNSTREAM，它依赖上游动态表触发。
+排查：检查上游动态表（如 dwd.orders_clean）的刷新状态：
+```sql
+SHOW DYNAMIC TABLE REFRESH HISTORY dwd.orders_clean LIMIT 10;
+```
+
+### 原因 4：动态表被暂停
+排查：DESCRIBE 结果中 state 为 SUSPENDED。
+修复：
+```sql
+ALTER DYNAMIC TABLE dws.order_hourly RESUME;
+```
+
+### 原因 5：查询 SQL 本身有问题
+错误特征：语法错误、函数不支持、数据类型问题等
+排查：手动执行动态表的 AS 查询，看是否能正常运行：
+```sql
+-- 取出建表 SQL 中的 AS 查询部分单独执行
+SELECT
+  DATE_TRUNC('hour', created_at) AS hour,
+  status,
+  COUNT(*) AS order_cnt,
+  SUM(amount) AS total_amount
+FROM dwd.orders_clean
+GROUP BY 1, 2
+LIMIT 100;
+```
+
+### 原因 6：不支持增量刷新，退化为全量导致超时
+排查：
+```sql
+EXPLAIN SELECT * FROM dws.order_hourly;
+```
+如果输出显示不支持增量模式，每次刷新都是全量扫描，数据量大时容易超时。
+修复：简化查询逻辑，或调大 TARGET_LAG 降低刷新频率。
+
+## 第四步：手动触发一次刷新验证修复
+
+修复后，可以手动触发刷新确认问题解决：
+```sql
+-- 如果是参数化动态表
+ALTER DYNAMIC TABLE dws.order_hourly REFRESH CONFIGS ('dt'='2026-03-20');
+
+-- 普通动态表等待下一个调度周期，或通过 RESUME 触发
+ALTER DYNAMIC TABLE dws.order_hourly RESUME;
+```
+
+然后再次查看刷新历史确认状态变为成功：
+```sql
+SHOW DYNAMIC TABLE REFRESH HISTORY dws.order_hourly LIMIT 5;
+```
+
+## 注意事项
+
+- 刷新失败不影响表的可查询性，查询会返回上次成功刷新的数据版本。
+- 修改动态表的 SQL 查询逻辑必须用 `CREATE OR REPLACE DYNAMIC TABLE`，不能用 ALTER。
+- 如果是多层级联动态表（TARGET_LAG = DOWNSTREAM），需要从最上游开始逐层排查。

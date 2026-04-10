@@ -1,0 +1,60 @@
+## 暂停与恢复所有动态表刷新
+
+### 第一步：查看当前所有动态表
+
+在操作前，先列出所有需要暂停的动态表：
+
+```sql
+-- 查看当前 schema 下的动态表
+SHOW TABLES WHERE is_dynamic = true;
+
+-- 如果动态表分布在多个 schema，逐一查看
+SHOW TABLES IN <schema_name> WHERE is_dynamic = true;
+```
+
+### 第二步：维护前 —— 暂停所有动态表
+
+对每张动态表执行 SUSPEND：
+
+```sql
+ALTER DYNAMIC TABLE <schema>.<table_name> SUSPEND;
+```
+
+例如，如果你有以下动态表：
+
+```sql
+ALTER DYNAMIC TABLE dwd.orders_clean SUSPEND;
+ALTER DYNAMIC TABLE dws.order_hourly SUSPEND;
+ALTER DYNAMIC TABLE dws.order_daily SUSPEND;
+-- ... 依次对所有动态表执行
+```
+
+暂停后，动态表停止自动刷新，但表中已有数据仍可正常查询（返回最后一次成功刷新的数据）。
+
+### 第三步：维护结束后 —— 恢复所有动态表
+
+维护完成后，对每张动态表执行 RESUME：
+
+```sql
+ALTER DYNAMIC TABLE dwd.orders_clean RESUME;
+ALTER DYNAMIC TABLE dws.order_hourly RESUME;
+ALTER DYNAMIC TABLE dws.order_daily RESUME;
+-- ... 依次对所有动态表执行
+```
+
+恢复后，动态表会重新按照 TARGET_LAG 配置自动增量刷新。
+
+### 第四步：验证恢复状态
+
+恢复后确认刷新是否正常运行：
+
+```sql
+-- 查看刷新历史，确认最新一次刷新成功
+SHOW DYNAMIC TABLE REFRESH HISTORY <schema>.<table_name> LIMIT 5;
+```
+
+### 注意事项
+
+- 暂停期间，动态表数据不会更新，但不影响查询（返回暂停前最后一次成功版本的数据）。
+- 如果动态表之间有级联关系（下游使用 TARGET_LAG = DOWNSTREAM），建议按照从上游到下游的顺序暂停，从下游到上游的顺序恢复，避免恢复时触发不必要的级联刷新。
+- 恢复后系统会自动追赶暂停期间积累的数据变更，首次刷新可能耗时稍长。

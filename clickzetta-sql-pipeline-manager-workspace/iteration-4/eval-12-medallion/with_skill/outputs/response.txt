@@ -1,0 +1,167 @@
+以下是基于 ClickZetta Lakehouse 实现 Medallion Architecture 的完整 SQL 方案。
+
+数据来源：S3 Volume（s3_raw_vol），路径 /events/，JSON 格式
+字段：event_id、user_id、event_name、properties（JSON 嵌套，含 page_url 和 referrer）、created_at
+分层：Bronze（原始落地）→ Silver（清洗展开，每 5 分钟刷新）→ Gold（按天聚合，跟随 Silver）
+
+================================================================================
+-- Step 1: 创建三层 Schema
+================================================================================
+
+CREATE SCHEMA IF NOT EXISTS bronze;
+CREATE SCHEMA IF NOT EXISTS silver;
+CREATE SCHEMA IF NOT EXISTS gold;
+
+
+================================================================================
+-- Step 2: Bronze 层 — 创建原始数据落地表
+================================================================================
+
+CREATE TABLE IF NOT EXISTS bronze.events (
+  event_id    STRING,
+  user_id     STRING,
+  event_name  STRING,
+  properties  VARIANT,
+  created_at  TIMESTAMP,
+  _loaded_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+);
+
+
+================================================================================
+-- Step 3: 数据入口 — Pipe 从 S3 Volume 持续导入 JSON 文件到 Bronze 层
+================================================================================
+
+CREATE OR REPLACE PIPE bronze.s3_events_pipe
+  AUTO_INGEST = TRUE
+  COMMENT '从 S3 Volume 持续导入原始事件 JSON 数据到 Bronze 层'
+AS
+COPY INTO bronze.events (event_id, user_id, event_name, properties, created_at)
+FROM (
+  SELECT
+    $1:event_id::STRING,
+    $1:user_id::STRING,
+    $1:event_name::STRING,
+    $1:properties::VARIANT,
+    $1:created_at::TIMESTAMP
+  FROM '@s3_raw_vol/events/'
+)
+FILE_FORMAT = ( TYPE = 'json' );
+
+
+================================================================================
+-- Step 4: Silver 层 — 动态表做清洗（过滤空 event_name，展开 properties）
+--         TARGET_LAG = '5 minutes'，每 5 分钟增量刷新
+================================================================================
+
+CREATE OR REPLACE DYNAMIC TABLE silver.events_clean
+  TARGET_LAG = '5 minutes'
+  VCLUSTER = default_ap
+  COMMENT 'Silver 层：过滤 event_name 为空的记录，展开 properties 中的 page_url 和 referrer'
+AS
+SELECT
+  event_id,
+  user_id,
+  event_name,
+  properties:page_url::STRING   AS page_url,
+  properties:referrer::STRING   AS referrer,
+  created_at,
+  DATE(created_at)              AS event_date
+FROM bronze.events
+WHERE event_name IS NOT NULL
+  AND TRIM(event_name) != '';
+
+
+================================================================================
+-- Step 5: Gold 层 — 动态表按天聚合（跟随 Silver 自动触发）
+--         TARGET_LAG = DOWNSTREAM，Silver 刷新后自动触发
+================================================================================
+
+CREATE OR REPLACE DYNAMIC TABLE gold.events_daily_stats
+  TARGET_LAG = DOWNSTREAM
+  VCLUSTER = default_ap
+  COMMENT 'Gold 层：按天统计每个 event_name 的发生次数和独立用户数'
+AS
+SELECT
+  event_date,
+  event_name,
+  COUNT(*)              AS event_count,
+  COUNT(DISTINCT user_id) AS unique_users
+FROM silver.events_clean
+GROUP BY event_date, event_name;
+
+
+================================================================================
+-- Step 6: 验证命令
+================================================================================
+
+-- 查看 Pipe 状态
+SHOW PIPES;
+DESC PIPE bronze.s3_events_pipe;
+
+-- 查看 Bronze 层数据是否已落地
+SELECT COUNT(*) FROM bronze.events;
+
+-- 查看 Silver 动态表状态和刷新历史
+SHOW TABLES IN silver WHERE is_dynamic = true;
+SHOW DYNAMIC TABLE REFRESH HISTORY silver.events_clean LIMIT 5;
+
+-- 查看 Gold 动态表状态和刷新历史
+SHOW TABLES IN gold WHERE is_dynamic = true;
+SHOW DYNAMIC TABLE REFRESH HISTORY gold.events_daily_stats LIMIT 5;
+
+-- 抽样验证 Silver 层数据（确认清洗效果）
+SELECT * FROM silver.events_clean LIMIT 10;
+
+-- 抽样验证 Gold 层数据（确认聚合结果）
+SELECT * FROM gold.events_daily_stats ORDER BY event_date DESC, event_count DESC LIMIT 20;
+
+
+================================================================================
+-- Step 7: 运维操作（按需使用）
+================================================================================
+
+-- 暂停 Silver 动态表（如需维护）
+ALTER DYNAMIC TABLE silver.events_clean SUSPEND;
+
+-- 恢复 Silver 动态表
+ALTER DYNAMIC TABLE silver.events_clean RESUME;
+
+-- 暂停 Gold 动态表
+ALTER DYNAMIC TABLE gold.events_daily_stats SUSPEND;
+
+-- 恢复 Gold 动态表
+ALTER DYNAMIC TABLE gold.events_daily_stats RESUME;
+
+-- 暂停 Pipe（停止从 S3 摄入）
+ALTER PIPE bronze.s3_events_pipe PAUSE;
+
+-- 恢复 Pipe
+ALTER PIPE bronze.s3_events_pipe RESUME;
+
+-- 修改 Silver 刷新频率（如需调整为 10 分钟）
+ALTER DYNAMIC TABLE silver.events_clean SET TARGET_LAG = '10 minutes';
+
+
+================================================================================
+架构说明
+================================================================================
+
+层次结构：
+  S3 (s3_raw_vol/events/)
+    → [Pipe: bronze.s3_events_pipe]
+    → bronze.events（原始落地表）
+    → [Dynamic Table: silver.events_clean，TARGET_LAG = '5 minutes']
+    → silver.events_clean（清洗后数据）
+    → [Dynamic Table: gold.events_daily_stats，TARGET_LAG = DOWNSTREAM]
+    → gold.events_daily_stats（按天聚合结果）
+
+刷新链路：
+  - Pipe 持续监听 S3 Volume 新文件，自动导入到 bronze.events
+  - silver.events_clean 每 5 分钟增量扫描 bronze.events，过滤并展开字段
+  - gold.events_daily_stats 设置 TARGET_LAG = DOWNSTREAM，Silver 每次刷新完成后自动触发 Gold 刷新
+
+关键设计决策：
+  1. Bronze 层使用普通表（非动态表），由 Pipe 直接写入，保留原始 VARIANT 类型的 properties 字段
+  2. Silver 层用动态表做增量清洗，properties 字段通过 properties:page_url 和 properties:referrer 语法展开
+  3. Gold 层 TARGET_LAG = DOWNSTREAM 确保与 Silver 保持同步，无需独立调度
+  4. VCLUSTER 统一使用 default_ap（如有专用集群可替换）

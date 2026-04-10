@@ -1,0 +1,64 @@
+要暂停所有动态表的刷新，然后在维护结束后恢复，操作步骤如下：
+
+## 第一步：查看当前所有动态表
+
+```sql
+SHOW TABLES WHERE is_dynamic = true;
+```
+
+这会列出所有动态表的名称和所在 schema，记录下需要暂停的表名。
+
+## 第二步：逐一暂停所有动态表
+
+对每张动态表执行 SUSPEND 命令：
+
+```sql
+-- 暂停各动态表（根据实际表名替换）
+ALTER DYNAMIC TABLE <schema1>.<table1> SUSPEND;
+ALTER DYNAMIC TABLE <schema2>.<table2> SUSPEND;
+-- ... 依此类推
+```
+
+例如，如果你有 dwd.orders_clean 和 dws.order_hourly 两张动态表：
+
+```sql
+ALTER DYNAMIC TABLE dwd.orders_clean SUSPEND;
+ALTER DYNAMIC TABLE dws.order_hourly SUSPEND;
+```
+
+暂停后，动态表停止自动刷新，但已有数据仍然可以查询。
+
+## 第三步：维护结束后恢复所有动态表
+
+明天维护完成后，对每张动态表执行 RESUME 命令：
+
+```sql
+-- 恢复各动态表
+ALTER DYNAMIC TABLE dwd.orders_clean RESUME;
+ALTER DYNAMIC TABLE dws.order_hourly RESUME;
+-- ... 依此类推
+```
+
+## 第四步：验证恢复状态
+
+恢复后确认动态表已重新开始刷新：
+
+```sql
+-- 查看动态表列表和状态
+SHOW TABLES WHERE is_dynamic = true;
+
+-- 查看刷新历史，确认恢复后有新的刷新记录
+SHOW DYNAMIC TABLE REFRESH HISTORY <table_name> LIMIT 5;
+```
+
+## 注意事项
+
+- SUSPEND 只是暂停自动刷新，不会删除数据，查询仍然正常返回（但数据不再更新）。
+- 如果动态表之间有级联依赖（下游表设置了 TARGET_LAG = DOWNSTREAM），建议从最上游的表开始暂停，从最上游的表开始恢复，保证数据一致性。
+- 如果同时有 Pipe 在向源表写入数据，维护期间也可以考虑一并暂停：
+  ```sql
+  ALTER PIPE <pipe_name> PAUSE;
+  -- 维护结束后
+  ALTER PIPE <pipe_name> RESUME;
+  ```
+- 恢复后动态表会根据 TARGET_LAG 设置自动追赶暂停期间积累的数据变更。

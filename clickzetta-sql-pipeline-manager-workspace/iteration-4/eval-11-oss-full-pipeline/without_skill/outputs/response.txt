@@ -1,0 +1,189 @@
+以下是完整的 ClickZetta Lakehouse 数据管道，实现从 OSS 自动导入到 ODS，再到 DWD 清洗，最后到 DWS 聚合统计，每小时刷新一次。
+
+================================================================================
+第一步：ODS 层 —— 自动导入 OSS 日志（External Table + 增量导入）
+================================================================================
+
+-- 1. 创建 ODS 外部表，直接映射 OSS 上的 Parquet 文件
+CREATE EXTERNAL TABLE IF NOT EXISTS ods.ods_app_log_ext (
+    log_id      STRING,
+    user_id     STRING,
+    action      STRING,
+    duration_ms BIGINT,
+    log_time    TIMESTAMP
+)
+STORED AS PARQUET
+LOCATION 'volume://my_oss_vol/logs/app/';
+
+-- 2. 创建 ODS 内部表，用于持久化存储导入的数据
+CREATE TABLE IF NOT EXISTS ods.ods_app_log (
+    log_id      STRING,
+    user_id     STRING,
+    action      STRING,
+    duration_ms BIGINT,
+    log_time    TIMESTAMP
+)
+PARTITIONED BY (dt STRING)
+STORED AS PARQUET;
+
+-- 3. 每小时增量导入任务（按 log_time 分区写入）
+-- 此 SQL 作为定时任务每小时执行，导入上一小时的数据
+INSERT INTO ods.ods_app_log PARTITION (dt)
+SELECT
+    log_id,
+    user_id,
+    action,
+    duration_ms,
+    log_time,
+    DATE_FORMAT(log_time, 'yyyy-MM-dd') AS dt
+FROM ods.ods_app_log_ext
+WHERE log_time >= DATE_TRUNC('HOUR', NOW() - INTERVAL 1 HOUR)
+  AND log_time <  DATE_TRUNC('HOUR', NOW());
+
+================================================================================
+第二步：DWD 层 —— 数据清洗（过滤无效 duration_ms）
+================================================================================
+
+-- 1. 创建 DWD 清洗表
+CREATE TABLE IF NOT EXISTS dwd.dwd_app_log_clean (
+    log_id      STRING,
+    user_id     STRING,
+    action      STRING,
+    duration_ms BIGINT,
+    log_time    TIMESTAMP
+)
+PARTITIONED BY (dt STRING)
+STORED AS PARQUET;
+
+-- 2. 每小时增量清洗任务
+-- 从 ODS 读取当天分区，过滤 duration_ms <= 0 的脏数据后写入 DWD
+INSERT OVERWRITE dwd.dwd_app_log_clean PARTITION (dt = '${dt}')
+SELECT
+    log_id,
+    user_id,
+    action,
+    duration_ms,
+    log_time
+FROM ods.ods_app_log
+WHERE dt = '${dt}'
+  AND duration_ms > 0;
+
+-- 注：${dt} 为当天日期，例如 '2026-03-23'，由调度系统传入
+
+================================================================================
+第三步：DWS 层 —— 按天统计每个 action 的平均耗时和次数
+================================================================================
+
+-- 1. 创建 DWS 聚合表
+CREATE TABLE IF NOT EXISTS dws.dws_action_daily_stats (
+    action          STRING,
+    avg_duration_ms DOUBLE,
+    action_count    BIGINT
+)
+PARTITIONED BY (dt STRING)
+STORED AS PARQUET;
+
+-- 2. 每小时刷新当天聚合数据（OVERWRITE 保证幂等）
+INSERT OVERWRITE dws.dws_action_daily_stats PARTITION (dt = '${dt}')
+SELECT
+    action,
+    AVG(duration_ms)   AS avg_duration_ms,
+    COUNT(*)           AS action_count
+FROM dwd.dwd_app_log_clean
+WHERE dt = '${dt}'
+GROUP BY action;
+
+================================================================================
+第四步：定时调度配置（每小时执行一次）
+================================================================================
+
+在 ClickZetta 中使用 SCHEDULE 任务将上述三个步骤串联，每小时自动执行：
+
+-- 创建调度任务：ODS 导入
+CREATE TASK task_ods_app_log_load
+    SCHEDULE USING CRON '0 * * * *'   -- 每小时整点执行
+    AS
+INSERT INTO ods.ods_app_log PARTITION (dt)
+SELECT
+    log_id,
+    user_id,
+    action,
+    duration_ms,
+    log_time,
+    DATE_FORMAT(log_time, 'yyyy-MM-dd') AS dt
+FROM ods.ods_app_log_ext
+WHERE log_time >= DATE_TRUNC('HOUR', NOW() - INTERVAL 1 HOUR)
+  AND log_time <  DATE_TRUNC('HOUR', NOW());
+
+-- 创建调度任务：DWD 清洗（依赖 ODS 完成后执行）
+CREATE TASK task_dwd_app_log_clean
+    SCHEDULE USING CRON '5 * * * *'   -- 每小时第 5 分钟执行，留出 ODS 导入时间
+    AS
+INSERT OVERWRITE dwd.dwd_app_log_clean PARTITION (dt)
+SELECT
+    log_id,
+    user_id,
+    action,
+    duration_ms,
+    log_time,
+    DATE_FORMAT(log_time, 'yyyy-MM-dd') AS dt
+FROM ods.ods_app_log
+WHERE dt = DATE_FORMAT(NOW(), 'yyyy-MM-dd')
+  AND duration_ms > 0;
+
+-- 创建调度任务：DWS 聚合（依赖 DWD 完成后执行）
+CREATE TASK task_dws_action_daily_stats
+    SCHEDULE USING CRON '10 * * * *'  -- 每小时第 10 分钟执行
+    AS
+INSERT OVERWRITE dws.dws_action_daily_stats PARTITION (dt)
+SELECT
+    action,
+    AVG(duration_ms)                    AS avg_duration_ms,
+    COUNT(*)                            AS action_count,
+    DATE_FORMAT(NOW(), 'yyyy-MM-dd')    AS dt
+FROM dwd.dwd_app_log_clean
+WHERE dt = DATE_FORMAT(NOW(), 'yyyy-MM-dd')
+GROUP BY action;
+
+================================================================================
+数据流说明
+================================================================================
+
+OSS (my_oss_vol/logs/app/*.parquet)
+    |
+    | [每小时整点] External Table 扫描，增量写入
+    v
+ODS: ods.ods_app_log  (按 dt 分区，保留原始数据)
+    |
+    | [每小时第5分钟] 过滤 duration_ms <= 0
+    v
+DWD: dwd.dwd_app_log_clean  (按 dt 分区，清洗后数据)
+    |
+    | [每小时第10分钟] GROUP BY action 聚合
+    v
+DWS: dws.dws_action_daily_stats  (按 dt 分区，每天每个 action 的统计)
+    - avg_duration_ms: 平均耗时（毫秒）
+    - action_count:    操作次数
+
+================================================================================
+查询示例
+================================================================================
+
+-- 查看今天各 action 的统计
+SELECT
+    action,
+    ROUND(avg_duration_ms, 2) AS avg_duration_ms,
+    action_count
+FROM dws.dws_action_daily_stats
+WHERE dt = DATE_FORMAT(NOW(), 'yyyy-MM-dd')
+ORDER BY action_count DESC;
+
+-- 查看近 7 天趋势
+SELECT
+    dt,
+    action,
+    ROUND(avg_duration_ms, 2) AS avg_duration_ms,
+    action_count
+FROM dws.dws_action_daily_stats
+WHERE dt >= DATE_FORMAT(NOW() - INTERVAL 7 DAY, 'yyyy-MM-dd')
+ORDER BY dt DESC, action_count DESC;

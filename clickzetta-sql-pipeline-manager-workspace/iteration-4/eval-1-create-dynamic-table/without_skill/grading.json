@@ -1,0 +1,12 @@
+{
+  "eval_id": 1,
+  "run_type": "without_skill",
+  "assertions": [
+    {"text": "包含 CREATE DYNAMIC TABLE 或 CREATE OR REPLACE DYNAMIC TABLE", "passed": true, "evidence": "CREATE DYNAMIC TABLE dwd.orders_clean"},
+    {"text": "包含 dwd.orders_clean 作为表名", "passed": true, "evidence": "CREATE DYNAMIC TABLE dwd.orders_clean"},
+    {"text": "包含 TARGET_LAG = '1 minutes' 或等效写法", "passed": true, "evidence": "TARGET_LAG = '1 minute'（等效写法）"},
+    {"text": "包含 VCLUSTER = default_ap", "passed": false, "evidence": "使用了 COMPUTE_CLUSTER = 'default_ap' 而非 VCLUSTER = default_ap"},
+    {"text": "包含 WHERE amount > 0 过滤条件", "passed": true, "evidence": "WHERE amount > 0"},
+    {"text": "包含 FROM ods.orders", "passed": true, "evidence": "FROM ods.orders"}
+  ]
+}

@@ -1,0 +1,217 @@
+以下是在 ClickZetta Lakehouse 上实现 Medallion Architecture（Bronze / Silver / Gold 三层）的完整方案。
+
+数据来源：S3 Volume（s3_raw_vol），路径 /events/，JSON 格式。
+刷新策略：Silver 每 5 分钟，Gold 跟随 Silver（DOWNSTREAM）。
+
+================================================================================
+架构概览
+================================================================================
+
+S3 (s3_raw_vol/events/*.json)
+    |
+    | [Pipe 持续导入，AUTO_INGEST]
+    v
+Bronze: bronze.events_raw        （普通表，原始落地）
+    |
+    | [Dynamic Table，TARGET_LAG = '5 minutes']
+    v
+Silver: silver.events_clean      （清洗：过滤空 event_name，展开 properties）
+    |
+    | [Dynamic Table，TARGET_LAG = DOWNSTREAM]
+    v
+Gold:   gold.events_daily_stats  （按天聚合：event_name 次数 + 独立用户数）
+
+================================================================================
+第一步：创建 Schema
+================================================================================
+
+CREATE SCHEMA IF NOT EXISTS bronze;
+CREATE SCHEMA IF NOT EXISTS silver;
+CREATE SCHEMA IF NOT EXISTS gold;
+
+================================================================================
+第二步：Bronze 层 —— 原始数据落地
+================================================================================
+
+-- 创建 Bronze 原始表，保留所有原始字段（properties 以 STRING 存储原始 JSON）
+CREATE TABLE IF NOT EXISTS bronze.events_raw (
+    event_id    STRING,
+    user_id     STRING,
+    event_name  STRING,
+    properties  STRING,   -- 原始 JSON 字符串，不做任何解析
+    created_at  TIMESTAMP
+);
+
+-- 创建 Pipe，从 S3 Volume 持续导入 JSON 文件到 Bronze 表
+-- AUTO_INGEST = TRUE：检测到新文件自动触发导入，无需外部调度
+CREATE OR REPLACE PIPE pipe_bronze_events_raw
+    AUTO_INGEST = TRUE
+    COMMENT = '从 S3 持续导入原始事件 JSON 数据到 Bronze 层'
+AS
+COPY INTO bronze.events_raw (event_id, user_id, event_name, properties, created_at)
+FROM (
+    SELECT
+        $1:event_id::STRING,
+        $1:user_id::STRING,
+        $1:event_name::STRING,
+        $1:properties::STRING,
+        $1:created_at::TIMESTAMP
+    FROM '@s3_raw_vol/events/'
+)
+FILE_FORMAT = ( TYPE = 'json' )
+PATTERN = '.*\.json';
+
+================================================================================
+第三步：Silver 层 —— 数据清洗（动态表，每 5 分钟刷新）
+================================================================================
+
+-- 清洗规则：
+--   1. 过滤 event_name 为 NULL 或空字符串的记录
+--   2. 从 properties JSON 中展开 page_url 和 referrer 字段
+--   3. 保留其余原始字段，供下游使用
+
+CREATE OR REPLACE DYNAMIC TABLE silver.events_clean
+    TARGET_LAG = '5 minutes'
+    VCLUSTER = default_ap
+    COMMENT = 'Silver 层：清洗后的事件数据，每 5 分钟刷新'
+AS
+SELECT
+    event_id,
+    user_id,
+    event_name,
+    JSON_EXTRACT_STRING(properties, '$.page_url')  AS page_url,
+    JSON_EXTRACT_STRING(properties, '$.referrer')  AS referrer,
+    properties,                                     -- 保留原始 JSON，便于后续扩展
+    created_at,
+    DATE(created_at)                               AS event_date
+FROM bronze.events_raw
+WHERE event_name IS NOT NULL
+  AND TRIM(event_name) != '';
+
+-- 说明：
+-- TARGET_LAG = '5 minutes'：Silver 最多落后 Bronze 5 分钟，ClickZetta 自动调度刷新。
+-- VCLUSTER：指定执行刷新任务的计算集群，替换 default_ap 为实际集群名称。
+-- JSON_EXTRACT_STRING：从 properties 字符串中提取指定路径的值并转为 STRING。
+
+================================================================================
+第四步：Gold 层 —— 按天聚合统计（动态表，跟随 Silver 刷新）
+================================================================================
+
+-- 聚合规则：
+--   按 event_date + event_name 分组
+--   统计每个 event_name 的总触发次数（event_count）和独立用户数（unique_users）
+
+CREATE OR REPLACE DYNAMIC TABLE gold.events_daily_stats
+    TARGET_LAG = DOWNSTREAM
+    VCLUSTER = default_ap
+    COMMENT = 'Gold 层：每天每个 event_name 的次数和独立用户数，跟随 Silver 刷新'
+AS
+SELECT
+    event_date,
+    event_name,
+    COUNT(*)                AS event_count,
+    COUNT(DISTINCT user_id) AS unique_users
+FROM silver.events_clean
+GROUP BY
+    event_date,
+    event_name;
+
+-- 说明：
+-- TARGET_LAG = DOWNSTREAM：Gold 不独立调度，Silver 每次刷新完成后立即触发 Gold 刷新。
+-- 端到端延迟约等于 Silver 的 TARGET_LAG（5 分钟）。
+
+================================================================================
+第五步：验证查询
+================================================================================
+
+-- 查看今天各 event_name 的统计
+SELECT
+    event_name,
+    event_count,
+    unique_users
+FROM gold.events_daily_stats
+WHERE event_date = CURRENT_DATE()
+ORDER BY event_count DESC;
+
+-- 查看近 7 天趋势
+SELECT
+    event_date,
+    event_name,
+    event_count,
+    unique_users
+FROM gold.events_daily_stats
+WHERE event_date >= DATEADD(day, -7, CURRENT_DATE())
+ORDER BY event_date DESC, event_count DESC;
+
+-- 查看 Silver 层清洗后的数据样本
+SELECT *
+FROM silver.events_clean
+LIMIT 20;
+
+-- 查看 Bronze 层原始数据（用于排查问题）
+SELECT *
+FROM bronze.events_raw
+WHERE event_name IS NULL OR TRIM(event_name) = ''
+LIMIT 20;
+
+================================================================================
+第六步：监控动态表刷新状态
+================================================================================
+
+-- 查看 Silver 刷新历史
+SHOW DYNAMIC TABLE REFRESH HISTORY silver.events_clean LIMIT 10;
+
+-- 查看 Gold 刷新历史
+SHOW DYNAMIC TABLE REFRESH HISTORY gold.events_daily_stats LIMIT 10;
+
+-- 查看 Pipe 状态
+SHOW PIPES LIKE 'pipe_bronze_events_raw';
+
+-- 暂停 / 恢复（如需维护）
+ALTER DYNAMIC TABLE silver.events_clean SUSPEND;
+ALTER DYNAMIC TABLE silver.events_clean RESUME;
+
+ALTER DYNAMIC TABLE gold.events_daily_stats SUSPEND;
+ALTER DYNAMIC TABLE gold.events_daily_stats RESUME;
+
+ALTER PIPE pipe_bronze_events_raw PAUSE;
+ALTER PIPE pipe_bronze_events_raw RESUME;
+
+================================================================================
+注意事项
+================================================================================
+
+1. VCLUSTER 名称
+   将 default_ap 替换为实际的计算集群名称。Silver 和 Gold 可共用一个集群，
+   也可分开以实现资源隔离。
+
+2. Pipe 的 AUTO_INGEST
+   AUTO_INGEST = TRUE 依赖 S3 事件通知（Event Notification）配置。
+   如果 S3 未配置事件通知，Pipe 会定期轮询新文件（LIST 模式），仍可正常工作，
+   但实时性略低。
+
+3. JSON 字段提取函数
+   ClickZetta 使用 JSON_EXTRACT_STRING(col, '$.field') 提取 JSON 字符串字段。
+   如需提取数值类型，使用 JSON_EXTRACT(col, '$.field')::DOUBLE 等显式转换。
+
+4. TARGET_LAG 的含义
+   TARGET_LAG 是"目标延迟上限"，不是固定刷新间隔。ClickZetta 根据上游数据变化
+   智能调度：有新数据时尽快刷新，无变化时不触发，节省计算资源。
+
+5. DOWNSTREAM 传播规则
+   Gold 设置 DOWNSTREAM 后，其刷新完全由 Silver 驱动。Silver 刷新一次，
+   Gold 随即刷新一次。整条链路端到端延迟约为 5 分钟（Silver 的 TARGET_LAG）。
+
+6. 修改 SQL 逻辑
+   如需修改 Silver 或 Gold 的查询逻辑，必须使用 CREATE OR REPLACE DYNAMIC TABLE，
+   ALTER 不支持修改 AS 子句。
+
+================================================================================
+层级汇总
+================================================================================
+
+层级    | 对象类型      | 名称                        | 刷新策略
+--------|---------------|-----------------------------|---------------------------
+Bronze  | 普通表 + Pipe | bronze.events_raw           | Pipe AUTO_INGEST 持续导入
+Silver  | 动态表        | silver.events_clean         | TARGET_LAG = '5 minutes'
+Gold    | 动态表        | gold.events_daily_stats     | TARGET_LAG = DOWNSTREAM

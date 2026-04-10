@@ -1,0 +1,10 @@
+{
+  "eval_id": 2,
+  "run_type": "with_skill",
+  "assertions": [
+    {"text": "包含 SHOW DYNAMIC TABLE REFRESH HISTORY 命令", "passed": true, "evidence": "SHOW DYNAMIC TABLE REFRESH HISTORY dws.order_hourly LIMIT 10;"},
+    {"text": "包含 dws.order_hourly 表名", "passed": true, "evidence": "SHOW DYNAMIC TABLE REFRESH HISTORY dws.order_hourly"},
+    {"text": "提到至少一种常见失败原因（SQL报错/源表变更/集群不可用）", "passed": true, "evidence": "提到：VCluster not available（计算集群不可用）、源表结构变更导致 SQL 报错、SQL 查询逻辑本身有问题"},
+    {"text": "提供具体的排查步骤或命令", "passed": true, "evidence": "提供了5步排查流程，包含 DESC DYNAMIC TABLE、SHOW CREATE TABLE、ALTER DYNAMIC TABLE RESUME 等具体命令"}
+  ]
+}

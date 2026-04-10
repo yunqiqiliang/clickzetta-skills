@@ -1,0 +1,6 @@
+{
+  "eval_id": 8,
+  "eval_name": "eval-8-dt-vs-mv",
+  "prompt": "我需要暂停所有动态表的刷新，明天维护结束后再恢复，怎么操作？",
+  "assertions": []
+}
