@@ -251,7 +251,8 @@ WITH
     )
 SELECT * FROM ranked WHERE rnk <= 5;
 
--- 递归 CTE（ClickZetta 支持）
+-- ⚠️ 递归 CTE（ClickZetta 不支持）
+-- Snowflake/Databricks/Spark SQL 支持：
 WITH RECURSIVE org_tree AS (
     SELECT id, name, parent_id, 0 AS level
     FROM employees WHERE parent_id IS NULL
@@ -260,10 +261,20 @@ WITH RECURSIVE org_tree AS (
     FROM employees e JOIN org_tree t ON e.parent_id = t.id
 )
 SELECT * FROM org_tree ORDER BY level, id;
+
+-- ClickZetta 替代方案：用 Python/ZettaPark 迭代实现
+-- 或用多层 CTE 模拟有限深度的递归
+WITH
+    level0 AS (SELECT id, name, parent_id, 0 AS level FROM employees WHERE parent_id IS NULL),
+    level1 AS (SELECT e.id, e.name, e.parent_id, 1 AS level FROM employees e JOIN level0 t ON e.parent_id = t.id),
+    level2 AS (SELECT e.id, e.name, e.parent_id, 2 AS level FROM employees e JOIN level1 t ON e.parent_id = t.id)
+SELECT * FROM level0 UNION ALL SELECT * FROM level1 UNION ALL SELECT * FROM level2;
 ```
 
 **与 Snowflake 差异：**
-- 语法基本相同，两者都支持递归 CTE
+- Snowflake 支持 `WITH RECURSIVE`；ClickZetta ❌ 不支持递归 CTE
+- ClickZetta 仅支持非递归 CTE（普通 WITH 子句）
+- 递归场景需用 Python/ZettaPark 迭代实现，或用多层 CTE 模拟有限深度
 
 ---
 
@@ -377,8 +388,12 @@ FROM orders GROUP BY customer_id;
 ## STRUCT / ARRAY / MAP 操作
 
 ```sql
--- 构建
-SELECT STRUCT(name, age, email) AS user_info FROM users;
+-- 构建 STRUCT
+SELECT STRUCT(name, age, email) AS user_info FROM users;              -- ✅ 支持（无字段名，默认 col1, col2...）
+SELECT named_struct('name', name, 'age', age, 'email', email) AS user_info FROM users;  -- ✅ 支持（有字段名）
+-- ⚠️ SELECT STRUCT(name AS n, age AS a) 不支持 AS 语法（Snowflake/Spark 支持）
+
+-- 构建 ARRAY / MAP
 SELECT ARRAY(1, 2, 3) AS nums;
 SELECT MAP('k1', 1, 'k2', 2) AS m;
 
@@ -457,25 +472,34 @@ LATERAL VIEW STACK(3,
 ## SET 操作
 
 ```sql
--- UNION（去重）
-SELECT id FROM orders_2023
-UNION
-SELECT id FROM orders_2024;
-
--- UNION ALL（保留重复）
+-- ⚠️ ClickZetta 不支持 UNION/UNION ALL/INTERSECT/EXCEPT 集合操作
+-- Snowflake/Spark SQL 支持：
 SELECT id FROM orders_2023
 UNION ALL
 SELECT id FROM orders_2024;
 
--- INTERSECT（交集）
-SELECT customer_id FROM orders_2023
-INTERSECT
-SELECT customer_id FROM orders_2024;
+-- ClickZetta 替代方案：
 
--- EXCEPT（差集）
-SELECT customer_id FROM orders_2023
-EXCEPT
-SELECT customer_id FROM orders_2024;
+-- 1. UNION ALL → 用多个查询分别执行，应用层合并结果
+-- 或在 Python/ZettaPark 中合并 DataFrame
+
+-- 2. INTERSECT → 用 INNER JOIN + DISTINCT 替代
+SELECT DISTINCT a.id 
+FROM orders_2023 a
+INNER JOIN orders_2024 b ON a.id = b.id;
+
+-- 3. EXCEPT → 用 LEFT JOIN + WHERE NULL 替代
+SELECT a.id 
+FROM orders_2023 a
+LEFT JOIN orders_2024 b ON a.id = b.id
+WHERE b.id IS NULL;
+
+-- 4. UNION（去重）→ 用 UNION ALL + DISTINCT 替代
+SELECT DISTINCT id FROM (
+    SELECT id FROM orders_2023
+    UNION ALL
+    SELECT id FROM orders_2024
+);
 ```
 
 ---

@@ -10,7 +10,8 @@ description: |
   "SQL 语法参考"、"数据类型"、"DATEDIFF"、"CHARINDEX"、"ZEROIFNULL"、
   "OBJECT_CONSTRUCT"、"ARRAY_SIZE"、"APPLY CHANGES INTO"、"ZORDER"、
   "WHEN NOT MATCHED BY SOURCE"、"WITH RECURSIVE"、"BEGIN TRANSACTION"、
-  "隐式转换"、"implicit cast"、"日期写入"、"BOOLEAN 写入"时触发。
+  "隐式转换"、"implicit cast"、"日期写入"、"BOOLEAN 写入"、"UNION"、"INTERSECT"、
+  "EXCEPT"、"集合运算"、"STRUCT AS"、"named_struct"时触发。
 ---
 
 # ClickZetta Lakehouse SQL 语法指南
@@ -49,6 +50,7 @@ description: |
 | 不区分大小写匹配 | `ILIKE` (SF) | `ILIKE` ✅ ClickZetta 也支持！ |
 | 差集运算 | `MINUS` (Oracle/DB2) | `MINUS` ✅ ClickZetta 也支持！ |
 | 递归 CTE | `WITH RECURSIVE` (SF/Databricks) | ❌ 不支持，需用 Python/ZettaPark 替代 |
+| 集合运算 | `UNION` / `UNION ALL` / `INTERSECT` / `EXCEPT` | ❌ 不支持，用 JOIN + 应用层合并替代 |
 | 事务 | `BEGIN; COMMIT; ROLLBACK;` | ❌ 不支持，用 MERGE 实现原子操作 |
 | MERGE 不匹配删除 | `WHEN NOT MATCHED BY SOURCE THEN DELETE` | ❌ 不支持，需两步：MERGE + DELETE |
 | Delta ZORDER | `OPTIMIZE t ZORDER BY (col)` | `OPTIMIZE t`（只做小文件合并，无 ZORDER） |
