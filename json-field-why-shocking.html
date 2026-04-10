@@ -506,15 +506,20 @@
         </div>
         
         <div class="problem-box">
-            <strong>坑 3：不同类型不能直接 COALESCE</strong>
-            <div class="code-block" style="margin-top: 0.5rem;"><span class="comment">-- ❌ 错误</span>
-<span class="keyword">SELECT COALESCE</span>(attributes[<span class="string">'ram_gb'</span>], attributes[<span class="string">'driver_mm'</span>])
+            <strong>坑 3：COALESCE 需要类型兼容</strong>
+            <div class="code-block" style="margin-top: 0.5rem;"><span class="comment">-- ✅ 可以：两个相同类型的 JSON 字段</span>
+<span class="keyword">SELECT COALESCE</span>(attributes[<span class="string">'ram_gb'</span>], attributes[<span class="string">'driver_mm'</span>])  <span class="comment">-- 都是数字</span>
+<span class="keyword">FROM</span> products;
 
-<span class="comment">-- ✅ 正确</span>
+<span class="comment">-- ❌ 错误：JSON 和 STRING 类型不兼容</span>
+<span class="keyword">SELECT COALESCE</span>(attributes[<span class="string">'ram_gb'</span>], attributes[<span class="string">'material'</span>])  <span class="comment">-- 数字 vs 字符串</span>
+
+<span class="comment">-- ✅ 正确：都转成 STRING</span>
 <span class="keyword">SELECT COALESCE</span>(
     <span class="keyword">CAST</span>(attributes[<span class="string">'ram_gb'</span>] <span class="keyword">AS STRING</span>),
     <span class="keyword">CAST</span>(attributes[<span class="string">'driver_mm'</span>] <span class="keyword">AS STRING</span>)
 )</div>
+            <p style="margin-top: 0.5rem; font-size: 0.9rem;">验证结果：相同类型的 JSON 字段可以直接 COALESCE，不同类型需要先 CAST</p>
         </div>
         
         <div class="problem-box">
