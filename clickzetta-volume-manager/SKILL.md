@@ -85,8 +85,10 @@ CREATE EXTERNAL VOLUME my_s3_volume
 -- 列出所有 Volume
 SHOW VOLUMES;
 
--- 过滤外部 Volume
-SHOW VOLUMES WHERE external = true;
+-- 过滤外部 Volume（SHOW VOLUMES 不支持 WHERE 过滤，使用 information_schema）
+SELECT volume_name, volume_type, volume_region, volume_creator
+FROM information_schema.volumes
+WHERE volume_type = 'EXTERNAL';
 
 -- 查看详情
 DESC VOLUME my_oss_volume;

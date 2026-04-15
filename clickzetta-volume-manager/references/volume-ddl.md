@@ -67,10 +67,14 @@ DROP VOLUME IF EXISTS my_oss_volume;
 -- 列出所有 Volume
 SHOW VOLUMES;
 
--- 按条件过滤
-SHOW VOLUMES WHERE external = true;
-SHOW VOLUMES WHERE volume_name = 'my_oss_volume';
-SHOW VOLUMES WHERE connection = 'my_oss_conn';
+-- 按条件过滤（SHOW VOLUMES 不支持 WHERE，使用 information_schema）
+SELECT volume_name, volume_type, volume_region, volume_creator
+FROM information_schema.volumes
+WHERE volume_type = 'EXTERNAL';
+
+-- 按名称查找
+SELECT * FROM information_schema.volumes
+WHERE volume_name = 'my_oss_volume';
 
 -- 查看 Volume 详情
 DESC VOLUME my_oss_volume;
