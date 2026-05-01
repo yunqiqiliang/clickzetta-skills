@@ -1,0 +1,80 @@
+name: Skill 问题报告
+description: 报告某个 skill 的错误、语法问题或不准确的内容
+title: "[Bug] <skill名称>: <简短描述>"
+labels: ["bug", "skill"]
+body:
+  - type: dropdown
+    id: skill
+    attributes:
+      label: 涉及的 Skill
+      options:
+        - clickzetta-access-control
+        - clickzetta-ai-vector-search
+        - clickzetta-batch-sync-pipeline
+        - clickzetta-bi-connect
+        - clickzetta-cdc-sync-pipeline
+        - clickzetta-concepts
+        - clickzetta-data-ingest-pipeline
+        - clickzetta-data-lifecycle
+        - clickzetta-data-recovery
+        - clickzetta-data-sharing
+        - clickzetta-dba-guide
+        - clickzetta-dw-modeling
+        - clickzetta-external-catalog
+        - clickzetta-external-function
+        - clickzetta-file-import-pipeline
+        - clickzetta-index-manager
+        - clickzetta-information-schema
+        - clickzetta-kafka-ingest-pipeline
+        - clickzetta-lakehouse-connect
+        - clickzetta-manage-comments
+        - clickzetta-metadata-query
+        - clickzetta-monitoring
+        - clickzetta-oss-ingest-pipeline
+        - clickzetta-query-optimizer
+        - clickzetta-realtime-sync-pipeline
+        - clickzetta-semantic-view
+        - clickzetta-sql-pipeline-manager
+        - clickzetta-sql-syntax-guide
+        - clickzetta-studio-overview
+        - clickzetta-table-stream-pipeline
+        - clickzetta-vcluster-manager
+        - clickzetta-volume-manager
+        - clickzetta-zettapark
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述
+      description: 描述 skill 中哪里有问题（错误的语法、不存在的字段、过时的内容等）
+      placeholder: "例如：skill 中写的 LAST_ALTERED 字段不存在，实际字段名是 LAST_MODIFY_TIME"
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际执行结果
+      description: 按照 skill 的内容操作后，实际发生了什么（报错信息、错误输出等）
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: correct
+    attributes:
+      label: 正确的内容（如果已知）
+      description: 如果你已经找到了正确的语法或字段名，请填写
+      render: sql
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: ClickZetta Lakehouse 版本
+      placeholder: "例如：1.3.x"
+    validations:
+      required: false

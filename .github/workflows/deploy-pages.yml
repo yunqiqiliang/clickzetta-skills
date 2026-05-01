@@ -1,0 +1,88 @@
+name: Deploy Skills to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate index.json
+        run: |
+          python3 << 'EOF'
+          import os, json
+
+          skills = []
+          for name in sorted(os.listdir('.')):
+              skill_md = os.path.join(name, 'SKILL.md')
+              if not os.path.isdir(name) or not os.path.exists(skill_md):
+                  continue
+              if name.startswith('.') or name == 'docs':
+                  continue
+
+              files = ['SKILL.md']
+              refs_dir = os.path.join(name, 'references')
+              if os.path.isdir(refs_dir):
+                  for ref in sorted(os.listdir(refs_dir)):
+                      if ref.endswith('.md'):
+                          files.append(f'references/{ref}')
+
+              desc = ''
+              with open(skill_md) as f:
+                  in_front = False
+                  for line in f:
+                      line = line.rstrip()
+                      if line == '---':
+                          in_front = not in_front
+                          if not in_front and desc:
+                              break
+                          continue
+                      if in_front and line.startswith('description:'):
+                          val = line[len('description:'):].strip().strip('|').strip()
+                          if val:
+                              desc = val
+                      elif in_front and not desc and line.startswith('  '):
+                          val = line.strip()
+                          if val:
+                              desc = val
+                              break
+
+              skills.append({'name': name, 'description': desc, 'files': files})
+
+          os.makedirs('.well-known/skills', exist_ok=True)
+          with open('.well-known/skills/index.json', 'w') as f:
+              json.dump({'skills': skills}, f, ensure_ascii=False, indent=2)
+          print(f'Generated {len(skills)} skills')
+          EOF
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

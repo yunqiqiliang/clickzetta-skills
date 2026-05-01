@@ -1,0 +1,63 @@
+name: Skill 改进建议
+description: 建议新增内容、补充场景或改进现有 skill
+title: "[Enhancement] <skill名称>: <简短描述>"
+labels: ["enhancement", "skill"]
+body:
+  - type: dropdown
+    id: skill
+    attributes:
+      label: 涉及的 Skill（新 skill 请选"新增 skill"）
+      options:
+        - 新增 skill
+        - clickzetta-access-control
+        - clickzetta-ai-vector-search
+        - clickzetta-batch-sync-pipeline
+        - clickzetta-bi-connect
+        - clickzetta-cdc-sync-pipeline
+        - clickzetta-concepts
+        - clickzetta-data-ingest-pipeline
+        - clickzetta-data-lifecycle
+        - clickzetta-data-recovery
+        - clickzetta-data-sharing
+        - clickzetta-dba-guide
+        - clickzetta-dw-modeling
+        - clickzetta-external-catalog
+        - clickzetta-external-function
+        - clickzetta-file-import-pipeline
+        - clickzetta-index-manager
+        - clickzetta-information-schema
+        - clickzetta-kafka-ingest-pipeline
+        - clickzetta-lakehouse-connect
+        - clickzetta-manage-comments
+        - clickzetta-metadata-query
+        - clickzetta-monitoring
+        - clickzetta-oss-ingest-pipeline
+        - clickzetta-query-optimizer
+        - clickzetta-realtime-sync-pipeline
+        - clickzetta-semantic-view
+        - clickzetta-sql-pipeline-manager
+        - clickzetta-sql-syntax-guide
+        - clickzetta-studio-overview
+        - clickzetta-table-stream-pipeline
+        - clickzetta-vcluster-manager
+        - clickzetta-volume-manager
+        - clickzetta-zettapark
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: 建议内容
+      description: 希望增加或改进什么？
+      placeholder: "例如：information-schema skill 缺少 STORAGE_METERING 视图的字段说明和查询示例"
+    validations:
+      required: true
+
+  - type: textarea
+    id: usecase
+    attributes:
+      label: 使用场景
+      description: 这个改进能解决什么实际问题？
+    validations:
+      required: false
