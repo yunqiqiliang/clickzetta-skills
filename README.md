@@ -8,7 +8,7 @@
 |---|---|---|
 | 连接与基础 | [clickzetta-lakehouse-connect](./clickzetta-lakehouse-connect/) | Python SDK / ZettaPark / SQLAlchemy / JDBC 连接 |
 | 连接与基础 | [clickzetta-concepts](./clickzetta-concepts/) | Lakehouse 核心概念：对象层级、Workspace/Schema/VCluster、权限体系 |
-| 连接与基础 | [clickzetta-studio](./clickzetta-studio/) | Studio 一站式 Web IDE：任务开发/调度/数据集成/数据目录/数据质量/运维监控 |
+| 连接与基础 | [clickzetta-studio-overview](./clickzetta-studio-overview/) | Studio 一站式 Web IDE：任务开发/调度/数据集成/数据目录/数据质量/运维监控 |
 | 连接与基础 | [clickzetta-manage-comments](./clickzetta-manage-comments/) | 管理表、字段、Schema 等对象的注释 |
 | 数据导入同步 | [clickzetta-data-ingest-pipeline](./clickzetta-data-ingest-pipeline/) | 数据导入方案路由与决策 |
 | 数据导入同步 | [clickzetta-batch-sync-pipeline](./clickzetta-batch-sync-pipeline/) | 离线批量同步（MySQL/PG 等 → Lakehouse） |
@@ -64,7 +64,7 @@
 
 ---
 
-#### [clickzetta-studio](./clickzetta-studio/)
+#### [clickzetta-studio-overview](./clickzetta-studio-overview/)
 
 介绍 ClickZetta Lakehouse Studio 的核心功能，这是 ClickZetta 区别于 Snowflake/Databricks 的核心差异化能力——内置一站式 Web IDE，无需第三方工具即可完成全链路数据工程。覆盖：
 

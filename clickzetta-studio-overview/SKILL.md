@@ -1,18 +1,18 @@
 ---
-name: clickzetta-studio
+name: clickzetta-studio-overview
 description: |
-  介绍 ClickZetta Lakehouse Studio 的核心功能模块和使用方式。Studio 是内置于
-  Lakehouse 的一站式 Web IDE，集数据开发、任务调度、数据集成、数据目录、数据质量、
-  运维监控于一体，是 ClickZetta 区别于其他 Lakehouse 产品的核心差异化能力。
-  覆盖：Studio 六大模块、任务类型（SQL/Python/Shell/JDBC/同步/动态表）、
+  ClickZetta Lakehouse Studio 功能全貌概览。Studio 是内置于 Lakehouse 的一站式
+  Web IDE，集数据开发、任务调度、数据集成、数据目录、数据质量、运维监控六大模块于一体，
+  是 ClickZetta 区别于 Snowflake/Databricks 的核心差异化能力（后两者需第三方工具）。
+  覆盖：六大模块定位与边界、任务类型（SQL/Python/Shell/JDBC/同步/动态表）、
   任务组 DAG 编排、任务参数（${var} 和 $[时间表达式]）、调度配置、
-  数据目录（Data Catalog）、数据质量规则、运维监控告警。
-  当用户说"Studio 是什么"、"Studio 怎么用"、"任务调度"、"DAG 编排"、
-  "任务组"、"任务参数"、"数据目录"、"数据质量"、"运维监控"、"告警配置"、
-  "补数据"、"任务依赖"、"Studio 和其他 Lakehouse 的区别"时触发。
+  数据目录（Data Catalog）、数据质量规则六大维度、运维监控告警。
+  当用户说"Studio 是什么"、"Studio 有哪些功能"、"Studio 和其他 Lakehouse 的区别"、
+  "任务调度怎么配"、"DAG 编排"、"任务组"、"任务参数"、"${} 参数怎么用"、
+  "数据目录"、"数据质量"、"运维监控"、"告警配置"、"补数据"、"任务依赖"时触发。
 ---
 
-# ClickZetta Lakehouse Studio
+# ClickZetta Lakehouse Studio 功能概览
 
 阅读 [references/studio-modules.md](references/studio-modules.md) 了解各模块详细说明。
 
