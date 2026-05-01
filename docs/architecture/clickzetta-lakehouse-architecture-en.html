@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClickZetta Lakehouse Architecture Overview</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f7fa; color: #1a1a2e; margin: 0; padding: 20px; }
+  h1 { text-align: center; color: #0d47a1; font-size: 2em; margin-bottom: 8px; }
+  .subtitle { text-align: center; color: #546e7a; margin-bottom: 40px; font-size: 1.1em; }
+  h2 { color: #1565c0; border-left: 4px solid #1976d2; padding-left: 12px; margin-top: 48px; }
+  .diagram-container { background: white; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 24px; margin-bottom: 32px; overflow-x: auto; }
+  svg text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  .desc { color: #546e7a; margin: 8px 0 20px 0; font-size: 0.95em; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<h1>ClickZetta Lakehouse Architecture Overview</h1>
+<p class="subtitle">Based on Official Product Documentation · Fully Managed Lakehouse Platform</p>
+
+<!-- ===== 1. Overall Platform Architecture ===== -->
+<h2>1. Overall Platform Architecture</h2>
+<p class="desc">ClickZetta Lakehouse adopts a compute-storage separation, Serverless elastic architecture, built on open storage formats (Iceberg / Parquet / ORC), with AI-enhanced analytics. Multi-cloud deployment (Alibaba Cloud / Tencent Cloud / AWS).</p>
+<div class="diagram-container">
+<svg width="920" height="560" viewBox="0 0 920 560" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#1565c0"/><stop offset="100%" style="stop-color:#1976d2"/></linearGradient>
+    <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#00695c"/><stop offset="100%" style="stop-color:#00897b"/></linearGradient>
+    <linearGradient id="g3" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#4527a0"/><stop offset="100%" style="stop-color:#5e35b1"/></linearGradient>
+    <linearGradient id="g4" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#e65100"/><stop offset="100%" style="stop-color:#f57c00"/></linearGradient>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#90a4ae"/></marker>
+  </defs>
+
+  <!-- Client Layer -->
+  <rect x="20" y="20" width="880" height="70" rx="8" fill="#e3f2fd" stroke="#90caf9" stroke-width="1.5"/>
+  <text x="460" y="42" text-anchor="middle" font-size="13" font-weight="bold" fill="#1565c0">Client / Access Layer</text>
+  <rect x="35" y="50" width="95" height="28" rx="5" fill="url(#g1)"/><text x="82" y="69" text-anchor="middle" font-size="10" fill="white">Studio IDE</text>
+  <rect x="138" y="50" width="95" height="28" rx="5" fill="url(#g1)"/><text x="185" y="69" text-anchor="middle" font-size="10" fill="white">JDBC / ODBC</text>
+  <rect x="241" y="50" width="95" height="28" rx="5" fill="url(#g1)"/><text x="288" y="69" text-anchor="middle" font-size="10" fill="white">Python SDK</text>
+  <rect x="344" y="50" width="95" height="28" rx="5" fill="url(#g1)"/><text x="391" y="69" text-anchor="middle" font-size="10" fill="white">ZettaPark</text>
+  <rect x="447" y="50" width="95" height="28" rx="5" fill="url(#g1)"/><text x="494" y="69" text-anchor="middle" font-size="10" fill="white">BI Tools</text>
+  <rect x="550" y="50" width="95" height="28" rx="5" fill="url(#g1)"/><text x="597" y="69" text-anchor="middle" font-size="10" fill="white">MySQL Protocol</text>
+  <rect x="653" y="50" width="95" height="28" rx="5" fill="url(#g1)"/><text x="700" y="69" text-anchor="middle" font-size="10" fill="white">MCP Server</text>
+  <rect x="756" y="50" width="95" height="28" rx="5" fill="url(#g1)"/><text x="803" y="69" text-anchor="middle" font-size="10" fill="white">DataGPT</text>
+
+  <line x1="460" y1="90" x2="460" y2="115" stroke="#90a4ae" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Compute Layer -->
+  <rect x="20" y="120" width="880" height="120" rx="8" fill="#e8f5e9" stroke="#a5d6a7" stroke-width="1.5"/>
+  <text x="460" y="142" text-anchor="middle" font-size="13" font-weight="bold" fill="#2e7d32">Compute Layer (Serverless Elastic VCluster)</text>
+  <rect x="35" y="155" width="200" height="68" rx="6" fill="url(#g2)"/>
+  <text x="135" y="176" text-anchor="middle" font-size="12" fill="white" font-weight="bold">General Purpose (GP)</text>
+  <text x="135" y="193" text-anchor="middle" font-size="9" fill="#b2dfdb">ETL / Bulk Import / Ad-Hoc Query</text>
+  <text x="135" y="208" text-anchor="middle" font-size="9" fill="#b2dfdb">Vertical Scaling (1-256 CRU)</text>
+  <rect x="250" y="155" width="200" height="68" rx="6" fill="url(#g2)"/>
+  <text x="350" y="176" text-anchor="middle" font-size="12" fill="white" font-weight="bold">Analytics (AP)</text>
+  <text x="350" y="193" text-anchor="middle" font-size="9" fill="#b2dfdb">High-Concurrency BI / Online Query / Local Cache</text>
+  <text x="350" y="208" text-anchor="middle" font-size="9" fill="#b2dfdb">Horizontal Scaling (1-10 Replicas)</text>
+  <rect x="465" y="155" width="200" height="68" rx="6" fill="url(#g2)"/>
+  <text x="565" y="176" text-anchor="middle" font-size="12" fill="white" font-weight="bold">Integration (Sync)</text>
+  <text x="565" y="193" text-anchor="middle" font-size="9" fill="#b2dfdb">Studio Data Integration / CDC Sync</text>
+  <text x="565" y="208" text-anchor="middle" font-size="9" fill="#b2dfdb">Supports 0.25 CRU Small Size</text>
+  <rect x="680" y="155" width="200" height="68" rx="6" fill="#37474f"/>
+  <text x="780" y="176" text-anchor="middle" font-size="11" fill="white">Auto Suspend / Auto Resume</text>
+  <text x="780" y="193" text-anchor="middle" font-size="9" fill="#b0bec5">Pay per CRU·hour · Multi-Cluster Isolation</text>
+  <text x="780" y="208" text-anchor="middle" font-size="9" fill="#b0bec5">PRELOAD Cache (AP Type)</text>
+
+  <line x1="460" y1="240" x2="460" y2="265" stroke="#90a4ae" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Service Layer -->
+  <rect x="20" y="270" width="880" height="80" rx="8" fill="#f3e5f5" stroke="#ce93d8" stroke-width="1.5"/>
+  <text x="460" y="292" text-anchor="middle" font-size="13" font-weight="bold" fill="#6a1b9a">Query Engine / Service Layer</text>
+  <rect x="35" y="302" width="120" height="32" rx="5" fill="url(#g3)"/><text x="95" y="323" text-anchor="middle" font-size="10" fill="white">SQL Parse &amp; Optimize</text>
+  <rect x="165" y="302" width="120" height="32" rx="5" fill="url(#g3)"/><text x="225" y="323" text-anchor="middle" font-size="10" fill="white">Vectorized Engine</text>
+  <rect x="295" y="302" width="120" height="32" rx="5" fill="url(#g3)"/><text x="355" y="323" text-anchor="middle" font-size="10" fill="white">Dynamic Table</text>
+  <rect x="425" y="302" width="120" height="32" rx="5" fill="url(#g3)"/><text x="485" y="323" text-anchor="middle" font-size="10" fill="white">Table Stream</text>
+  <rect x="555" y="302" width="120" height="32" rx="5" fill="url(#g3)"/><text x="615" y="323" text-anchor="middle" font-size="10" fill="white">AI Gateway</text>
+  <rect x="685" y="302" width="100" height="32" rx="5" fill="url(#g3)"/><text x="735" y="323" text-anchor="middle" font-size="10" fill="white">External UDF</text>
+  <rect x="795" y="302" width="90" height="32" rx="5" fill="url(#g3)"/><text x="840" y="323" text-anchor="middle" font-size="10" fill="white">Result Cache</text>
+
+  <line x1="460" y1="350" x2="460" y2="375" stroke="#90a4ae" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Storage Layer -->
+  <rect x="20" y="380" width="880" height="80" rx="8" fill="#fff3e0" stroke="#ffcc80" stroke-width="1.5"/>
+  <text x="460" y="402" text-anchor="middle" font-size="13" font-weight="bold" fill="#e65100">Storage Layer (Compute-Storage Separation · Open Formats)</text>
+  <rect x="35" y="412" width="120" height="32" rx="5" fill="url(#g4)"/><text x="95" y="433" text-anchor="middle" font-size="10" fill="white">Managed Table (Iceberg)</text>
+  <rect x="165" y="412" width="120" height="32" rx="5" fill="url(#g4)"/><text x="225" y="433" text-anchor="middle" font-size="10" fill="white">External Table (Delta/Hudi)</text>
+  <rect x="295" y="412" width="120" height="32" rx="5" fill="url(#g4)"/><text x="355" y="433" text-anchor="middle" font-size="10" fill="white">Volume (OSS/S3/COS)</text>
+  <rect x="425" y="412" width="120" height="32" rx="5" fill="url(#g4)"/><text x="485" y="433" text-anchor="middle" font-size="10" fill="white">Time Travel</text>
+  <rect x="555" y="412" width="120" height="32" rx="5" fill="url(#g4)"/><text x="615" y="433" text-anchor="middle" font-size="10" fill="white">External Catalog</text>
+  <rect x="685" y="412" width="100" height="32" rx="5" fill="url(#g4)"/><text x="735" y="433" text-anchor="middle" font-size="10" fill="white">Data Share</text>
+  <rect x="795" y="412" width="90" height="32" rx="5" fill="url(#g4)"/><text x="840" y="433" text-anchor="middle" font-size="10" fill="white">Connection</text>
+
+  <line x1="460" y1="460" x2="460" y2="485" stroke="#90a4ae" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Underlying Cloud Storage -->
+  <rect x="20" y="490" width="880" height="50" rx="6" fill="#eceff1" stroke="#b0bec5" stroke-width="1.5"/>
+  <text x="460" y="510" text-anchor="middle" font-size="12" fill="#546e7a">Underlying Object Storage: Alibaba Cloud OSS · AWS S3 · Tencent Cloud COS</text>
+  <text x="460" y="528" text-anchor="middle" font-size="10" fill="#90a4ae">Multi-Cloud Multi-Region Deployment · Private Storage (BYOS) Support · AES-256 Encryption</text>
+</svg>
+</div>
+
+<!-- ===== 2. Object Hierarchy Model ===== -->
+<h2>2. Object Hierarchy Model</h2>
+<p class="desc">ClickZetta Lakehouse object hierarchy: Account → Instance → Workspace → {Schema, Share, Connection, External Catalog}. Schema contains data objects such as tables, views, functions, Volumes, Streams, Pipes, indexes, and synonyms.</p>
+<div class="diagram-container">
+<svg width="920" height="460" viewBox="0 0 920 460" xmlns="http://www.w3.org/2000/svg">
+  <defs><marker id="arrow2" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#78909c"/></marker></defs>
+
+  <!-- Account -->
+  <rect x="360" y="10" width="200" height="40" rx="8" fill="#1565c0"/>
+  <text x="460" y="26" text-anchor="middle" font-size="12" font-weight="bold" fill="white">Account</text>
+  <text x="460" y="42" text-anchor="middle" font-size="9" fill="#bbdefb">Globally Unique · SSO/MFA · Identity Verification</text>
+  <line x1="460" y1="50" x2="460" y2="68" stroke="#78909c" stroke-width="2" marker-end="url(#arrow2)"/>
+
+  <!-- Instance -->
+  <rect x="300" y="72" width="320" height="40" rx="8" fill="#1976d2"/>
+  <text x="460" y="88" text-anchor="middle" font-size="12" font-weight="bold" fill="white">Instance</text>
+  <text x="460" y="104" text-anchor="middle" font-size="9" fill="#bbdefb">Resource Isolation · Instance Role · Multi-Region</text>
+  <line x1="460" y1="112" x2="460" y2="130" stroke="#78909c" stroke-width="2" marker-end="url(#arrow2)"/>
+
+  <!-- Workspace -->
+  <rect x="100" y="134" width="720" height="40" rx="8" fill="#1e88e5"/>
+  <text x="460" y="150" text-anchor="middle" font-size="12" font-weight="bold" fill="white">Workspace</text>
+  <text x="460" y="166" text-anchor="middle" font-size="9" fill="#bbdefb">Business Isolation · Workspace Role · VCluster Binding · Task Scheduling</text>
+
+  <!-- Branches to 4 top-level objects -->
+  <line x1="230" y1="174" x2="150" y2="198" stroke="#78909c" stroke-width="1.5" marker-end="url(#arrow2)"/>
+  <line x1="380" y1="174" x2="380" y2="198" stroke="#78909c" stroke-width="1.5" marker-end="url(#arrow2)"/>
+  <line x1="580" y1="174" x2="620" y2="198" stroke="#78909c" stroke-width="1.5" marker-end="url(#arrow2)"/>
+  <line x1="700" y1="174" x2="800" y2="198" stroke="#78909c" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+  <!-- Schema -->
+  <rect x="30" y="200" width="280" height="42" rx="8" fill="#42a5f5"/>
+  <text x="170" y="218" text-anchor="middle" font-size="12" font-weight="bold" fill="white">Schema (Database)</text>
+  <text x="170" y="234" text-anchor="middle" font-size="9" fill="#e3f2fd">Namespace · Object Ownership · Permission Boundary</text>
+
+  <!-- Share -->
+  <rect x="320" y="200" width="180" height="42" rx="8" fill="#00838f"/>
+  <text x="410" y="218" text-anchor="middle" font-size="12" font-weight="bold" fill="white">Share</text>
+  <text x="410" y="234" text-anchor="middle" font-size="9" fill="#e0f7fa">Cross-Account Zero-Copy Sharing</text>
+
+  <!-- Connection -->
+  <rect x="510" y="200" width="180" height="42" rx="8" fill="#6a1b9a"/>
+  <text x="600" y="218" text-anchor="middle" font-size="12" font-weight="bold" fill="white">Connection</text>
+  <text x="600" y="234" text-anchor="middle" font-size="9" fill="#f3e5f5">Storage / API / Catalog</text>
+
+  <!-- External Catalog -->
+  <rect x="700" y="200" width="200" height="42" rx="8" fill="#bf360c"/>
+  <text x="800" y="218" text-anchor="middle" font-size="12" font-weight="bold" fill="white">External Catalog</text>
+  <text x="800" y="234" text-anchor="middle" font-size="9" fill="#ffccbc">Hive / Iceberg / Databricks</text>
+
+  <!-- Schema → Data Objects -->
+  <line x1="170" y1="242" x2="170" y2="262" stroke="#78909c" stroke-width="2" marker-end="url(#arrow2)"/>
+  <text x="460" y="280" text-anchor="middle" font-size="12" font-weight="bold" fill="#1565c0">Data Objects (Belonging to Schema)</text>
+
+  <!-- 8 Data Objects -->
+  <rect x="10" y="292" width="105" height="72" rx="6" fill="#e3f2fd" stroke="#90caf9" stroke-width="1.5"/>
+  <text x="62" y="312" text-anchor="middle" font-size="10" font-weight="bold" fill="#1565c0">Managed Table</text>
+  <text x="62" y="326" text-anchor="middle" font-size="8" fill="#546e7a">Iceberg · ACID</text>
+  <text x="62" y="340" text-anchor="middle" font-size="8" fill="#546e7a">Time Travel · Index</text>
+  <text x="62" y="354" text-anchor="middle" font-size="8" fill="#546e7a">Partition · Bucket · PK</text>
+
+  <rect x="122" y="292" width="105" height="72" rx="6" fill="#e8f5e9" stroke="#a5d6a7" stroke-width="1.5"/>
+  <text x="174" y="312" text-anchor="middle" font-size="10" font-weight="bold" fill="#2e7d32">External Table</text>
+  <text x="174" y="326" text-anchor="middle" font-size="8" fill="#546e7a">Delta / Hudi</text>
+  <text x="174" y="340" text-anchor="middle" font-size="8" fill="#546e7a">Kafka Realtime Table</text>
+  <text x="174" y="354" text-anchor="middle" font-size="8" fill="#546e7a">Read-Only Federated Query</text>
+
+  <rect x="234" y="292" width="105" height="72" rx="6" fill="#f3e5f5" stroke="#ce93d8" stroke-width="1.5"/>
+  <text x="286" y="312" text-anchor="middle" font-size="10" font-weight="bold" fill="#6a1b9a">View / MV / DT</text>
+  <text x="286" y="326" text-anchor="middle" font-size="8" fill="#546e7a">View · MV</text>
+  <text x="286" y="340" text-anchor="middle" font-size="8" fill="#546e7a">Dynamic Table</text>
+  <text x="286" y="354" text-anchor="middle" font-size="8" fill="#546e7a">Incremental Refresh</text>
+
+  <rect x="346" y="292" width="105" height="72" rx="6" fill="#fff3e0" stroke="#ffcc80" stroke-width="1.5"/>
+  <text x="398" y="312" text-anchor="middle" font-size="10" font-weight="bold" fill="#e65100">Volume</text>
+  <text x="398" y="326" text-anchor="middle" font-size="8" fill="#546e7a">User / Table</text>
+  <text x="398" y="340" text-anchor="middle" font-size="8" fill="#546e7a">External (OSS/S3)</text>
+  <text x="398" y="354" text-anchor="middle" font-size="8" fill="#546e7a">PUT / GET / COPY</text>
+
+  <rect x="458" y="292" width="105" height="72" rx="6" fill="#fce4ec" stroke="#f48fb1" stroke-width="1.5"/>
+  <text x="510" y="312" text-anchor="middle" font-size="10" font-weight="bold" fill="#880e4f">Stream / Pipe</text>
+  <text x="510" y="326" text-anchor="middle" font-size="8" fill="#546e7a">Table Stream CDC</text>
+  <text x="510" y="340" text-anchor="middle" font-size="8" fill="#546e7a">Kafka Pipe</text>
+  <text x="510" y="354" text-anchor="middle" font-size="8" fill="#546e7a">OSS Pipe</text>
+
+  <rect x="570" y="292" width="105" height="72" rx="6" fill="#e0f7fa" stroke="#80deea" stroke-width="1.5"/>
+  <text x="622" y="312" text-anchor="middle" font-size="10" font-weight="bold" fill="#006064">Function / UDF</text>
+  <text x="622" y="326" text-anchor="middle" font-size="8" fill="#546e7a">SQL Function</text>
+  <text x="622" y="340" text-anchor="middle" font-size="8" fill="#546e7a">External Function</text>
+  <text x="622" y="354" text-anchor="middle" font-size="8" fill="#546e7a">AI_COMPLETE</text>
+
+  <rect x="682" y="292" width="105" height="72" rx="6" fill="#f1f8e9" stroke="#c5e1a5" stroke-width="1.5"/>
+  <text x="734" y="312" text-anchor="middle" font-size="10" font-weight="bold" fill="#33691e">Index</text>
+  <text x="734" y="326" text-anchor="middle" font-size="8" fill="#546e7a">BloomFilter</text>
+  <text x="734" y="340" text-anchor="middle" font-size="8" fill="#546e7a">Inverted (Full-Text)</text>
+  <text x="734" y="354" text-anchor="middle" font-size="8" fill="#546e7a">Vector (HNSW)</text>
+
+  <rect x="794" y="292" width="105" height="72" rx="6" fill="#efebe9" stroke="#bcaaa4" stroke-width="1.5"/>
+  <text x="846" y="312" text-anchor="middle" font-size="10" font-weight="bold" fill="#4e342e">Synonym</text>
+  <text x="846" y="326" text-anchor="middle" font-size="8" fill="#546e7a">Synonym</text>
+  <text x="846" y="340" text-anchor="middle" font-size="8" fill="#546e7a">Cross-Schema Alias</text>
+  <text x="846" y="354" text-anchor="middle" font-size="8" fill="#546e7a">TABLE/VOL/FUNC</text>
+
+  <!-- Bottom Description -->
+  <rect x="10" y="380" width="900" height="70" rx="8" fill="#eceff1" stroke="#b0bec5" stroke-width="1"/>
+  <text x="460" y="400" text-anchor="middle" font-size="11" font-weight="bold" fill="#37474f">Permission System</text>
+  <text x="460" y="418" text-anchor="middle" font-size="10" fill="#546e7a">Instance Role (instance_admin) → Workspace Role (workspace_admin / dev / analyst) → Custom Role</text>
+  <text x="460" y="436" text-anchor="middle" font-size="10" fill="#546e7a">GRANT / REVOKE Fine-Grained Authorization · ACL Object-Level Permissions · Dynamic Data Masking · Network Policy (IP Allowlist/Denylist)</text>
+</svg>
+</div>
+
+<!-- ===== 3. Data Ingestion Architecture ===== -->
+<h2>3. Data Ingestion Architecture</h2>
+<p class="desc">ClickZetta Lakehouse supports multiple data ingestion paths: bulk file import (COPY INTO), streaming Pipe continuous ingestion (Kafka / OSS), Studio visual sync tasks (Batch/Realtime/CDC), and SDK programmatic writes. Pipes run on General Purpose (GP) clusters.</p>
+<div class="diagram-container">
+<svg width="920" height="480" viewBox="0 0 920 480" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr3" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#78909c"/></marker>
+    <marker id="arr3b" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#1976d2"/></marker>
+  </defs>
+
+  <!-- Data Sources -->
+  <text x="100" y="22" text-anchor="middle" font-size="13" font-weight="bold" fill="#37474f">Data Sources</text>
+  <rect x="20" y="32" width="160" height="34" rx="6" fill="#eceff1" stroke="#b0bec5"/><text x="100" y="54" text-anchor="middle" font-size="11" fill="#37474f">OSS / S3 / COS Files</text>
+  <rect x="20" y="76" width="160" height="34" rx="6" fill="#eceff1" stroke="#b0bec5"/><text x="100" y="98" text-anchor="middle" font-size="11" fill="#37474f">Kafka Message Queue</text>
+  <rect x="20" y="120" width="160" height="34" rx="6" fill="#eceff1" stroke="#b0bec5"/><text x="100" y="142" text-anchor="middle" font-size="11" fill="#37474f">MySQL / PG / Oracle</text>
+  <rect x="20" y="164" width="160" height="34" rx="6" fill="#eceff1" stroke="#b0bec5"/><text x="100" y="186" text-anchor="middle" font-size="11" fill="#37474f">Local Files / CSV</text>
+  <rect x="20" y="208" width="160" height="34" rx="6" fill="#eceff1" stroke="#b0bec5"/><text x="100" y="230" text-anchor="middle" font-size="11" fill="#37474f">Applications / API</text>
+  <rect x="20" y="252" width="160" height="34" rx="6" fill="#eceff1" stroke="#b0bec5"/><text x="100" y="274" text-anchor="middle" font-size="11" fill="#37474f">Spark / Flink</text>
+
+  <!-- Ingestion Methods -->
+  <text x="340" y="22" text-anchor="middle" font-size="13" font-weight="bold" fill="#1565c0">Ingestion Methods</text>
+
+  <rect x="230" y="32" width="200" height="55" rx="6" fill="#e3f2fd" stroke="#90caf9"/>
+  <text x="330" y="52" text-anchor="middle" font-size="11" font-weight="bold" fill="#1565c0">COPY INTO</text>
+  <text x="330" y="68" text-anchor="middle" font-size="9" fill="#546e7a">Bulk File Import · Volume</text>
+  <text x="330" y="80" text-anchor="middle" font-size="9" fill="#546e7a">CSV / Parquet / ORC / JSON / BSON</text>
+  <line x1="180" y1="49" x2="228" y2="55" stroke="#78909c" stroke-width="1.5" marker-end="url(#arr3)"/>
+  <line x1="180" y1="181" x2="228" y2="65" stroke="#78909c" stroke-width="1.5" marker-end="url(#arr3)"/>
+
+  <rect x="230" y="98" width="200" height="55" rx="6" fill="#e8f5e9" stroke="#a5d6a7"/>
+  <text x="330" y="118" text-anchor="middle" font-size="11" font-weight="bold" fill="#2e7d32">OSS Pipe (GP Cluster)</text>
+  <text x="330" y="134" text-anchor="middle" font-size="9" fill="#546e7a">LIST_PURGE Scan Mode</text>
+  <text x="330" y="146" text-anchor="middle" font-size="9" fill="#546e7a">EVENT_NOTIFICATION Mode</text>
+  <line x1="180" y1="49" x2="228" y2="120" stroke="#78909c" stroke-width="1.5" marker-end="url(#arr3)"/>
+
+  <rect x="230" y="164" width="200" height="55" rx="6" fill="#f3e5f5" stroke="#ce93d8"/>
+  <text x="330" y="184" text-anchor="middle" font-size="11" font-weight="bold" fill="#6a1b9a">Kafka Pipe (GP Cluster)</text>
+  <text x="330" y="200" text-anchor="middle" font-size="9" fill="#546e7a">READ_KAFKA Continuous Consumption</text>
+  <text x="330" y="212" text-anchor="middle" font-size="9" fill="#546e7a">JSON / CSV / Avro · SASL Auth</text>
+  <line x1="180" y1="93" x2="228" y2="186" stroke="#78909c" stroke-width="1.5" marker-end="url(#arr3)"/>
+
+  <rect x="230" y="230" width="200" height="70" rx="6" fill="#fff3e0" stroke="#ffcc80"/>
+  <text x="330" y="250" text-anchor="middle" font-size="11" font-weight="bold" fill="#e65100">Studio Sync Tasks (Sync Cluster)</text>
+  <text x="330" y="266" text-anchor="middle" font-size="9" fill="#546e7a">Batch Sync (Full/Incremental/Whole DB)</text>
+  <text x="330" y="278" text-anchor="middle" font-size="9" fill="#546e7a">Multi-table Realtime CDC (Binlog/WAL)</text>
+  <text x="330" y="290" text-anchor="middle" font-size="9" fill="#546e7a">Schema Evolution · Shard Merge</text>
+  <line x1="180" y1="137" x2="228" y2="260" stroke="#78909c" stroke-width="1.5" marker-end="url(#arr3)"/>
+
+  <rect x="230" y="312" width="200" height="55" rx="6" fill="#e0f7fa" stroke="#80deea"/>
+  <text x="330" y="332" text-anchor="middle" font-size="11" font-weight="bold" fill="#006064">SDK Programmatic Write</text>
+  <text x="330" y="348" text-anchor="middle" font-size="9" fill="#546e7a">Python SDK · Java SDK (Bulk/RT)</text>
+  <text x="330" y="360" text-anchor="middle" font-size="9" fill="#546e7a">ZettaPark save_as_table</text>
+  <line x1="180" y1="225" x2="228" y2="340" stroke="#78909c" stroke-width="1.5" marker-end="url(#arr3)"/>
+  <line x1="180" y1="269" x2="228" y2="348" stroke="#78909c" stroke-width="1.5" marker-end="url(#arr3)"/>
+
+  <!-- Arrows to Target -->
+  <line x1="430" y1="60" x2="598" y2="195" stroke="#1976d2" stroke-width="2" marker-end="url(#arr3b)"/>
+  <line x1="430" y1="126" x2="598" y2="205" stroke="#1976d2" stroke-width="2" marker-end="url(#arr3b)"/>
+  <line x1="430" y1="192" x2="598" y2="215" stroke="#1976d2" stroke-width="2" marker-end="url(#arr3b)"/>
+  <line x1="430" y1="265" x2="598" y2="225" stroke="#1976d2" stroke-width="2" marker-end="url(#arr3b)"/>
+  <line x1="430" y1="340" x2="598" y2="235" stroke="#1976d2" stroke-width="2" marker-end="url(#arr3b)"/>
+
+  <!-- Target -->
+  <rect x="600" y="130" width="300" height="170" rx="10" fill="#1565c0"/>
+  <text x="750" y="158" text-anchor="middle" font-size="14" font-weight="bold" fill="white">ClickZetta Lakehouse</text>
+  <text x="750" y="178" text-anchor="middle" font-size="10" fill="#bbdefb">Managed Table (Iceberg Format)</text>
+  <rect x="618" y="188" width="264" height="24" rx="5" fill="rgba(255,255,255,0.15)"/>
+  <text x="750" y="205" text-anchor="middle" font-size="9" fill="white">Auto Schema Inference · Type Mapping</text>
+  <rect x="618" y="218" width="264" height="24" rx="5" fill="rgba(255,255,255,0.15)"/>
+  <text x="750" y="235" text-anchor="middle" font-size="9" fill="white">Dedup · Idempotent · load_history (7 days)</text>
+  <rect x="618" y="248" width="264" height="24" rx="5" fill="rgba(255,255,255,0.15)"/>
+  <text x="750" y="265" text-anchor="middle" font-size="9" fill="white">ACID Transactions · Time Travel · PK Constraints</text>
+  <rect x="618" y="278" width="264" height="16" rx="3" fill="rgba(255,255,255,0.1)"/>
+  <text x="750" y="290" text-anchor="middle" font-size="8" fill="#bbdefb">Recommended file size: 50MB(gz) / 128-256MB(raw)</text>
+
+  <!-- Format Description -->
+  <rect x="600" y="320" width="300" height="140" rx="8" fill="#eceff1" stroke="#b0bec5"/>
+  <text x="750" y="342" text-anchor="middle" font-size="11" font-weight="bold" fill="#37474f">Supported File Formats</text>
+  <text x="750" y="362" text-anchor="middle" font-size="10" fill="#546e7a">CSV · TSV · JSON · JSONL · BSON</text>
+  <text x="750" y="380" text-anchor="middle" font-size="10" fill="#546e7a">Parquet · ORC · Avro</text>
+  <text x="750" y="398" text-anchor="middle" font-size="10" fill="#546e7a">gzip / snappy / lz4 / zstd Compression</text>
+  <text x="750" y="416" text-anchor="middle" font-size="10" fill="#546e7a">Schema-on-Read (Volume Direct Query)</text>
+  <text x="750" y="434" text-anchor="middle" font-size="10" fill="#546e7a">COPY OVERWRITE INTO (Overwrite)</text>
+</svg>
+</div>
+
+<!-- ===== 4. Data Processing Pipeline (Incremental Computation) ===== -->
+<h2>4. Data Processing Pipeline (Incremental Computation)</h2>
+<p class="desc">ClickZetta Lakehouse Streaming Data Pipeline orchestrates realtime data ingestion and incremental processing tasks to continuously produce up-to-date result data. Core capabilities: Realtime Data Loading (SDK Streaming API / Studio Data Integration / Pipe), Incremental Data Processing (Dynamic Table declarative incremental refresh), Change Data Capture (Table Stream / Volume Stream), Continuous Scheduling (DDL-defined / Studio scheduling / Streaming SQL second-level micro-batch). Dynamic Tables should use GP clusters (auto small-file compaction during refresh; AP clusters do not support this).</p>
+<div class="diagram-container">
+<svg width="920" height="540" viewBox="0 0 920 540" xmlns="http://www.w3.org/2000/svg">
+  <defs><marker id="arr4" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#1976d2"/></marker></defs>
+
+  <!-- ===== Row 1: Realtime Data Loading → ODS Layer ===== -->
+  <text x="75" y="16" text-anchor="middle" font-size="11" font-weight="bold" fill="#37474f">Realtime Data Loading</text>
+
+  <rect x="10" y="24" width="130" height="130" rx="8" fill="#eceff1" stroke="#b0bec5" stroke-width="2"/>
+  <text x="75" y="44" text-anchor="middle" font-size="10" font-weight="bold" fill="#546e7a">External Data Sources</text>
+  <rect x="18" y="54" width="114" height="20" rx="4" fill="#78909c"/><text x="75" y="69" text-anchor="middle" font-size="8" fill="white">Kafka Topic</text>
+  <rect x="18" y="78" width="114" height="20" rx="4" fill="#78909c"/><text x="75" y="93" text-anchor="middle" font-size="8" fill="white">OSS / S3 / COS Files</text>
+  <rect x="18" y="102" width="114" height="20" rx="4" fill="#78909c"/><text x="75" y="117" text-anchor="middle" font-size="8" fill="white">MySQL / PG CDC</text>
+  <rect x="18" y="126" width="114" height="20" rx="4" fill="#78909c"/><text x="75" y="141" text-anchor="middle" font-size="8" fill="white">SDK Streaming API</text>
+
+  <line x1="140" y1="80" x2="168" y2="80" stroke="#1976d2" stroke-width="2" marker-end="url(#arr4)"/>
+
+  <!-- Loading Methods -->
+  <rect x="170" y="24" width="160" height="130" rx="8" fill="#e8f5e9" stroke="#a5d6a7" stroke-width="2"/>
+  <text x="250" y="44" text-anchor="middle" font-size="10" font-weight="bold" fill="#2e7d32">Loading Methods</text>
+  <rect x="178" y="54" width="144" height="20" rx="4" fill="#388e3c"/><text x="250" y="69" text-anchor="middle" font-size="8" fill="white">Kafka Pipe (READ_KAFKA)</text>
+  <rect x="178" y="78" width="144" height="20" rx="4" fill="#388e3c"/><text x="250" y="93" text-anchor="middle" font-size="8" fill="white">OSS Pipe (LIST_PURGE)</text>
+  <rect x="178" y="102" width="144" height="20" rx="4" fill="#388e3c"/><text x="250" y="117" text-anchor="middle" font-size="8" fill="white">Studio Data Integration (CDC)</text>
+  <rect x="178" y="126" width="144" height="20" rx="4" fill="#388e3c"/><text x="250" y="141" text-anchor="middle" font-size="8" fill="white">Java/Python SDK Write</text>
+
+  <line x1="330" y1="80" x2="358" y2="80" stroke="#1976d2" stroke-width="2" marker-end="url(#arr4)"/>
+
+  <!-- ODS Layer -->
+  <rect x="360" y="24" width="150" height="130" rx="8" fill="#e3f2fd" stroke="#90caf9" stroke-width="2"/>
+  <text x="435" y="44" text-anchor="middle" font-size="10" font-weight="bold" fill="#1565c0">ODS / Bronze Layer</text>
+  <text x="435" y="62" text-anchor="middle" font-size="8" fill="#546e7a">Raw Data Landing (second-level visibility)</text>
+  <rect x="370" y="70" width="130" height="18" rx="3" fill="#1976d2"/><text x="435" y="84" text-anchor="middle" font-size="8" fill="white">INSERT (Append Write)</text>
+  <rect x="370" y="92" width="130" height="18" rx="3" fill="#1976d2"/><text x="435" y="106" text-anchor="middle" font-size="8" fill="white">UPDATE / DELETE (CDC)</text>
+  <rect x="370" y="114" width="130" height="18" rx="3" fill="#1976d2"/><text x="435" y="128" text-anchor="middle" font-size="8" fill="white">Snapshot Version Management</text>
+  <text x="435" y="148" text-anchor="middle" font-size="8" fill="#546e7a">Each DML generates new version</text>
+
+  <!-- ===== Row 2: Change Data Capture ===== -->
+  <line x1="435" y1="154" x2="435" y2="178" stroke="#1976d2" stroke-width="2" marker-end="url(#arr4)"/>
+
+  <rect x="10" y="180" width="240" height="110" rx="8" fill="#f3e5f5" stroke="#ce93d8" stroke-width="2"/>
+  <text x="130" y="200" text-anchor="middle" font-size="10" font-weight="bold" fill="#6a1b9a">Table Stream (CDC Change Capture)</text>
+  <text x="130" y="218" text-anchor="middle" font-size="8" fill="#546e7a">Records DML changes (INSERT/UPDATE/DELETE)</text>
+  <rect x="18" y="226" width="224" height="16" rx="3" fill="#7b1fa2"/><text x="130" y="238" text-anchor="middle" font-size="8" fill="white">__change_type: INSERT | UPDATE_BEFORE | UPDATE_AFTER | DELETE</text>
+  <text x="130" y="256" text-anchor="middle" font-size="8" fill="#546e7a">STANDARD mode (all changes) / APPEND_ONLY mode (INSERT only)</text>
+  <text x="130" y="272" text-anchor="middle" font-size="8" fill="#546e7a">DML consumption auto-advances offset · Requires change_tracking</text>
+  <text x="130" y="284" text-anchor="middle" font-size="8" fill="#546e7a">Supports Table / DT / MV / Kafka External Table</text>
+
+  <rect x="270" y="180" width="240" height="110" rx="8" fill="#fce4ec" stroke="#f48fb1" stroke-width="2"/>
+  <text x="390" y="200" text-anchor="middle" font-size="10" font-weight="bold" fill="#880e4f">Volume Stream (File Change Capture)</text>
+  <text x="390" y="218" text-anchor="middle" font-size="8" fill="#546e7a">Monitors External Volume file add/delete events</text>
+  <rect x="278" y="226" width="224" height="16" rx="3" fill="#c2185b"/><text x="390" y="238" text-anchor="middle" font-size="8" fill="white">Based on Directory Table + Cloud MQ (MNS/SQS)</text>
+  <text x="390" y="256" text-anchor="middle" font-size="8" fill="#546e7a">Typical: Log analysis / IoT data / Image metadata extraction</text>
+  <text x="390" y="272" text-anchor="middle" font-size="8" fill="#546e7a">Incremental driver: process only new/changed files</text>
+  <text x="390" y="284" text-anchor="middle" font-size="8" fill="#546e7a">DML consumption advances offset (same as Table Stream)</text>
+
+  <!-- ===== Row 3: Incremental Data Processing ===== -->
+  <line x1="130" y1="290" x2="130" y2="310" stroke="#1976d2" stroke-width="1.5" marker-end="url(#arr4)"/>
+  <line x1="390" y1="290" x2="390" y2="310" stroke="#1976d2" stroke-width="1.5" marker-end="url(#arr4)"/>
+
+  <rect x="10" y="314" width="500" height="120" rx="8" fill="#e8f5e9" stroke="#a5d6a7" stroke-width="2"/>
+  <text x="260" y="334" text-anchor="middle" font-size="11" font-weight="bold" fill="#2e7d32">Dynamic Table (Declarative Incremental Refresh)</text>
+  <text x="260" y="352" text-anchor="middle" font-size="9" fill="#546e7a">Define processing logic via SQL; system auto-reads Base Table deltas; CBO intelligently selects full/incremental/partial compute</text>
+  <rect x="20" y="360" width="150" height="30" rx="5" fill="#2e7d32"/>
+  <text x="95" y="372" text-anchor="middle" font-size="8" fill="white" font-weight="bold">DWD / Silver Layer</text>
+  <text x="95" y="384" text-anchor="middle" font-size="7" fill="#c8e6c9">Cleansing · Filtering · Type Conversion</text>
+  <rect x="180" y="360" width="150" height="30" rx="5" fill="#2e7d32"/>
+  <text x="255" y="372" text-anchor="middle" font-size="8" fill="white" font-weight="bold">DWS / Gold Layer</text>
+  <text x="255" y="384" text-anchor="middle" font-size="7" fill="#c8e6c9">Aggregation · Wide Table · Dim Modeling</text>
+  <rect x="340" y="360" width="160" height="30" rx="5" fill="#2e7d32"/>
+  <text x="420" y="372" text-anchor="middle" font-size="8" fill="white" font-weight="bold">Multi-Layer Cascade (Auto Deps)</text>
+  <text x="420" y="384" text-anchor="middle" font-size="7" fill="#c8e6c9">ODS→DWD→DWS Auto Orchestration</text>
+  <text x="260" y="410" text-anchor="middle" font-size="8" fill="#546e7a">REFRESH interval N MINUTE VCLUSTER name · Use GP cluster (auto small-file compaction; AP unsupported) · Min interval 1 min</text>
+  <text x="260" y="426" text-anchor="middle" font-size="8" fill="#546e7a">SESSION_CONFIGS() parameterized · DML support (requires param, triggers full refresh) · Time Travel / UNDROP supported</text>
+
+  <!-- Materialized View -->
+  <rect x="530" y="314" width="190" height="120" rx="8" fill="#e0f7fa" stroke="#80deea" stroke-width="2"/>
+  <text x="625" y="334" text-anchor="middle" font-size="10" font-weight="bold" fill="#006064">Materialized View</text>
+  <text x="625" y="352" text-anchor="middle" font-size="8" fill="#546e7a">Pre-compute and store query results</text>
+  <rect x="538" y="360" width="174" height="16" rx="3" fill="#00838f"/><text x="625" y="372" text-anchor="middle" font-size="8" fill="white">REFRESH AUTO EVERY '1 hours'</text>
+  <text x="625" y="392" text-anchor="middle" font-size="8" fill="#546e7a">Manual or scheduled full refresh</text>
+  <text x="625" y="406" text-anchor="middle" font-size="8" fill="#546e7a">Query rewrite support (Preview)</text>
+  <text x="625" y="420" text-anchor="middle" font-size="8" fill="#546e7a">Auto-invalidated on base table change</text>
+
+  <!-- Consumption Methods -->
+  <rect x="740" y="314" width="170" height="120" rx="8" fill="#fff3e0" stroke="#ffcc80" stroke-width="2"/>
+  <text x="825" y="334" text-anchor="middle" font-size="10" font-weight="bold" fill="#e65100">Consumption Methods</text>
+  <rect x="748" y="346" width="154" height="16" rx="3" fill="#f57c00"/><text x="825" y="358" text-anchor="middle" font-size="8" fill="white">Dynamic Table Auto Consumption</text>
+  <rect x="748" y="368" width="154" height="16" rx="3" fill="#f57c00"/><text x="825" y="380" text-anchor="middle" font-size="8" fill="white">MERGE INTO Idempotent Consumption</text>
+  <rect x="748" y="390" width="154" height="16" rx="3" fill="#f57c00"/><text x="825" y="402" text-anchor="middle" font-size="8" fill="white">INSERT INTO Full Consumption</text>
+  <text x="825" y="424" text-anchor="middle" font-size="8" fill="#546e7a">UPDATE must precede DELETE</text>
+
+  <!-- ===== Bottom: Three Scheduling Methods ===== -->
+  <rect x="10" y="450" width="900" height="80" rx="8" fill="#eceff1" stroke="#b0bec5"/>
+  <text x="460" y="470" text-anchor="middle" font-size="11" font-weight="bold" fill="#37474f">Three Scheduling Methods</text>
+  <rect x="25" y="480" width="270" height="40" rx="6" fill="#546e7a"/>
+  <text x="160" y="496" text-anchor="middle" font-size="9" fill="white" font-weight="bold">DDL-Defined Scheduling</text>
+  <text x="160" y="512" text-anchor="middle" font-size="8" fill="#cfd8dc">REFRESH interval N MINUTE · Simple · Min 1 minute</text>
+  <rect x="310" y="480" width="290" height="40" rx="6" fill="#546e7a"/>
+  <text x="455" y="496" text-anchor="middle" font-size="9" fill="white" font-weight="bold">Studio Scheduling (Recommended for Prod)</text>
+  <text x="455" y="512" text-anchor="middle" font-size="8" fill="#cfd8dc">Visual Config · Upstream/Downstream Deps · Failure Alerts · Ops Monitoring</text>
+  <rect x="615" y="480" width="280" height="40" rx="6" fill="#546e7a"/>
+  <text x="755" y="496" text-anchor="middle" font-size="9" fill="white" font-weight="bold">Streaming SQL (Second-Level Micro-Batch)</text>
+  <text x="755" y="512" text-anchor="middle" font-size="8" fill="#cfd8dc">Materialized Execution Plan · Min 1 sec · AP Cluster · Resident Process</text>
+</svg>
+</div>
+
+<!-- ===== 5. Security Architecture ===== -->
+<h2>5. Security Architecture</h2>
+<p class="desc">ClickZetta Lakehouse employs a multi-layer security system: identity authentication (SSO/MFA), RBAC access control, column-level dynamic data masking, network policy (IP allowlist/denylist, Deny-first), PrivateLink private connectivity, and transport/storage encryption.</p>
+<div class="diagram-container">
+<svg width="920" height="400" viewBox="0 0 920 400" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Outer: Network Security -->
+  <rect x="10" y="10" width="900" height="380" rx="12" fill="none" stroke="#ef9a9a" stroke-width="2" stroke-dasharray="8,4"/>
+  <text x="460" y="32" text-anchor="middle" font-size="11" fill="#c62828">Network Security Layer: Network Policy (IP Allowlist/Denylist · Deny-First) · PrivateLink · TLS Encrypted Transport</text>
+
+  <!-- Identity Authentication -->
+  <rect x="25" y="48" width="200" height="110" rx="8" fill="#fce4ec" stroke="#f48fb1"/>
+  <text x="125" y="70" text-anchor="middle" font-size="11" font-weight="bold" fill="#880e4f">Identity Authentication</text>
+  <rect x="38" y="80" width="174" height="20" rx="4" fill="#c2185b"/><text x="125" y="95" text-anchor="middle" font-size="9" fill="white">Username / Password</text>
+  <rect x="38" y="106" width="174" height="20" rx="4" fill="#c2185b"/><text x="125" y="121" text-anchor="middle" font-size="9" fill="white">SSO (SAML 2.0 / OIDC)</text>
+  <rect x="38" y="132" width="174" height="20" rx="4" fill="#c2185b"/><text x="125" y="147" text-anchor="middle" font-size="9" fill="white">MFA (Google Authenticator)</text>
+
+  <!-- Instance Role -->
+  <rect x="240" y="48" width="200" height="110" rx="8" fill="#e3f2fd" stroke="#90caf9"/>
+  <text x="340" y="70" text-anchor="middle" font-size="11" font-weight="bold" fill="#1565c0">Instance Role</text>
+  <text x="340" y="88" text-anchor="middle" font-size="9" fill="#546e7a">Instance-Level Permission Management</text>
+  <rect x="253" y="98" width="174" height="20" rx="4" fill="#1976d2"/><text x="340" y="113" text-anchor="middle" font-size="9" fill="white">CREATE / DROP Workspace</text>
+  <rect x="253" y="124" width="174" height="20" rx="4" fill="#1976d2"/><text x="340" y="139" text-anchor="middle" font-size="9" fill="white">Manage Users / External Catalog</text>
+
+  <!-- Workspace Role -->
+  <rect x="455" y="48" width="200" height="110" rx="8" fill="#e8f5e9" stroke="#a5d6a7"/>
+  <text x="555" y="70" text-anchor="middle" font-size="11" font-weight="bold" fill="#2e7d32">Workspace Role</text>
+  <text x="555" y="88" text-anchor="middle" font-size="9" fill="#546e7a">Workspace-Level Permissions</text>
+  <rect x="468" y="98" width="174" height="20" rx="4" fill="#388e3c"/><text x="555" y="113" text-anchor="middle" font-size="9" fill="white">admin / dev / analyst Built-in Roles</text>
+  <rect x="468" y="124" width="174" height="20" rx="4" fill="#388e3c"/><text x="555" y="139" text-anchor="middle" font-size="9" fill="white">Custom Roles · GRANT / REVOKE</text>
+
+  <!-- ACL -->
+  <rect x="670" y="48" width="220" height="110" rx="8" fill="#f3e5f5" stroke="#ce93d8"/>
+  <text x="780" y="70" text-anchor="middle" font-size="11" font-weight="bold" fill="#6a1b9a">ACL Object Permissions</text>
+  <rect x="683" y="82" width="194" height="20" rx="4" fill="#7b1fa2"/><text x="780" y="97" text-anchor="middle" font-size="9" fill="white">SELECT / INSERT / UPDATE / DELETE</text>
+  <rect x="683" y="108" width="194" height="20" rx="4" fill="#7b1fa2"/><text x="780" y="123" text-anchor="middle" font-size="9" fill="white">CREATE / DROP / ALTER / USE</text>
+  <rect x="683" y="134" width="194" height="20" rx="4" fill="#7b1fa2"/><text x="780" y="149" text-anchor="middle" font-size="9" fill="white">READ METADATA / OWNERSHIP</text>
+
+  <!-- Data Security -->
+  <rect x="25" y="178" width="865" height="90" rx="8" fill="#fff3e0" stroke="#ffcc80"/>
+  <text x="460" y="198" text-anchor="middle" font-size="11" font-weight="bold" fill="#e65100">Data Security</text>
+  <rect x="40" y="210" width="195" height="44" rx="6" fill="#f57c00"/>
+  <text x="137" y="228" text-anchor="middle" font-size="10" fill="white" font-weight="bold">Dynamic Data Masking</text>
+  <text x="137" y="244" text-anchor="middle" font-size="8" fill="#fff3e0">Column-Level · Role/User-Based · Realtime</text>
+  <rect x="248" y="210" width="195" height="44" rx="6" fill="#f57c00"/>
+  <text x="345" y="228" text-anchor="middle" font-size="10" fill="white" font-weight="bold">Network Policy</text>
+  <text x="345" y="244" text-anchor="middle" font-size="8" fill="#fff3e0">IP Allowlist/Denylist · Deny-First</text>
+  <rect x="456" y="210" width="195" height="44" rx="6" fill="#f57c00"/>
+  <text x="553" y="228" text-anchor="middle" font-size="10" fill="white" font-weight="bold">Encryption / PrivateLink</text>
+  <text x="553" y="244" text-anchor="middle" font-size="8" fill="#fff3e0">AES-256 · PrivateLink · BYOS</text>
+  <rect x="664" y="210" width="210" height="44" rx="6" fill="#f57c00"/>
+  <text x="769" y="228" text-anchor="middle" font-size="10" fill="white" font-weight="bold">Audit Logs</text>
+  <text x="769" y="244" text-anchor="middle" font-size="8" fill="#fff3e0">Operation Records · Query History · INFORMATION_SCHEMA</text>
+
+  <!-- Data Sharing -->
+  <rect x="25" y="286" width="865" height="60" rx="8" fill="#e0f7fa" stroke="#80deea"/>
+  <text x="460" y="306" text-anchor="middle" font-size="11" font-weight="bold" fill="#006064">Cross-Account Data Sharing (Data Share)</text>
+  <rect x="40" y="316" width="195" height="24" rx="5" fill="#00838f"/><text x="137" y="333" text-anchor="middle" font-size="9" fill="white">GRANT TO SHARE</text>
+  <rect x="248" y="316" width="195" height="24" rx="5" fill="#00838f"/><text x="345" y="333" text-anchor="middle" font-size="9" fill="white">CREATE SCHEMA FROM SHARE</text>
+  <rect x="456" y="316" width="195" height="24" rx="5" fill="#00838f"/><text x="553" y="333" text-anchor="middle" font-size="9" fill="white">Zero-Copy · Realtime Data Access</text>
+  <rect x="664" y="316" width="210" height="24" rx="5" fill="#00838f"/><text x="769" y="333" text-anchor="middle" font-size="9" fill="white">Cross-Instance / Cross-Account · View Scoping</text>
+
+  <!-- Bottom Description -->
+  <text x="460" y="375" text-anchor="middle" font-size="9" fill="#90a4ae">Permission Request Approval Workflow · Built-in Role Permission List · Identity Verification</text>
+</svg>
+</div>
+
+<!-- ===== 6. Connectivity & Ecosystem Integration ===== -->
+<h2>6. Connectivity &amp; Ecosystem Integration</h2>
+<p class="desc">ClickZetta Lakehouse provides rich connectivity options, compatible with mainstream BI tools, AI frameworks, data integration platforms, and big data ecosystems. Supports JDBC, SQLAlchemy, MySQL protocol, MCP Server, and more.</p>
+<div class="diagram-container">
+<svg width="920" height="380" viewBox="0 0 920 380" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Center -->
+  <ellipse cx="460" cy="190" rx="90" ry="60" fill="#1565c0"/>
+  <text x="460" y="182" text-anchor="middle" font-size="13" font-weight="bold" fill="white">ClickZetta</text>
+  <text x="460" y="200" text-anchor="middle" font-size="13" font-weight="bold" fill="white">Lakehouse</text>
+
+  <!-- Top: Dev Tools -->
+  <rect x="130" y="10" width="660" height="65" rx="8" fill="#e3f2fd" stroke="#90caf9"/>
+  <text x="460" y="28" text-anchor="middle" font-size="11" font-weight="bold" fill="#1565c0">Dev Tools / SDK / Protocols</text>
+  <rect x="142" y="36" width="80" height="26" rx="5" fill="#1976d2"/><text x="182" y="54" text-anchor="middle" font-size="9" fill="white">Studio IDE</text>
+  <rect x="228" y="36" width="80" height="26" rx="5" fill="#1976d2"/><text x="268" y="54" text-anchor="middle" font-size="9" fill="white">Python SDK</text>
+  <rect x="314" y="36" width="80" height="26" rx="5" fill="#1976d2"/><text x="354" y="54" text-anchor="middle" font-size="9" fill="white">Java SDK</text>
+  <rect x="400" y="36" width="80" height="26" rx="5" fill="#1976d2"/><text x="440" y="54" text-anchor="middle" font-size="9" fill="white">ZettaPark</text>
+  <rect x="486" y="36" width="80" height="26" rx="5" fill="#1976d2"/><text x="526" y="54" text-anchor="middle" font-size="9" fill="white">SQLAlchemy</text>
+  <rect x="572" y="36" width="80" height="26" rx="5" fill="#1976d2"/><text x="612" y="54" text-anchor="middle" font-size="9" fill="white">JDBC</text>
+  <rect x="658" y="36" width="120" height="26" rx="5" fill="#1976d2"/><text x="718" y="54" text-anchor="middle" font-size="9" fill="white">MySQL Protocol</text>
+  <line x1="460" y1="75" x2="460" y2="130" stroke="#90a4ae" stroke-width="1.5"/>
+
+  <!-- Left: BI Tools -->
+  <rect x="10" y="100" width="130" height="180" rx="8" fill="#e8f5e9" stroke="#a5d6a7"/>
+  <text x="75" y="120" text-anchor="middle" font-size="10" font-weight="bold" fill="#2e7d32">BI Tools</text>
+  <rect x="18" y="130" width="114" height="20" rx="4" fill="#388e3c"/><text x="75" y="145" text-anchor="middle" font-size="9" fill="white">Superset</text>
+  <rect x="18" y="154" width="114" height="20" rx="4" fill="#388e3c"/><text x="75" y="169" text-anchor="middle" font-size="9" fill="white">Tableau</text>
+  <rect x="18" y="178" width="114" height="20" rx="4" fill="#388e3c"/><text x="75" y="193" text-anchor="middle" font-size="9" fill="white">Power BI</text>
+  <rect x="18" y="202" width="114" height="20" rx="4" fill="#388e3c"/><text x="75" y="217" text-anchor="middle" font-size="9" fill="white">Metabase</text>
+  <rect x="18" y="226" width="114" height="20" rx="4" fill="#388e3c"/><text x="75" y="241" text-anchor="middle" font-size="9" fill="white">FineBI</text>
+  <rect x="18" y="250" width="114" height="20" rx="4" fill="#388e3c"/><text x="75" y="265" text-anchor="middle" font-size="9" fill="white">Navicat / DBeaver</text>
+  <line x1="140" y1="190" x2="370" y2="190" stroke="#90a4ae" stroke-width="1.5"/>
+
+  <!-- Right: AI / ML -->
+  <rect x="780" y="100" width="130" height="180" rx="8" fill="#f3e5f5" stroke="#ce93d8"/>
+  <text x="845" y="120" text-anchor="middle" font-size="10" font-weight="bold" fill="#6a1b9a">AI / ML Ecosystem</text>
+  <rect x="788" y="130" width="114" height="20" rx="4" fill="#7b1fa2"/><text x="845" y="145" text-anchor="middle" font-size="9" fill="white">LangChain</text>
+  <rect x="788" y="154" width="114" height="20" rx="4" fill="#7b1fa2"/><text x="845" y="169" text-anchor="middle" font-size="9" fill="white">Dify / N8N</text>
+  <rect x="788" y="178" width="114" height="20" rx="4" fill="#7b1fa2"/><text x="845" y="193" text-anchor="middle" font-size="9" fill="white">MCP Server</text>
+  <rect x="788" y="202" width="114" height="20" rx="4" fill="#7b1fa2"/><text x="845" y="217" text-anchor="middle" font-size="9" fill="white">DataGPT</text>
+  <rect x="788" y="226" width="114" height="20" rx="4" fill="#7b1fa2"/><text x="845" y="241" text-anchor="middle" font-size="9" fill="white">AI Gateway</text>
+  <rect x="788" y="250" width="114" height="20" rx="4" fill="#7b1fa2"/><text x="845" y="265" text-anchor="middle" font-size="9" fill="white">Vector Index HNSW</text>
+  <line x1="550" y1="190" x2="780" y2="190" stroke="#90a4ae" stroke-width="1.5"/>
+
+  <!-- Bottom: Big Data Ecosystem -->
+  <rect x="130" y="300" width="660" height="65" rx="8" fill="#fff3e0" stroke="#ffcc80"/>
+  <text x="460" y="318" text-anchor="middle" font-size="11" font-weight="bold" fill="#e65100">Big Data Ecosystem / Data Integration</text>
+  <rect x="142" y="328" width="80" height="24" rx="4" fill="#f57c00"/><text x="182" y="345" text-anchor="middle" font-size="9" fill="white">Spark</text>
+  <rect x="228" y="328" width="80" height="24" rx="4" fill="#f57c00"/><text x="268" y="345" text-anchor="middle" font-size="9" fill="white">Flink</text>
+  <rect x="314" y="328" width="80" height="24" rx="4" fill="#f57c00"/><text x="354" y="345" text-anchor="middle" font-size="9" fill="white">Trino</text>
+  <rect x="400" y="328" width="80" height="24" rx="4" fill="#f57c00"/><text x="440" y="345" text-anchor="middle" font-size="9" fill="white">dbt</text>
+  <rect x="486" y="328" width="80" height="24" rx="4" fill="#f57c00"/><text x="526" y="345" text-anchor="middle" font-size="9" fill="white">Airbyte</text>
+  <rect x="572" y="328" width="80" height="24" rx="4" fill="#f57c00"/><text x="612" y="345" text-anchor="middle" font-size="9" fill="white">DataX</text>
+  <rect x="658" y="328" width="120" height="24" rx="4" fill="#f57c00"/><text x="718" y="345" text-anchor="middle" font-size="9" fill="white">Logstash</text>
+  <line x1="460" y1="300" x2="460" y2="250" stroke="#90a4ae" stroke-width="1.5"/>
+</svg>
+</div>
+
+<!-- ===== 7. AI-Enhanced Analytics Capabilities ===== -->
+<h2>7. AI-Enhanced Analytics Capabilities</h2>
+<p class="desc">ClickZetta Lakehouse includes built-in AI Gateway (model management and governance), AI functions (AI_COMPLETE / AI_EMBEDDING), vector index (HNSW), External Function (custom model invocation), DataGPT (natural language querying), and MCP Server (AI Agent integration).</p>
+<div class="diagram-container">
+<svg width="920" height="380" viewBox="0 0 920 380" xmlns="http://www.w3.org/2000/svg">
+  <defs><marker id="arr7" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#7b1fa2"/></marker></defs>
+
+  <!-- AI Gateway -->
+  <rect x="10" y="10" width="140" height="130" rx="8" fill="#f3e5f5" stroke="#ce93d8" stroke-width="2"/>
+  <text x="80" y="32" text-anchor="middle" font-size="11" font-weight="bold" fill="#6a1b9a">AI Gateway</text>
+  <text x="80" y="50" text-anchor="middle" font-size="9" fill="#546e7a">Unified Model Management</text>
+  <rect x="18" y="58" width="124" height="18" rx="3" fill="#7b1fa2"/><text x="80" y="72" text-anchor="middle" font-size="8" fill="white">Managed / External Model Registry</text>
+  <rect x="18" y="82" width="124" height="18" rx="3" fill="#7b1fa2"/><text x="80" y="96" text-anchor="middle" font-size="8" fill="white">Dynamic Rate Limiting · Cost Attribution</text>
+  <rect x="18" y="106" width="124" height="18" rx="3" fill="#7b1fa2"/><text x="80" y="120" text-anchor="middle" font-size="8" fill="white">SQL / API / Visual Invocation</text>
+
+  <!-- AI_COMPLETE -->
+  <rect x="160" y="10" width="140" height="130" rx="8" fill="#e8eaf6" stroke="#9fa8da" stroke-width="2"/>
+  <text x="230" y="32" text-anchor="middle" font-size="11" font-weight="bold" fill="#283593">AI_COMPLETE</text>
+  <text x="230" y="50" text-anchor="middle" font-size="9" fill="#546e7a">Invoke LLM for Text Generation</text>
+  <rect x="168" y="58" width="124" height="18" rx="3" fill="#3949ab"/><text x="230" y="72" text-anchor="middle" font-size="8" fill="white">connection: / endpoint:</text>
+  <rect x="168" y="82" width="124" height="18" rx="3" fill="#3949ab"/><text x="230" y="96" text-anchor="middle" font-size="8" fill="white">Text Summarization · Sentiment Analysis</text>
+  <rect x="168" y="106" width="124" height="18" rx="3" fill="#3949ab"/><text x="230" y="120" text-anchor="middle" font-size="8" fill="white">Industry Classification · Content Gen</text>
+
+  <!-- AI_EMBEDDING -->
+  <rect x="310" y="10" width="140" height="130" rx="8" fill="#e0f2f1" stroke="#80cbc4" stroke-width="2"/>
+  <text x="380" y="32" text-anchor="middle" font-size="11" font-weight="bold" fill="#004d40">AI_EMBEDDING</text>
+  <text x="380" y="50" text-anchor="middle" font-size="9" fill="#546e7a">Text Vectorization</text>
+  <rect x="318" y="58" width="124" height="18" rx="3" fill="#00695c"/><text x="380" y="72" text-anchor="middle" font-size="8" fill="white">Returns VECTOR Type</text>
+  <rect x="318" y="82" width="124" height="18" rx="3" fill="#00695c"/><text x="380" y="96" text-anchor="middle" font-size="8" fill="white">Semantic Search · RAG</text>
+  <rect x="318" y="106" width="124" height="18" rx="3" fill="#00695c"/><text x="380" y="120" text-anchor="middle" font-size="8" fill="white">cosine_distance Ranking</text>
+
+  <!-- Vector Index -->
+  <rect x="460" y="10" width="140" height="130" rx="8" fill="#e0f7fa" stroke="#80deea" stroke-width="2"/>
+  <text x="530" y="32" text-anchor="middle" font-size="11" font-weight="bold" fill="#006064">Vector Index HNSW</text>
+  <text x="530" y="50" text-anchor="middle" font-size="9" fill="#546e7a">Approximate Nearest Neighbor</text>
+  <rect x="468" y="58" width="124" height="18" rx="3" fill="#00838f"/><text x="530" y="72" text-anchor="middle" font-size="8" fill="white">VECTOR(FLOAT, n)</text>
+  <rect x="468" y="82" width="124" height="18" rx="3" fill="#00838f"/><text x="530" y="96" text-anchor="middle" font-size="8" fill="white">cosine / l2 / hamming</text>
+  <rect x="468" y="106" width="124" height="18" rx="3" fill="#00838f"/><text x="530" y="120" text-anchor="middle" font-size="8" fill="white">Vector+Scalar+Full-Text Fusion</text>
+
+  <!-- External Function -->
+  <rect x="610" y="10" width="140" height="130" rx="8" fill="#fff8e1" stroke="#ffe082" stroke-width="2"/>
+  <text x="680" y="32" text-anchor="middle" font-size="11" font-weight="bold" fill="#f57f17">External Function</text>
+  <text x="680" y="50" text-anchor="middle" font-size="9" fill="#546e7a">Custom Model / Algorithm</text>
+  <rect x="618" y="58" width="124" height="18" rx="3" fill="#f9a825"/><text x="680" y="72" text-anchor="middle" font-size="8" fill="white">Alibaba Cloud FC / Tencent SCF</text>
+  <rect x="618" y="82" width="124" height="18" rx="3" fill="#f9a825"/><text x="680" y="96" text-anchor="middle" font-size="8" fill="white">AWS Lambda</text>
+  <rect x="618" y="106" width="124" height="18" rx="3" fill="#f9a825"/><text x="680" y="120" text-anchor="middle" font-size="8" fill="white">Python / Java UDF</text>
+
+  <!-- DataGPT + MCP -->
+  <rect x="760" y="10" width="150" height="130" rx="8" fill="#fce4ec" stroke="#f48fb1" stroke-width="2"/>
+  <text x="835" y="32" text-anchor="middle" font-size="11" font-weight="bold" fill="#880e4f">DataGPT / MCP</text>
+  <text x="835" y="50" text-anchor="middle" font-size="9" fill="#546e7a">AI Interaction Entry Point</text>
+  <rect x="768" y="58" width="134" height="18" rx="3" fill="#c2185b"/><text x="835" y="72" text-anchor="middle" font-size="8" fill="white">Natural Language to SQL</text>
+  <rect x="768" y="82" width="134" height="18" rx="3" fill="#c2185b"/><text x="835" y="96" text-anchor="middle" font-size="8" fill="white">MCP 40+ Tools</text>
+  <rect x="768" y="106" width="134" height="18" rx="3" fill="#c2185b"/><text x="835" y="120" text-anchor="middle" font-size="8" fill="white">Claude / Dify / N8N</text>
+
+  <!-- Arrows to Application Scenarios -->
+  <line x1="80" y1="140" x2="80" y2="168" stroke="#7b1fa2" stroke-width="1.5" marker-end="url(#arr7)"/>
+  <line x1="230" y1="140" x2="230" y2="168" stroke="#7b1fa2" stroke-width="1.5" marker-end="url(#arr7)"/>
+  <line x1="380" y1="140" x2="380" y2="168" stroke="#7b1fa2" stroke-width="1.5" marker-end="url(#arr7)"/>
+  <line x1="530" y1="140" x2="530" y2="168" stroke="#7b1fa2" stroke-width="1.5" marker-end="url(#arr7)"/>
+  <line x1="680" y1="140" x2="680" y2="168" stroke="#7b1fa2" stroke-width="1.5" marker-end="url(#arr7)"/>
+  <line x1="835" y1="140" x2="835" y2="168" stroke="#7b1fa2" stroke-width="1.5" marker-end="url(#arr7)"/>
+
+  <!-- Application Scenarios -->
+  <rect x="10" y="170" width="900" height="130" rx="8" fill="#1a237e"/>
+  <text x="460" y="195" text-anchor="middle" font-size="13" font-weight="bold" fill="white">AI-Enhanced Analytics Application Scenarios</text>
+  <rect x="25" y="208" width="200" height="78" rx="6" fill="rgba(255,255,255,0.12)"/>
+  <text x="125" y="228" text-anchor="middle" font-size="10" font-weight="bold" fill="#e8eaf6">RAG Knowledge Base</text>
+  <text x="125" y="246" text-anchor="middle" font-size="8" fill="#c5cae9">Document Vectorization · Semantic Search</text>
+  <text x="125" y="262" text-anchor="middle" font-size="8" fill="#c5cae9">LLM Generation · SQL Direct Query</text>
+  <text x="125" y="278" text-anchor="middle" font-size="8" fill="#c5cae9">LangChain Integration</text>
+  <rect x="240" y="208" width="200" height="78" rx="6" fill="rgba(255,255,255,0.12)"/>
+  <text x="340" y="228" text-anchor="middle" font-size="10" font-weight="bold" fill="#e8eaf6">Intelligent Data Analytics</text>
+  <text x="340" y="246" text-anchor="middle" font-size="8" fill="#c5cae9">DataGPT Conversational Analytics</text>
+  <text x="340" y="262" text-anchor="middle" font-size="8" fill="#c5cae9">Auto Reports · Metric System</text>
+  <text x="340" y="278" text-anchor="middle" font-size="8" fill="#c5cae9">Analysis Domain · Answer Builder</text>
+  <rect x="455" y="208" width="200" height="78" rx="6" fill="rgba(255,255,255,0.12)"/>
+  <text x="555" y="228" text-anchor="middle" font-size="10" font-weight="bold" fill="#e8eaf6">AI Agent Integration</text>
+  <text x="555" y="246" text-anchor="middle" font-size="8" fill="#c5cae9">MCP Server 40+ Tools</text>
+  <text x="555" y="262" text-anchor="middle" font-size="8" fill="#c5cae9">Claude / Dify / N8N</text>
+  <text x="555" y="278" text-anchor="middle" font-size="8" fill="#c5cae9">Natural Language Lakehouse Operations</text>
+  <rect x="670" y="208" width="225" height="78" rx="6" fill="rgba(255,255,255,0.12)"/>
+  <text x="782" y="228" text-anchor="middle" font-size="10" font-weight="bold" fill="#e8eaf6">Content Understanding / Feature Eng</text>
+  <text x="782" y="246" text-anchor="middle" font-size="8" fill="#c5cae9">Batch Text Summarization · Sentiment Analysis</text>
+  <text x="782" y="262" text-anchor="middle" font-size="8" fill="#c5cae9">Image Recognition (External UDF)</text>
+  <text x="782" y="278" text-anchor="middle" font-size="8" fill="#c5cae9">Unstructured Data ETL</text>
+
+  <!-- Bottom Description -->
+  <rect x="10" y="316" width="900" height="50" rx="8" fill="#eceff1"/>
+  <text x="460" y="336" text-anchor="middle" font-size="10" font-weight="bold" fill="#37474f">AI Data Preparation Capabilities</text>
+  <text x="460" y="354" text-anchor="middle" font-size="9" fill="#546e7a">VECTOR(FLOAT, n) Type · HNSW Vector Index · Inverted Index Full-Text Search · Vector+Scalar+Full-Text Fusion Search · Unstructured Data ETL (Unstructured Ingest)</text>
+</svg>
+</div>
+
+<!-- ===== 8. Storage Layer Detail ===== -->
+<h2>8. Storage Layer Detail</h2>
+<p class="desc">The storage layer is based on open formats (Apache Iceberg), supporting Time Travel, ACID transactions, multiple index types, and External Catalog federated queries. VECTOR(FLOAT, n) supports up to 65535-dimensional vectors.</p>
+<div class="diagram-container">
+<svg width="920" height="380" viewBox="0 0 920 380" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Managed Table -->
+  <rect x="10" y="10" width="260" height="350" rx="10" fill="#e3f2fd" stroke="#90caf9" stroke-width="2"/>
+  <text x="140" y="36" text-anchor="middle" font-size="12" font-weight="bold" fill="#1565c0">Managed Table</text>
+  <rect x="22" y="46" width="236" height="26" rx="5" fill="#1976d2"/><text x="140" y="64" text-anchor="middle" font-size="10" fill="white">Apache Iceberg Format</text>
+  <rect x="22" y="80" width="236" height="20" rx="4" fill="#e3f2fd" stroke="#90caf9"/><text x="140" y="95" text-anchor="middle" font-size="9" fill="#1565c0">ACID Transactions (INSERT/UPDATE/DELETE/MERGE)</text>
+  <rect x="22" y="106" width="236" height="20" rx="4" fill="#e3f2fd" stroke="#90caf9"/><text x="140" y="121" text-anchor="middle" font-size="9" fill="#1565c0">Time Travel (TIMESTAMP AS OF)</text>
+  <rect x="22" y="132" width="236" height="20" rx="4" fill="#e3f2fd" stroke="#90caf9"/><text x="140" y="147" text-anchor="middle" font-size="9" fill="#1565c0">data_retention_days (default 1d, max 90d)</text>
+  <rect x="22" y="158" width="236" height="20" rx="4" fill="#e3f2fd" stroke="#90caf9"/><text x="140" y="173" text-anchor="middle" font-size="9" fill="#1565c0">data_lifecycle (TTL Auto Delete · Partition-Level)</text>
+  <rect x="22" y="184" width="236" height="20" rx="4" fill="#e3f2fd" stroke="#90caf9"/><text x="140" y="199" text-anchor="middle" font-size="9" fill="#1565c0">Partition (days/months/bucket/truncate)</text>
+  <rect x="22" y="210" width="236" height="20" rx="4" fill="#e3f2fd" stroke="#90caf9"/><text x="140" y="225" text-anchor="middle" font-size="9" fill="#1565c0">Bucketing (CLUSTERED BY · SORTED BY)</text>
+  <text x="140" y="252" text-anchor="middle" font-size="10" font-weight="bold" fill="#1565c0">Index Types</text>
+  <rect x="22" y="262" width="114" height="24" rx="4" fill="#1565c0"/><text x="79" y="279" text-anchor="middle" font-size="9" fill="white">BloomFilter</text>
+  <rect x="144" y="262" width="114" height="24" rx="4" fill="#1565c0"/><text x="201" y="279" text-anchor="middle" font-size="9" fill="white">Inverted (Full-Text)</text>
+  <rect x="22" y="294" width="114" height="24" rx="4" fill="#1565c0"/><text x="79" y="311" text-anchor="middle" font-size="9" fill="white">Vector (HNSW)</text>
+  <rect x="144" y="294" width="114" height="24" rx="4" fill="#1565c0"/><text x="201" y="311" text-anchor="middle" font-size="9" fill="white">Sort Key</text>
+  <text x="140" y="340" text-anchor="middle" font-size="9" fill="#546e7a">Columnar Storage · Parquet / ORC · Auto Compression</text>
+  <text x="140" y="355" text-anchor="middle" font-size="9" fill="#546e7a">PK Constraints · Auto-Increment · Generated Col · Default</text>
+
+  <!-- External Table + External Catalog -->
+  <rect x="285" y="10" width="260" height="190" rx="10" fill="#e8f5e9" stroke="#a5d6a7" stroke-width="2"/>
+  <text x="415" y="36" text-anchor="middle" font-size="12" font-weight="bold" fill="#2e7d32">External Table / External Catalog</text>
+  <rect x="297" y="46" width="236" height="26" rx="5" fill="#388e3c"/><text x="415" y="64" text-anchor="middle" font-size="10" fill="white">Federated Query · Zero-Copy · Read-Only</text>
+  <rect x="297" y="80" width="114" height="20" rx="4" fill="#e8f5e9" stroke="#a5d6a7"/><text x="354" y="95" text-anchor="middle" font-size="9" fill="#2e7d32">Delta Lake</text>
+  <rect x="419" y="80" width="114" height="20" rx="4" fill="#e8f5e9" stroke="#a5d6a7"/><text x="476" y="95" text-anchor="middle" font-size="9" fill="#2e7d32">Apache Hudi</text>
+  <rect x="297" y="106" width="114" height="20" rx="4" fill="#e8f5e9" stroke="#a5d6a7"/><text x="354" y="121" text-anchor="middle" font-size="9" fill="#2e7d32">Kafka Realtime Table</text>
+  <rect x="419" y="106" width="114" height="20" rx="4" fill="#e8f5e9" stroke="#a5d6a7"/><text x="476" y="121" text-anchor="middle" font-size="9" fill="#2e7d32">Iceberg REST</text>
+  <text x="415" y="148" text-anchor="middle" font-size="9" fill="#546e7a">External Catalog Integration</text>
+  <text x="415" y="164" text-anchor="middle" font-size="9" fill="#546e7a">Hive HMS / Databricks Unity</text>
+  <text x="415" y="180" text-anchor="middle" font-size="9" fill="#546e7a">Snowflake Open Catalog</text>
+
+  <!-- Volume -->
+  <rect x="285" y="215" width="260" height="145" rx="10" fill="#fff3e0" stroke="#ffcc80" stroke-width="2"/>
+  <text x="415" y="238" text-anchor="middle" font-size="12" font-weight="bold" fill="#e65100">Volume (File Storage)</text>
+  <rect x="297" y="248" width="75" height="50" rx="5" fill="#f57c00"/>
+  <text x="334" y="268" text-anchor="middle" font-size="9" fill="white">User</text>
+  <text x="334" y="284" text-anchor="middle" font-size="8" fill="#fff3e0">Personal Files</text>
+  <rect x="380" y="248" width="75" height="50" rx="5" fill="#f57c00"/>
+  <text x="417" y="268" text-anchor="middle" font-size="9" fill="white">Table</text>
+  <text x="417" y="284" text-anchor="middle" font-size="8" fill="#fff3e0">Table-Attached</text>
+  <rect x="463" y="248" width="75" height="50" rx="5" fill="#f57c00"/>
+  <text x="500" y="268" text-anchor="middle" font-size="9" fill="white">External</text>
+  <text x="500" y="284" text-anchor="middle" font-size="8" fill="#fff3e0">OSS/S3/COS</text>
+  <text x="415" y="318" text-anchor="middle" font-size="9" fill="#546e7a">PUT / GET · COPY INTO · SELECT FROM VOLUME</text>
+  <text x="415" y="334" text-anchor="middle" font-size="9" fill="#546e7a">Auto Directory Refresh · Schema-on-Read</text>
+
+  <!-- Underlying Storage -->
+  <rect x="560" y="10" width="350" height="350" rx="10" fill="#eceff1" stroke="#b0bec5" stroke-width="2"/>
+  <text x="735" y="36" text-anchor="middle" font-size="12" font-weight="bold" fill="#37474f">Underlying Object Storage</text>
+  <rect x="575" y="48" width="320" height="46" rx="6" fill="#ff8f00"/>
+  <text x="735" y="66" text-anchor="middle" font-size="11" fill="white" font-weight="bold">Alibaba Cloud OSS</text>
+  <text x="735" y="84" text-anchor="middle" font-size="9" fill="#fff8e1">cn-shanghai / cn-hangzhou / cn-beijing</text>
+  <rect x="575" y="102" width="320" height="46" rx="6" fill="#1565c0"/>
+  <text x="735" y="120" text-anchor="middle" font-size="11" fill="white" font-weight="bold">AWS S3</text>
+  <text x="735" y="138" text-anchor="middle" font-size="9" fill="#e3f2fd">ap-southeast-1 / cn-north-1</text>
+  <rect x="575" y="156" width="320" height="46" rx="6" fill="#00695c"/>
+  <text x="735" y="174" text-anchor="middle" font-size="11" fill="white" font-weight="bold">Tencent Cloud COS</text>
+  <text x="735" y="192" text-anchor="middle" font-size="9" fill="#e0f2f1">ap-shanghai / ap-beijing / ap-guangzhou</text>
+  <text x="735" y="228" text-anchor="middle" font-size="10" font-weight="bold" fill="#37474f">Storage Features</text>
+  <rect x="575" y="238" width="320" height="20" rx="4" fill="#546e7a"/><text x="735" y="253" text-anchor="middle" font-size="9" fill="white">Compute-Storage Separation · Unlimited Scaling · Pay per GiB</text>
+  <rect x="575" y="264" width="320" height="20" rx="4" fill="#546e7a"/><text x="735" y="279" text-anchor="middle" font-size="9" fill="white">Parquet / ORC / Iceberg Open Formats</text>
+  <rect x="575" y="290" width="320" height="20" rx="4" fill="#546e7a"/><text x="735" y="305" text-anchor="middle" font-size="9" fill="white">Multi-Replica · High Availability · AES-256 Encryption</text>
+  <rect x="575" y="316" width="320" height="20" rx="4" fill="#546e7a"/><text x="735" y="331" text-anchor="middle" font-size="9" fill="white">Private Storage (BYOS) · Spark on Lakehouse</text>
+</svg>
+</div>
+
+<!-- ===== 9. Data Type System ===== -->
+<h2>9. Data Type System</h2>
+<p class="desc">ClickZetta Lakehouse supports a complete SQL data type system, including basic types, complex types (ARRAY/MAP/STRUCT), AI-specific VECTOR(FLOAT/TINYINT, n) types, and efficient BITMAP types.</p>
+<div class="diagram-container">
+<svg width="920" height="220" viewBox="0 0 920 220" xmlns="http://www.w3.org/2000/svg">
+
+  <rect x="10" y="10" width="160" height="200" rx="8" fill="#e3f2fd" stroke="#90caf9"/>
+  <text x="90" y="30" text-anchor="middle" font-size="10" font-weight="bold" fill="#1565c0">Numeric Types</text>
+  <rect x="20" y="40" width="140" height="18" rx="3" fill="#1976d2"/><text x="90" y="54" text-anchor="middle" font-size="8" fill="white">TINYINT / SMALLINT</text>
+  <rect x="20" y="64" width="140" height="18" rx="3" fill="#1976d2"/><text x="90" y="78" text-anchor="middle" font-size="8" fill="white">INT / BIGINT</text>
+  <rect x="20" y="88" width="140" height="18" rx="3" fill="#1976d2"/><text x="90" y="102" text-anchor="middle" font-size="8" fill="white">FLOAT / DOUBLE</text>
+  <rect x="20" y="112" width="140" height="18" rx="3" fill="#1976d2"/><text x="90" y="126" text-anchor="middle" font-size="8" fill="white">DECIMAL(p, s)</text>
+  <rect x="20" y="136" width="140" height="18" rx="3" fill="#1976d2"/><text x="90" y="150" text-anchor="middle" font-size="8" fill="white">BOOLEAN</text>
+
+  <rect x="180" y="10" width="160" height="200" rx="8" fill="#e8f5e9" stroke="#a5d6a7"/>
+  <text x="260" y="30" text-anchor="middle" font-size="10" font-weight="bold" fill="#2e7d32">String Types</text>
+  <rect x="190" y="40" width="140" height="18" rx="3" fill="#388e3c"/><text x="260" y="54" text-anchor="middle" font-size="8" fill="white">CHAR(n) / VARCHAR(n)</text>
+  <rect x="190" y="64" width="140" height="18" rx="3" fill="#388e3c"/><text x="260" y="78" text-anchor="middle" font-size="8" fill="white">STRING (max 16MB)</text>
+  <rect x="190" y="88" width="140" height="18" rx="3" fill="#388e3c"/><text x="260" y="102" text-anchor="middle" font-size="8" fill="white">BINARY</text>
+  <rect x="190" y="112" width="140" height="18" rx="3" fill="#388e3c"/><text x="260" y="126" text-anchor="middle" font-size="8" fill="white">JSON (Columnar Optimized Storage)</text>
+
+  <rect x="350" y="10" width="160" height="200" rx="8" fill="#f3e5f5" stroke="#ce93d8"/>
+  <text x="430" y="30" text-anchor="middle" font-size="10" font-weight="bold" fill="#6a1b9a">Temporal Types</text>
+  <rect x="360" y="40" width="140" height="18" rx="3" fill="#7b1fa2"/><text x="430" y="54" text-anchor="middle" font-size="8" fill="white">DATE</text>
+  <rect x="360" y="64" width="140" height="18" rx="3" fill="#7b1fa2"/><text x="430" y="78" text-anchor="middle" font-size="8" fill="white">TIMESTAMP (with timezone LTZ)</text>
+  <rect x="360" y="88" width="140" height="18" rx="3" fill="#7b1fa2"/><text x="430" y="102" text-anchor="middle" font-size="8" fill="white">TIMESTAMP_NTZ (no timezone)</text>
+  <rect x="360" y="112" width="140" height="18" rx="3" fill="#7b1fa2"/><text x="430" y="126" text-anchor="middle" font-size="8" fill="white">INTERVAL (year-month/day-time)</text>
+
+  <rect x="520" y="10" width="160" height="200" rx="8" fill="#fff3e0" stroke="#ffcc80"/>
+  <text x="600" y="30" text-anchor="middle" font-size="10" font-weight="bold" fill="#e65100">Complex Types</text>
+  <rect x="530" y="40" width="140" height="18" rx="3" fill="#f57c00"/><text x="600" y="54" text-anchor="middle" font-size="8" fill="white">ARRAY&lt;T&gt;</text>
+  <rect x="530" y="64" width="140" height="18" rx="3" fill="#f57c00"/><text x="600" y="78" text-anchor="middle" font-size="8" fill="white">MAP&lt;K, V&gt;</text>
+  <rect x="530" y="88" width="140" height="18" rx="3" fill="#f57c00"/><text x="600" y="102" text-anchor="middle" font-size="8" fill="white">STRUCT&lt;field:type,...&gt;</text>
+  <rect x="530" y="112" width="140" height="18" rx="3" fill="#f57c00"/><text x="600" y="126" text-anchor="middle" font-size="8" fill="white">Nested Complex Types</text>
+
+  <rect x="690" y="10" width="220" height="200" rx="8" fill="#e0f7fa" stroke="#80deea"/>
+  <text x="800" y="30" text-anchor="middle" font-size="10" font-weight="bold" fill="#006064">AI / Special Types</text>
+  <rect x="700" y="40" width="200" height="18" rx="3" fill="#00838f"/><text x="800" y="54" text-anchor="middle" font-size="8" fill="white">VECTOR(FLOAT, n) (max 65535 dims)</text>
+  <rect x="700" y="64" width="200" height="18" rx="3" fill="#00838f"/><text x="800" y="78" text-anchor="middle" font-size="8" fill="white">VECTOR(TINYINT, n) (binary vector)</text>
+  <rect x="700" y="88" width="200" height="18" rx="3" fill="#00838f"/><text x="800" y="102" text-anchor="middle" font-size="8" fill="white">BITMAP (Roaring Bitmap)</text>
+  <rect x="700" y="112" width="200" height="18" rx="3" fill="#00838f"/><text x="800" y="126" text-anchor="middle" font-size="8" fill="white">cosine / l2 / hamming / jaccard</text>
+  <rect x="700" y="136" width="200" height="18" rx="3" fill="#00838f"/><text x="800" y="150" text-anchor="middle" font-size="8" fill="white">bitmap set operation functions</text>
+</svg>
+</div>
+
+<!-- ===== 10. Key SQL Syntax Quick Reference ===== -->
+<h2>10. Key SQL Syntax Quick Reference</h2>
+<p class="desc">Common DDL/DML syntax reference covering table creation, data import, incremental processing, and AI functions. Note: regular tables do not support CREATE OR REPLACE; Dynamic Table / View / MV do.</p>
+<div class="diagram-container">
+<svg width="920" height="440" viewBox="0 0 920 440" xmlns="http://www.w3.org/2000/svg">
+
+  <rect x="10" y="10" width="440" height="200" rx="8" fill="#1a237e"/>
+  <text x="230" y="35" text-anchor="middle" font-size="12" font-weight="bold" fill="white">Table DDL</text>
+  <rect x="22" y="45" width="416" height="155" rx="5" fill="rgba(0,0,0,0.3)"/>
+  <text x="30" y="65" font-size="9" fill="#80cbc4" font-family="monospace">-- Managed table (with vector index)</text>
+  <text x="30" y="82" font-size="9" fill="#e8eaf6" font-family="monospace">CREATE TABLE docs (</text>
+  <text x="30" y="99" font-size="9" fill="#e8eaf6" font-family="monospace">  id BIGINT, content STRING,</text>
+  <text x="30" y="116" font-size="9" fill="#e8eaf6" font-family="monospace">  vec VECTOR(FLOAT, 1024),</text>
+  <text x="30" y="133" font-size="9" fill="#e8eaf6" font-family="monospace">  INDEX idx (vec) USING VECTOR</text>
+  <text x="30" y="150" font-size="9" fill="#e8eaf6" font-family="monospace">    PROPERTIES("distance.function"</text>
+  <text x="30" y="167" font-size="9" fill="#e8eaf6" font-family="monospace">    ="cosine_distance")</text>
+  <text x="30" y="184" font-size="9" fill="#e8eaf6" font-family="monospace">);</text>
+  <text x="30" y="196" font-size="8" fill="#80cbc4" font-family="monospace">-- Regular tables do not support CREATE OR REPLACE</text>
+
+  <rect x="470" y="10" width="440" height="200" rx="8" fill="#1b5e20"/>
+  <text x="690" y="35" text-anchor="middle" font-size="12" font-weight="bold" fill="white">Dynamic Table (Incremental Refresh)</text>
+  <rect x="482" y="45" width="416" height="155" rx="5" fill="rgba(0,0,0,0.3)"/>
+  <text x="490" y="65" font-size="9" fill="#a5d6a7" font-family="monospace">-- Declarative incremental compute (supports OR REPLACE)</text>
+  <text x="490" y="82" font-size="9" fill="#e8f5e9" font-family="monospace">CREATE OR REPLACE DYNAMIC TABLE agg</text>
+  <text x="490" y="99" font-size="9" fill="#e8f5e9" font-family="monospace">  REFRESH interval 5 MINUTE</text>
+  <text x="490" y="116" font-size="9" fill="#e8f5e9" font-family="monospace">  VCLUSTER default_ap</text>
+  <text x="490" y="133" font-size="9" fill="#e8f5e9" font-family="monospace">AS SELECT date, SUM(amount)</text>
+  <text x="490" y="150" font-size="9" fill="#e8f5e9" font-family="monospace">   FROM orders GROUP BY date;</text>
+  <text x="490" y="170" font-size="9" fill="#a5d6a7" font-family="monospace">-- SESSION_CONFIGS() parameterized definition</text>
+  <text x="490" y="187" font-size="9" fill="#a5d6a7" font-family="monospace">-- DML requires cz.dynamic.table.enable.dml</text>
+
+  <rect x="10" y="230" width="440" height="200" rx="8" fill="#4a148c"/>
+  <text x="230" y="255" text-anchor="middle" font-size="12" font-weight="bold" fill="white">MERGE INTO (Upsert)</text>
+  <rect x="22" y="265" width="416" height="155" rx="5" fill="rgba(0,0,0,0.3)"/>
+  <text x="30" y="285" font-size="9" fill="#ce93d8" font-family="monospace">-- UPDATE must precede DELETE</text>
+  <text x="30" y="302" font-size="9" fill="#f3e5f5" font-family="monospace">MERGE INTO target t</text>
+  <text x="30" y="319" font-size="9" fill="#f3e5f5" font-family="monospace">USING source s ON t.id = s.id</text>
+  <text x="30" y="336" font-size="9" fill="#f3e5f5" font-family="monospace">WHEN MATCHED AND s.op='U'</text>
+  <text x="30" y="353" font-size="9" fill="#f3e5f5" font-family="monospace">  THEN UPDATE SET t.val = s.val</text>
+  <text x="30" y="370" font-size="9" fill="#f3e5f5" font-family="monospace">WHEN MATCHED AND s.op='D'</text>
+  <text x="30" y="387" font-size="9" fill="#f3e5f5" font-family="monospace">  THEN DELETE</text>
+  <text x="30" y="404" font-size="9" fill="#f3e5f5" font-family="monospace">WHEN NOT MATCHED THEN INSERT *;</text>
+
+  <rect x="470" y="230" width="440" height="200" rx="8" fill="#006064"/>
+  <text x="690" y="255" text-anchor="middle" font-size="12" font-weight="bold" fill="white">AI Function Invocation</text>
+  <rect x="482" y="265" width="416" height="155" rx="5" fill="rgba(0,0,0,0.3)"/>
+  <text x="490" y="285" font-size="9" fill="#80deea" font-family="monospace">-- Text summarization (via AI Gateway)</text>
+  <text x="490" y="302" font-size="9" fill="#e0f7fa" font-family="monospace">SELECT AI_COMPLETE(</text>
+  <text x="490" y="319" font-size="9" fill="#e0f7fa" font-family="monospace">  'connection:conn_bailian',</text>
+  <text x="490" y="336" font-size="9" fill="#e0f7fa" font-family="monospace">  'Summarize: ' || content) AS summary</text>
+  <text x="490" y="353" font-size="9" fill="#e0f7fa" font-family="monospace">FROM articles;</text>
+  <text x="490" y="375" font-size="9" fill="#80deea" font-family="monospace">-- Semantic search (vector index + AI_EMBEDDING)</text>
+  <text x="490" y="392" font-size="9" fill="#e0f7fa" font-family="monospace">SELECT id, cosine_distance(vec,</text>
+  <text x="490" y="409" font-size="9" fill="#e0f7fa" font-family="monospace">  AI_EMBEDDING('connection:c', q))</text>
+  <text x="490" y="426" font-size="9" fill="#e0f7fa" font-family="monospace">FROM docs ORDER BY 2 LIMIT 10;</text>
+</svg>
+</div>
+
+<!-- ===== 11. Studio Task Scheduling & Operations ===== -->
+<h2>11. Studio Task Scheduling &amp; Operations</h2>
+<p class="desc">Lakehouse Studio provides comprehensive task development, scheduling, operations, and monitoring capabilities. Supports SQL / Python / Shell / JDBC task types, task group DAG orchestration, data quality rules, and monitoring &amp; alerting (Feishu/WeCom webhook).</p>
+<div class="diagram-container">
+<svg width="920" height="320" viewBox="0 0 920 320" xmlns="http://www.w3.org/2000/svg">
+  <defs><marker id="arr11" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#1976d2"/></marker></defs>
+
+  <!-- Task Development -->
+  <rect x="10" y="10" width="200" height="180" rx="8" fill="#e3f2fd" stroke="#90caf9" stroke-width="2"/>
+  <text x="110" y="32" text-anchor="middle" font-size="11" font-weight="bold" fill="#1565c0">Task Development</text>
+  <rect x="22" y="42" width="176" height="20" rx="4" fill="#1976d2"/><text x="110" y="57" text-anchor="middle" font-size="9" fill="white">SQL Tasks</text>
+  <rect x="22" y="68" width="176" height="20" rx="4" fill="#1976d2"/><text x="110" y="83" text-anchor="middle" font-size="9" fill="white">Python Tasks (Built-in Env)</text>
+  <rect x="22" y="94" width="176" height="20" rx="4" fill="#1976d2"/><text x="110" y="109" text-anchor="middle" font-size="9" fill="white">Shell Tasks</text>
+  <rect x="22" y="120" width="176" height="20" rx="4" fill="#1976d2"/><text x="110" y="135" text-anchor="middle" font-size="9" fill="white">JDBC Tasks (MySQL/Hive/CK)</text>
+  <rect x="22" y="146" width="176" height="20" rx="4" fill="#1976d2"/><text x="110" y="161" text-anchor="middle" font-size="9" fill="white">Dynamic Table Tasks / Streaming SQL</text>
+  <text x="110" y="182" text-anchor="middle" font-size="8" fill="#546e7a">Task Params: ${city} · $[yyyy-MM-dd]</text>
+
+  <!-- Scheduling & Orchestration -->
+  <line x1="210" y1="100" x2="238" y2="100" stroke="#1976d2" stroke-width="2" marker-end="url(#arr11)"/>
+  <rect x="240" y="10" width="200" height="180" rx="8" fill="#e8f5e9" stroke="#a5d6a7" stroke-width="2"/>
+  <text x="340" y="32" text-anchor="middle" font-size="11" font-weight="bold" fill="#2e7d32">Scheduling &amp; Orchestration</text>
+  <rect x="252" y="42" width="176" height="20" rx="4" fill="#388e3c"/><text x="340" y="57" text-anchor="middle" font-size="9" fill="white">Cron Expression Scheduling</text>
+  <rect x="252" y="68" width="176" height="20" rx="4" fill="#388e3c"/><text x="340" y="83" text-anchor="middle" font-size="9" fill="white">Task Group DAG Orchestration</text>
+  <rect x="252" y="94" width="176" height="20" rx="4" fill="#388e3c"/><text x="340" y="109" text-anchor="middle" font-size="9" fill="white">Upstream/Downstream Deps (Same/Cross WS)</text>
+  <rect x="252" y="120" width="176" height="20" rx="4" fill="#388e3c"/><text x="340" y="135" text-anchor="middle" font-size="9" fill="white">Composite Tasks (Unified Scheduling)</text>
+  <rect x="252" y="146" width="176" height="20" rx="4" fill="#388e3c"/><text x="340" y="161" text-anchor="middle" font-size="9" fill="white">Backfill (Historical/Future Cycles)</text>
+  <text x="340" y="182" text-anchor="middle" font-size="8" fill="#546e7a">Dep Strategy: Default / Forward / Forward Nearest</text>
+
+  <!-- Operations Monitoring -->
+  <line x1="440" y1="100" x2="468" y2="100" stroke="#1976d2" stroke-width="2" marker-end="url(#arr11)"/>
+  <rect x="470" y="10" width="200" height="180" rx="8" fill="#fff3e0" stroke="#ffcc80" stroke-width="2"/>
+  <text x="570" y="32" text-anchor="middle" font-size="11" font-weight="bold" fill="#e65100">Operations Monitoring</text>
+  <rect x="482" y="42" width="176" height="20" rx="4" fill="#f57c00"/><text x="570" y="57" text-anchor="middle" font-size="9" fill="white">Task Instance Ops (Start/Stop/Rerun)</text>
+  <rect x="482" y="68" width="176" height="20" rx="4" fill="#f57c00"/><text x="570" y="83" text-anchor="middle" font-size="9" fill="white">Job History (SHOW JOBS)</text>
+  <rect x="482" y="94" width="176" height="20" rx="4" fill="#f57c00"/><text x="570" y="109" text-anchor="middle" font-size="9" fill="white">INFORMATION_SCHEMA Analysis</text>
+  <rect x="482" y="120" width="176" height="20" rx="4" fill="#f57c00"/><text x="570" y="135" text-anchor="middle" font-size="9" fill="white">query_tag Job Tracking</text>
+  <rect x="482" y="146" width="176" height="20" rx="4" fill="#f57c00"/><text x="570" y="161" text-anchor="middle" font-size="9" fill="white">Job Profile Performance Diagnostics</text>
+  <text x="570" y="182" text-anchor="middle" font-size="8" fill="#546e7a">Cluster Load · Slow Queries · Cache Hit Rate</text>
+
+  <!-- Data Quality + Alerting -->
+  <line x1="670" y1="100" x2="698" y2="100" stroke="#1976d2" stroke-width="2" marker-end="url(#arr11)"/>
+  <rect x="700" y="10" width="210" height="180" rx="8" fill="#fce4ec" stroke="#f48fb1" stroke-width="2"/>
+  <text x="805" y="32" text-anchor="middle" font-size="11" font-weight="bold" fill="#880e4f">Data Quality / Alerting</text>
+  <rect x="712" y="42" width="186" height="20" rx="4" fill="#c2185b"/><text x="805" y="57" text-anchor="middle" font-size="9" fill="white">Quality Rules (6 Dimensions)</text>
+  <rect x="712" y="68" width="186" height="20" rx="4" fill="#c2185b"/><text x="805" y="83" text-anchor="middle" font-size="9" fill="white">Completeness · Uniqueness · Accuracy</text>
+  <rect x="712" y="94" width="186" height="20" rx="4" fill="#c2185b"/><text x="805" y="109" text-anchor="middle" font-size="9" fill="white">Monitoring &amp; Alerting Rules (Built-in+Custom)</text>
+  <rect x="712" y="120" width="186" height="20" rx="4" fill="#c2185b"/><text x="805" y="135" text-anchor="middle" font-size="9" fill="white">Feishu / WeCom Webhook</text>
+  <rect x="712" y="146" width="186" height="20" rx="4" fill="#c2185b"/><text x="805" y="161" text-anchor="middle" font-size="9" fill="white">Pipe Latency Monitoring</text>
+  <text x="805" y="182" text-anchor="middle" font-size="8" fill="#546e7a">Scheduled / Trigger-Based / Manual</text>
+
+  <!-- Bottom: Data Sync Tasks -->
+  <rect x="10" y="210" width="900" height="100" rx="8" fill="#eceff1" stroke="#b0bec5"/>
+  <text x="460" y="232" text-anchor="middle" font-size="11" font-weight="bold" fill="#37474f">Data Sync Tasks (Sync VCluster)</text>
+  <rect x="25" y="244" width="170" height="50" rx="6" fill="#546e7a"/>
+  <text x="110" y="264" text-anchor="middle" font-size="10" fill="white" font-weight="bold">Batch Sync</text>
+  <text x="110" y="282" text-anchor="middle" font-size="8" fill="#cfd8dc">Single/Multi-Table · Whole DB Migration · Cron</text>
+  <rect x="210" y="244" width="170" height="50" rx="6" fill="#546e7a"/>
+  <text x="295" y="264" text-anchor="middle" font-size="10" fill="white" font-weight="bold">Single-Table Realtime Sync</text>
+  <text x="295" y="282" text-anchor="middle" font-size="8" fill="#cfd8dc">Kafka / MySQL / PG CDC</text>
+  <rect x="395" y="244" width="170" height="50" rx="6" fill="#546e7a"/>
+  <text x="480" y="264" text-anchor="middle" font-size="10" fill="white" font-weight="bold">Multi-table Realtime CDC</text>
+  <text x="480" y="282" text-anchor="middle" font-size="8" fill="#cfd8dc">Whole DB Mirror · Shard Merge</text>
+  <rect x="580" y="244" width="170" height="50" rx="6" fill="#546e7a"/>
+  <text x="665" y="264" text-anchor="middle" font-size="10" fill="white" font-weight="bold">Multi-table Batch Sync</text>
+  <text x="665" y="282" text-anchor="middle" font-size="8" fill="#cfd8dc">Schema Evolution · Auto Table Creation</text>
+  <rect x="765" y="244" width="130" height="50" rx="6" fill="#546e7a"/>
+  <text x="830" y="264" text-anchor="middle" font-size="10" fill="white" font-weight="bold">Data Source Management</text>
+  <text x="830" y="282" text-anchor="middle" font-size="8" fill="#cfd8dc">30+ Data Sources · SSH Tunnel</text>
+</svg>
+</div>
+
+<div style="text-align:center; color:#90a4ae; font-size:0.85em; margin-top:40px; padding-bottom:30px;">
+  ClickZetta Lakehouse Architecture Overview · Based on Official Documentation yunqi.tech · 2026
+</div>
+
+</body>
+</html>

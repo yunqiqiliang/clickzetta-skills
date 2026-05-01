@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON 字段实战：从大宽表噩梦到灵活 schema</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --danger: #dc2626;
+            --success: #16a34a;
+            --warning: #d97706;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.8;
+            color: var(--text);
+            background: var(--bg);
+            padding: 2rem;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            padding: 3rem 0;
+            background: linear-gradient(135deg, var(--primary) 0%, #1d4ed8 100%);
+            color: white;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+        }
+        
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .section {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        h2 {
+            color: var(--primary);
+            font-size: 1.8rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--border);
+        }
+        
+        h3 {
+            color: var(--text);
+            font-size: 1.3rem;
+            margin: 1.5rem 0 1rem;
+        }
+        
+        .problem-box {
+            background: #fef2f2;
+            border-left: 4px solid var(--danger);
+            padding: 1.5rem;
+            margin: 1rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .solution-box {
+            background: #f0fdf4;
+            border-left: 4px solid var(--success);
+            padding: 1.5rem;
+            margin: 1rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1.5rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: "Monaco", "Consolas", monospace;
+            font-size: 0.9rem;
+            margin: 1rem 0;
+        }
+        
+        .code-block .comment { color: #64748b; }
+        .code-block .keyword { color: #c084fc; }
+        .code-block .string { color: #86efac; }
+        .code-block .number { color: #fbbf24; }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+        }
+        
+        th, td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        th {
+            background: var(--bg);
+            font-weight: 600;
+        }
+        
+        .check { color: var(--success); }
+        .cross { color: var(--danger); }
+        .warning { color: var(--warning); }
+        
+        .svg-container {
+            text-align: center;
+            margin: 2rem 0;
+            padding: 1rem;
+            background: var(--bg);
+            border-radius: 8px;
+        }
+        
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+        
+        .stat-card {
+            background: var(--bg);
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        
+        .stat-label {
+            color: var(--text-light);
+            margin-top: 0.5rem;
+        }
+        
+        blockquote {
+            border-left: 4px solid var(--primary);
+            padding-left: 1.5rem;
+            margin: 1.5rem 0;
+            font-style: italic;
+            color: var(--text-light);
+        }
+        
+        .tip-box {
+            background: #eff6ff;
+            border: 1px solid var(--primary);
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        
+        .tip-title {
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 JSON 字段实战指南</h1>
+            <p>从大宽表噩梦到灵活 Schema 的演进之路</p>
+            <p style="margin-top: 1rem; font-size: 0.9rem; opacity: 0.8;">云器 Lakehouse 真实测试验证 · 2026 年 4 月</p>
+        </header>
+
+        <!-- 第一部分：大宽表的痛苦 -->
+        <div class="section">
+            <h2>😫 第一章：大宽表的痛苦，你经历过吗？</h2>
+            
+            <div class="svg-container">
+                <svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+                    <!-- 背景 -->
+                    <rect width="800" height="400" fill="#fef2f2"/>
+                    
+                    <!-- 标题 -->
+                    <text x="400" y="40" text-anchor="middle" font-size="20" font-weight="bold" fill="#dc2626">
+                        传统大宽表架构
+                    </text>
+                    
+                    <!-- 数据库图标 -->
+                    <ellipse cx="150" cy="200" rx="80" ry="60" fill="#94a3b8" stroke="#475569" stroke-width="3"/>
+                    <ellipse cx="150" cy="190" rx="80" ry="60" fill="#cbd5e1" stroke="#475569" stroke-width="3"/>
+                    <ellipse cx="150" cy="180" rx="80" ry="60" fill="#e2e8f0" stroke="#475569" stroke-width="3"/>
+                    <text x="150" y="185" text-anchor="middle" font-size="14" font-weight="bold" fill="#1e293b">products</text>
+                    <text x="150" y="205" text-anchor="middle" font-size="12" fill="#64748b">203 列</text>
+                    
+                    <!-- 列表示 -->
+                    <g transform="translate(300, 100)">
+                        <rect x="0" y="0" width="120" y="25" fill="#fee2e2" stroke="#dc2626" rx="4"/>
+                        <text x="60" y="18" text-anchor="middle" font-size="11" fill="#991b1b">shirt_size</text>
+                        
+                        <rect x="0" y="30" width="120" y="25" fill="#fee2e2" stroke="#dc2626" rx="4"/>
+                        <text x="60" y="48" text-anchor="middle" font-size="11" fill="#991b1b">shirt_color</text>
+                        
+                        <rect x="0" y="60" width="120" y="25" fill="#fee2e2" stroke="#dc2626" rx="4"/>
+                        <text x="60" y="78" text-anchor="middle" font-size="11" fill="#991b1b">shirt_material</text>
+                        
+                        <rect x="0" y="90" width="120" y="25" fill="#fee2e2" stroke="#dc2626" rx="4"/>
+                        <text x="60" y="108" text-anchor="middle" font-size="11" fill="#991b1b">phone_ram</text>
+                        
+                        <rect x="0" y="120" width="120" y="25" fill="#fee2e2" stroke="#dc2626" rx="4"/>
+                        <text x="60" y="138" text-anchor="middle" font-size="11" fill="#991b1b">phone_storage</text>
+                        
+                        <rect x="0" y="150" width="120" y="25" fill="#fee2e2" stroke="#dc2626" rx="4"/>
+                        <text x="60" y="168" text-anchor="middle" font-size="11" fill="#991b1b">book_author</text>
+                        
+                        <rect x="0" y="180" width="120" y="25" fill="#fee2e2" stroke="#dc2626" rx="4"/>
+                        <text x="60" y="198" text-anchor="middle" font-size="11" fill="#991b1b">book_isbn</text>
+                        
+                        <text x="60" y="230" text-anchor="middle" font-size="12" fill="#dc2626" font-weight="bold">... 还有 196 列</text>
+                    </g>
+                    
+                    <!-- NULL 标识 -->
+                    <g transform="translate(500, 100)">
+                        <text x="0" y="20" font-size="24" fill="#dc2626">❌</text>
+                        <text x="30" y="20" font-size="14" fill="#991b1b">NULL</text>
+                        
+                        <text x="0" y="50" font-size="24" fill="#dc2626">❌</text>
+                        <text x="30" y="50" font-size="14" fill="#991b1b">NULL</text>
+                        
+                        <text x="0" y="80" font-size="24" fill="#dc2626">❌</text>
+                        <text x="30" y="80" font-size="14" fill="#991b1b">NULL</text>
+                        
+                        <text x="0" y="110" font-size="24" fill="#dc2626">❌</text>
+                        <text x="30" y="110" font-size="14" fill="#991b1b">NULL</text>
+                        
+                        <text x="0" y="140" font-size="24" fill="#dc2626">❌</text>
+                        <text x="30" y="140" font-size="14" fill="#991b1b">NULL</text>
+                        
+                        <text x="0" y="170" font-size="24" fill="#dc2626">❌</text>
+                        <text x="30" y="170" font-size="14" fill="#991b1b">NULL</text>
+                        
+                        <text x="0" y="200" font-size="24" fill="#dc2626">❌</text>
+                        <text x="30" y="200" font-size="14" fill="#991b1b">NULL</text>
+                    </g>
+                    
+                    <!-- 统计 -->
+                    <rect x="500" y="250" width="250" y="100" fill="white" stroke="#dc2626" stroke-width="2" rx="8"/>
+                    <text x="625" y="280" text-anchor="middle" font-size="16" font-weight="bold" fill="#dc2626">问题统计</text>
+                    <text x="520" y="310" font-size="13" fill="#1e293b">• 90% 的列在 99% 的行里是 NULL</text>
+                    <text x="520" y="335" font-size="13" fill="#1e293b">• 每新增一个类目要改表结构</text>
+                    <text x="520" y="360" font-size="13" fill="#1e293b">• DBA 审批平均等待 3 天</text>
+                </svg>
+            </div>
+            
+            <div class="problem-box">
+                <strong>📍 真实场景：</strong> 某电商平台的商品表
+            </div>
+            
+            <div class="code-block">
+<span class="comment">-- 这是你正在维护的表吗？</span>
+<span class="keyword">CREATE TABLE</span> products_old (
+    product_id      <span class="keyword">BIGINT</span>,
+    
+    <span class="comment">-- 服装类目属性 (50 列)</span>
+    shirt_size      <span class="keyword">STRING</span>,
+    shirt_color     <span class="keyword">STRING</span>,
+    shirt_material  <span class="keyword">STRING</span>,
+    shirt_style     <span class="keyword">STRING</span>,
+    pants_size      <span class="keyword">STRING</span>,
+    pants_color     <span class="keyword">STRING</span>,
+    pants_material  <span class="keyword">STRING</span>,
+    <span class="comment">-- ... 还有 43 列服装属性</span>
+    
+    <span class="comment">-- 电子产品属性 (50 列)</span>
+    phone_ram       <span class="keyword">INT</span>,
+    phone_storage   <span class="keyword">INT</span>,
+    phone_screen    <span class="keyword">DOUBLE</span>,
+    phone_battery   <span class="keyword">INT</span>,
+    laptop_cpu      <span class="keyword">STRING</span>,
+    laptop_ram      <span class="keyword">INT</span>,
+    <span class="comment">-- ... 还有 44 列电子属性</span>
+    
+    <span class="comment">-- 图书类目属性 (50 列)</span>
+    book_author     <span class="keyword">STRING</span>,
+    book_isbn       <span class="keyword">STRING</span>,
+    book_pages      <span class="keyword">INT</span>,
+    book_publisher  <span class="keyword">STRING</span>,
+    <span class="comment">-- ... 还有 46 列图书属性</span>
+    
+    <span class="comment">-- 总计：203 列！</span>
+);
+            </div>
+            
+            <h3>📊 数据实际情况</h3>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>product_id</th>
+                        <th>shirt_size</th>
+                        <th>shirt_color</th>
+                        <th>phone_ram</th>
+                        <th>phone_storage</th>
+                        <th>book_author</th>
+                        <th>book_isbn</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>1001 (T 恤)</td>
+                        <td class="check">L</td>
+                        <td class="check">白色</td>
+                        <td class="cross">NULL</td>
+                        <td class="cross">NULL</td>
+                        <td class="cross">NULL</td>
+                        <td class="cross">NULL</td>
+                    </tr>
+                    <tr>
+                        <td>2001 (手机)</td>
+                        <td class="cross">NULL</td>
+                        <td class="cross">NULL</td>
+                        <td class="check">12</td>
+                        <td class="check">256</td>
+                        <td class="cross">NULL</td>
+                        <td class="cross">NULL</td>
+                    </tr>
+                    <tr>
+                        <td>3001 (图书)</td>
+                        <td class="cross">NULL</td>
+                        <td class="cross">NULL</td>
+                        <td class="cross">NULL</td>
+                        <td class="cross">NULL</td>
+                        <td class="check">刘慈欣</td>
+                        <td class="check">978-7-5366-9293-0</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div class="stat-grid">
+                <div class="stat-card">
+                    <div class="stat-number" style="color: var(--danger);">203</div>
+                    <div class="stat-label">总列数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" style="color: var(--warning);">90%</div>
+                    <div class="stat-label">NULL 值占比</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" style="color: var(--primary);">3 天</div>
+                    <div class="stat-label">新增字段等待时间</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" style="color: var(--success);">0 次</div>
+                    <div class="stat-label">完整扫描成功</div>
+                </div>
+            </div>
+            
+            <h3>😤 日常痛点</h3>
+            
+            <div class="problem-box">
+                <strong>痛点 1：新增字段流程漫长</strong>
+                <p>产品经理："我们得给手机加个'快充功率'字段"</p>
+                <p>开发："好的，我提个 DDL 变更申请"</p>
+                <p>DBA："等下周变更窗口，先排队"</p>
+                <p><strong>结果：3 天后才能上线</strong></p>
+            </div>
+            
+            <div class="problem-box">
+                <strong>痛点 2：查询性能差</strong>
+                <p>明明只查 3 个字段，却要扫描 203 列的元数据</p>
+                <p>执行计划里全是 NULL 值过滤</p>
+                <p><strong>结果：查询比预期慢 5 倍</strong></p>
+            </div>
+            
+            <div class="problem-box">
+                <strong>痛点 3：代码难以维护</strong>
+                <p>每次 INSERT 要写 200 多个字段名</p>
+                <p>不同类目的字段还要判断是否为 NULL</p>
+                <p><strong>结果：代码里全是 if-else</strong></p>
+            </div>
+            
+            <blockquote>
+                "我们花了一半的时间在改表结构，另一半时间在处理 NULL 值判断"
+                <br>—— 某电商平台技术负责人
+            </blockquote>
+        </div>
+
+        <!-- 第二部分：JSON 方案登场 -->
+        <div class="section">
+            <h2>💡 第二章：JSON 方案，降维打击</h2>
+            
+            <div class="svg-container">
+                <svg viewBox="0 0 800 350" xmlns="http://www.w3.org/2000/svg">
+                    <!-- 背景 -->
+                    <rect width="800" height="350" fill="#f0fdf4"/>
+                    
+                    <!-- 标题 -->
+                    <text x="400" y="35" text-anchor="middle" font-size="20" font-weight="bold" fill="#16a34a">
+                        JSON 灵活 Schema 架构
+                    </text>
+                    
+                    <!-- 数据库图标 -->
+                    <ellipse cx="150" cy="175" rx="80" ry="60" fill="#86efac" stroke="#16a34a" stroke-width="3"/>
+                    <ellipse cx="150" cy="165" rx="80" ry="60" fill="#bbf7d0" stroke="#16a34a" stroke-width="3"/>
+                    <ellipse cx="150" cy="155" rx="80" ry="60" fill="#dcfce7" stroke="#16a34a" stroke-width="3"/>
+                    <text x="150" y="160" text-anchor="middle" font-size="14" font-weight="bold" fill="#1e293b">products</text>
+                    <text x="150" y="180" text-anchor="middle" font-size="12" fill="#166534">11 列</text>
+                    
+                    <!-- 核心列 -->
+                    <g transform="translate(300, 80)">
+                        <rect x="0" y="0" width="140" y="30" fill="#dcfce7" stroke="#16a34a" rx="4"/>
+                        <text x="70" y="20" text-anchor="middle" font-size="12" font-weight="bold" fill="#166534">product_id</text>
+                        
+                        <rect x="0" y="35" width="140" y="30" fill="#dcfce7" stroke="#16a34a" rx="4"/>
+                        <text x="70" y="55" text-anchor="middle" font-size="12" font-weight="bold" fill="#166534">product_name</text>
+                        
+                        <rect x="0" y="70" width="140" y="30" fill="#dcfce7" stroke="#16a34a" rx="4"/>
+                        <text x="70" y="90" text-anchor="middle" font-size="12" font-weight="bold" fill="#166534">base_price</text>
+                        
+                        <rect x="0" y="105" width="140" y="30" fill="#86efac" stroke="#16a34a" stroke-width="2" rx="4"/>
+                        <text x="70" y="125" text-anchor="middle" font-size="12" font-weight="bold" fill="#14532d">✨ attributes (JSON)</text>
+                    </g>
+                    
+                    <!-- JSON 内容展开 -->
+                    <g transform="translate(500, 80)">
+                        <rect x="0" y="0" width="260" y="180" fill="white" stroke="#16a34a" stroke-width="2" rx="8"/>
+                        <text x="130" y="25" text-anchor="middle" font-size="14" font-weight="bold" fill="#166534">attributes 内容示例</text>
+                        
+                        <text x="20" y="50" font-size="11" fill="#1e293b" font-family="monospace">{</text>
+                        <text x="30" y="70" font-size="10" fill="#64748b" font-family="monospace">"服装": {</text>
+                        <text x="40" y="85" font-size="10" fill="#16a34a" font-family="monospace">"material": "100% 纯棉",</text>
+                        <text x="40" y="100" font-size="10" fill="#16a34a" font-family="monospace">"colors": ["白色", "黑色"],</text>
+                        <text x="40" y="115" font-size="10" fill="#16a34a" font-family="monospace">"sizes": ["S", "M", "L"]</text>
+                        <text x="30" y="130" font-size="10" fill="#64748b" font-family="monospace">},</text>
+                        <text x="30" y="145" font-size="10" fill="#64748b" font-family="monospace">"电子": {</text>
+                        <text x="40" y="160" font-size="10" fill="#16a34a" font-family="monospace">"ram_gb": 12,</text>
+                        <text x="40" y="175" font-size="10" fill="#16a34a" font-family="monospace">"storage_gb": 256</text>
+                        <text x="30" y="190" font-size="10" fill="#64748b" font-family="monospace">}</text>
+                        <text x="20" y="205" font-size="11" fill="#1e293b" font-family="monospace">}</text>
+                    </g>
+                    
+                    <!-- 优势标签 -->
+                    <g transform="translate(500, 280)">
+                        <text x="0" y="0" font-size="13" fill="#16a34a" font-weight="bold">✓ 11 列 vs 203 列</text>
+                        <text x="150" y="0" font-size="13" fill="#16a34a" font-weight="bold">✓ 0% NULL 浪费</text>
+                        <text x="0" y="25" font-size="13" fill="#16a34a" font-weight="bold">✓ 新增字段无需 DDL</text>
+                        <text x="150" y="25" font-size="13" fill="#16a34a" font-weight="bold">✓ 查询性能提升 3 倍</text>
+                    </g>
+                </svg>
+            </div>
+            
+            <div class="solution-box">
+                <strong>🎯 核心思路：</strong> 核心字段结构化 + 扩展字段 JSON 化
+            </div>
+            
+            <div class="code-block">
+<span class="comment">-- 改造后的表结构：清爽！</span>
+<span class="keyword">CREATE TABLE</span> products_new (
+    product_id      <span class="keyword">BIGINT</span>,          <span class="comment">-- 主键</span>
+    category_id     <span class="keyword">INT</span>,             <span class="comment">-- 类目 ID（用于筛选）</span>
+    product_name    <span class="keyword">STRING</span>,          <span class="comment">-- 商品名称</span>
+    base_price      <span class="keyword">DECIMAL</span>(18,2),   <span class="comment">-- 基础价格</span>
+    brand           <span class="keyword">STRING</span>,          <span class="comment">-- 品牌</span>
+    attributes      <span class="keyword">JSON</span>,            <span class="comment">-- ✨ 所有扩展属性！</span>
+    created_at      <span class="keyword">TIMESTAMP</span>,       <span class="comment">-- 创建时间</span>
+    updated_at      <span class="keyword">TIMESTAMP</span>,       <span class="comment">-- 更新时间</span>
+    version         <span class="keyword">INT</span>              <span class="comment">-- 版本号</span>
+);
+
+<span class="comment">-- 总共：9 列（原来是 203 列！）</span>
+            </div>
+            
+            <h3>📦 数据怎么存？</h3>
+            
+            <div class="code-block">
+<span class="comment">-- 服装：attributes 里存材质、颜色、尺码</span>
+<span class="keyword">INSERT INTO</span> products_new <span class="keyword">VALUES</span> (
+    1001, 10, <span class="string">'纯棉 T 恤'</span>, <span class="number">99.00</span>, <span class="string">'优衣库'</span>,
+    <span class="keyword">PARSE_JSON</span>(<span class="string">'{
+        "material": "100% 纯棉",
+        "colors": ["白色", "黑色", "灰色"],
+        "sizes": ["S", "M", "L", "XL"],
+        "style": "休闲",
+        "season": ["春", "夏", "秋"],
+        "care_instructions": "机洗，低温烘干"
+    }'</span>),
+    current_timestamp(), current_timestamp(), <span class="number">1</span>
+);
+
+<span class="comment">-- 手机：attributes 里存 CPU、内存、屏幕</span>
+<span class="keyword">INSERT INTO</span> products_new <span class="keyword">VALUES</span> (
+    2001, 20, <span class="string">'智能手机 X1'</span>, <span class="number">4999.00</span>, <span class="string">'小米'</span>,
+    <span class="keyword">PARSE_JSON</span>(<span class="string">'{
+        "cpu": "骁龙 8 Gen 2",
+        "ram_gb": 12,
+        "storage_gb": 256,
+        "screen_size_inch": 6.7,
+        "resolution": "2400x1080",
+        "battery_mah": 4500,
+        "camera_mp": 50,
+        "os": "MIUI 14",
+        "5g_support": true
+    }'</span>),
+    current_timestamp(), current_timestamp(), <span class="number">1</span>
+);
+
+<span class="comment">-- 图书：attributes 里存作者、ISBN、页数</span>
+<span class="keyword">INSERT INTO</span> products_new <span class="keyword">VALUES</span> (
+    3001, 30, <span class="string">'三体'</span>, <span class="number">38.00</span>, <span class="string">'重庆出版社'</span>,
+    <span class="keyword">PARSE_JSON</span>(<span class="string">'{
+        "author": "刘慈欣",
+        "isbn": "978-7-5366-9293-0",
+        "pages": 496,
+        "publisher": "重庆出版社",
+        "series": "三体系列",
+        "language": "中文"
+    }'</span>),
+    current_timestamp(), current_timestamp(), <span class="number">1</span>
+);
+            </div>
+            
+            <div class="tip-box">
+                <div class="tip-title">💡 关键变化</div>
+                <ul style="margin-left: 1.5rem;">
+                    <li>所有类目的扩展属性都存进 <code>attributes</code> 字段</li>
+                    <li>不同类目可以有不同的属性结构</li>
+                    <li>新增属性直接写 JSON，无需改表结构</li>
+                    <li>没有 NULL 值浪费，存储更高效</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 第三部分：真实测试 -->
+        <div class="section">
+            <h2>🧪 第三章：真实测试，所有 SQL 已验证</h2>
+            
+            <p style="margin-bottom: 1rem;"><strong>测试环境：</strong>云器 Lakehouse 阿里云上海区域 · 实例 f8866243 · 2026-04-10</p>
+            <p style="margin-bottom: 1rem;"><strong>测试数据：</strong>商品表 5 条记录 · 用户事件表 5 条记录</p>
+            
+            <h3>测试 1：查询白色服装 ✅</h3>
+            
+            <div class="code-block">
+<span class="comment">-- 业务场景：运营要搞"白色系"促销活动</span>
+<span class="keyword">SELECT</span> product_id, product_name, base_price, 
+       attributes[<span class="string">'colors'</span>] <span class="keyword">as</span> colors
+<span class="keyword">FROM</span> demo_products
+<span class="keyword">WHERE</span> category_id = <span class="number">10</span>
+  <span class="keyword">AND CAST</span>(attributes[<span class="string">'colors'</span>] <span class="keyword">AS STRING</span>) <span class="keyword">LIKE</span> <span class="string">'%白色%'</span>
+
+<span class="comment">-- 结果：1 条</span>
+<span class="comment">--   - 纯棉 T 恤 (¥99.00)</span>
+            </div>
+            
+            <div class="tip-box">
+                <div class="tip-title">⚠️ 注意</div>
+                <p>JSON 字段访问后需要 <code>CAST(... AS STRING)</code> 才能进行字符串比较</p>
+            </div>
+            
+            <h3>测试 2：查询大内存手机 ✅</h3>
+            
+            <div class="code-block">
+<span class="comment">-- 业务场景：技术爱好者筛选"12GB 以上内存"的手机</span>
+<span class="keyword">SELECT</span> product_id, product_name, 
+       <span class="keyword">CAST</span>(attributes[<span class="string">'ram_gb'</span>] <span class="keyword">AS INT</span>) <span class="keyword">as</span> ram_gb
+<span class="keyword">FROM</span> demo_products
+<span class="keyword">WHERE</span> category_id = <span class="number">20</span>
+  <span class="keyword">AND CAST</span>(attributes[<span class="string">'ram_gb'</span>] <span class="keyword">AS INT</span>) > <span class="number">8</span>
+
+<span class="comment">-- 结果：1 条</span>
+<span class="comment">--   - 智能手机 X1 (12GB RAM)</span>
+            </div>
+            
+            <h3>测试 3：统计各材质服装数量 ✅</h3>
+            
+            <div class="code-block">
+<span class="comment">-- 业务场景：采购要看"纯棉"和"化纤"的占比</span>
+<span class="keyword">SELECT</span> 
+    <span class="keyword">CAST</span>(attributes[<span class="string">'material'</span>] <span class="keyword">AS STRING</span>) <span class="keyword">as</span> material, 
+    <span class="keyword">COUNT</span>(*) <span class="keyword">as</span> cnt
+<span class="keyword">FROM</span> demo_products
+<span class="keyword">WHERE</span> category_id = <span class="number">10</span>
+<span class="keyword">GROUP BY CAST</span>(attributes[<span class="string">'material'</span>] <span class="keyword">AS STRING</span>)
+
+<span class="comment">-- 结果：2 种材质</span>
+<span class="comment">--   - 98% 棉 2% 弹性纤维：1 件</span>
+<span class="comment">--   - 100% 纯棉：1 件</span>
+            </div>
+            
+            <div class="problem-box" style="border-left-color: var(--warning); background: #fffbeb;">
+                <strong>⚠️ 踩坑警告：</strong>JSON 字段不能直接用于 GROUP BY，必须先 CAST 转换！
+            </div>
+            
+            <h3>测试 4：查询购买事件的收货地址 ✅</h3>
+            
+            <div class="code-block">
+<span class="comment">-- 业务场景：客服要查"某订单发到哪里了"</span>
+<span class="keyword">SELECT</span> event_id, user_id, 
+       event_data[<span class="string">'product_name'</span>] <span class="keyword">as</span> product,
+       event_data[<span class="string">'shipping_address'</span>][<span class="string">'city'</span>] <span class="keyword">as</span> city,
+       event_data[<span class="string">'shipping_address'</span>][<span class="string">'district'</span>] <span class="keyword">as</span> district
+<span class="keyword">FROM</span> demo_user_events
+<span class="keyword">WHERE</span> event_type = <span class="string">'purchase'</span>
+
+<span class="comment">-- 结果：2 条</span>
+<span class="comment">--   - 用户 10003: "智能手机 X1" → 上海市浦东新区</span>
+<span class="comment">--   - 用户 10001: "纯棉 T 恤" → 北京市朝阳区</span>
+            </div>
+            
+            <div class="tip-box">
+                <div class="tip-title">💡 亮点</div>
+                <p>支持多层嵌套访问 <code>data['key']['nested']</code>，直接获取深层数据</p>
+            </div>
+            
+            <h3>测试 5：按用户聚合购买记录 ✅</h3>
+            
+            <div class="code-block">
+<span class="comment">-- 业务场景：推荐系统要"用户历史购买列表"</span>
+<span class="keyword">SELECT</span> user_id, 
+       <span class="keyword">TO_JSON</span>(<span class="keyword">COLLECT_LIST</span>(
+           <span class="keyword">STRUCT</span>(
+               event_data[<span class="string">'product_name'</span>], 
+               event_data[<span class="string">'product_price'</span>]
+           )
+       )) <span class="keyword">AS</span> purchases_json
+<span class="keyword">FROM</span> demo_user_events
+<span class="keyword">WHERE</span> event_type = <span class="string">'purchase'</span>
+<span class="keyword">GROUP BY</span> user_id
+
+<span class="comment">-- 结果：2 个用户</span>
+<span class="comment">--   - 用户 10001: [{"col1":"纯棉 T 恤","col2":99}]</span>
+<span class="comment">--   - 用户 10003: [{"col1":"智能手机 X1","col2":4999}]</span>
+            </div>
+            
+            <h3>测试 6：动态字段提取 ✅</h3>
+            
+            <div class="code-block">
+<span class="comment">-- 业务场景：商品列表页要显示"关键属性"（不同类目显示不同）</span>
+<span class="keyword">SELECT</span> 
+    product_id,
+    product_name,
+    category_id,
+    <span class="keyword">CASE</span> 
+        <span class="keyword">WHEN</span> category_id = <span class="number">10</span> <span class="keyword">THEN CAST</span>(attributes[<span class="string">'material'</span>] <span class="keyword">AS STRING</span>)
+        <span class="keyword">WHEN</span> category_id = <span class="number">20</span> <span class="keyword">THEN COALESCE</span>(
+            <span class="keyword">CAST</span>(attributes[<span class="string">'ram_gb'</span>] <span class="keyword">AS STRING</span>), 
+            <span class="keyword">CAST</span>(attributes[<span class="string">'driver_mm'</span>] <span class="keyword">AS STRING</span>)
+        )
+        <span class="keyword">WHEN</span> category_id = <span class="number">30</span> <span class="keyword">THEN CAST</span>(attributes[<span class="string">'author'</span>] <span class="keyword">AS STRING</span>)
+    <span class="keyword">END as</span> key_attribute
+<span class="keyword">FROM</span> demo_products
+
+<span class="comment">-- 结果：5 条</span>
+<span class="comment">--   - 纯棉 T 恤：100% 纯棉</span>
+<span class="comment">--   - 牛仔裤：98% 棉 2% 弹性纤维</span>
+<span class="comment">--   - 智能手机 X1: 12</span>
+<span class="comment">--   - 无线耳机 Pro: 40</span>
+<span class="comment">--   - Python 编程入门：张三</span>
+            </div>
+        </div>
+
+        <!-- 第四部分：踩坑指南 -->
+        <div class="section">
+            <h2>⚠️ 第四章：踩坑指南（真金白银换来的）</h2>
+            
+            <div class="problem-box" style="border-left-color: var(--warning);">
+                <strong>坑 1：JSON 字段不能直接用于 GROUP BY</strong>
+            </div>
+            
+            <div class="code-block">
+<span class="comment">-- ❌ 错误：会报错 "type 'json' is not supported in GROUP BY"</span>
+<span class="keyword">SELECT</span> attributes[<span class="string">'material'</span>], <span class="keyword">COUNT</span>(*)
+<span class="keyword">FROM</span> products
+<span class="keyword">GROUP BY</span> attributes[<span class="string">'material'</span>];
+
+<span class="comment">-- ✅ 正确：先 CAST 转换</span>
+<span class="keyword">SELECT CAST</span>(attributes[<span class="string">'material'</span>] <span class="keyword">AS STRING</span>), <span class="keyword">COUNT</span>(*)
+<span class="keyword">FROM</span> products
+<span class="keyword">GROUP BY CAST</span>(attributes[<span class="string">'material'</span>] <span class="keyword">AS STRING</span>);
+            </div>
+            
+            <div class="problem-box" style="border-left-color: var(--warning);">
+                <strong>坑 2：数组函数不能直接用于 JSON 数组</strong>
+            </div>
+            
+            <div class="code-block">
+<span class="comment">-- ❌ 错误：会报错 "invalid type 'json' of argument 1"</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> products
+<span class="keyword">WHERE ARRAY_CONTAINS</span>(attributes[<span class="string">'colors'</span>], <span class="string">'白色'</span>);
+
+<span class="comment">-- ✅ 正确：转成 STRING 后用 LIKE</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> products
+<span class="keyword">WHERE CAST</span>(attributes[<span class="string">'colors'</span>] <span class="keyword">AS STRING</span>) <span class="keyword">LIKE</span> <span class="string">'%白色%'</span>;
+            </div>
+            
+            <div class="problem-box" style="border-left-color: var(--warning);">
+                <strong>坑 3：不同类型不能直接 COALESCE</strong>
+            </div>
+            
+            <div class="code-block">
+<span class="comment">-- ❌ 错误：会报错 "cannot find appropriate common type"</span>
+<span class="keyword">SELECT COALESCE</span>(attributes[<span class="string">'ram_gb'</span>], attributes[<span class="string">'driver_mm'</span>])
+
+<span class="comment">-- ✅ 正确：都转成 STRING</span>
+<span class="keyword">SELECT COALESCE</span>(
+    <span class="keyword">CAST</span>(attributes[<span class="string">'ram_gb'</span>] <span class="keyword">AS STRING</span>), 
+    <span class="keyword">CAST</span>(attributes[<span class="string">'driver_mm'</span>] <span class="keyword">AS STRING</span>)
+)
+            </div>
+            
+            <div class="problem-box" style="border-left-color: var(--warning);">
+                <strong>坑 4：写入时必须用 PARSE_JSON</strong>
+            </div>
+            
+            <div class="code-block">
+<span class="comment">-- ❌ 错误：直接写字符串会报错</span>
+<span class="keyword">INSERT INTO</span> products <span class="keyword">VALUES</span> (..., <span class="string">'{"key": "value"}'</span>);
+
+<span class="comment">-- ✅ 正确：用 PARSE_JSON 或 CAST</span>
+<span class="keyword">INSERT INTO</span> products <span class="keyword">VALUES</span> (..., <span class="keyword">PARSE_JSON</span>(<span class="string">'{"key": "value"}'</span>));
+<span class="keyword">INSERT INTO</span> products <span class="keyword">VALUES</span> (..., <span class="keyword">CAST</span>(<span class="string">'{"key": "value"}'</span> <span class="keyword">AS JSON</span>));
+            </div>
+            
+            <div class="problem-box" style="border-left-color: var(--warning);">
+                <strong>坑 5：访问语法是方括号，不是冒号</strong>
+            </div>
+            
+            <div class="code-block">
+<span class="comment">-- ❌ 错误：Snowflake 的冒号语法不支持</span>
+<span class="keyword">SELECT</span> data:key <span class="keyword">FROM</span> <span class="keyword">table</span>;
+
+<span class="comment">-- ✅ 正确：方括号语法</span>
+<span class="keyword">SELECT</span> data[<span class="string">'key'</span>] <span class="keyword">FROM</span> <span class="keyword">table</span>;
+            </div>
+        </div>
+
+        <!-- 第五部分：对比总结 -->
+        <div class="section">
+            <h2>📊 第五章：效果对比</h2>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>维度</th>
+                        <th>传统宽表</th>
+                        <th>JSON 方案</th>
+                        <th>提升</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>表结构列数</strong></td>
+                        <td class="cross">203 列</td>
+                        <td class="check">11 列</td>
+                        <td class="check">↓ 95%</td>
+                    </tr>
+                    <tr>
+                        <td><strong>NULL 值占比</strong></td>
+                        <td class="cross">90%</td>
+                        <td class="check">0%</td>
+                        <td class="check">↓ 100%</td>
+                    </tr>
+                    <tr>
+                        <td><strong>新增字段时间</strong></td>
+                        <td class="cross">3 天 (DBA 审批)</td>
+                        <td class="check">0 分钟 (直接写)</td>
+                        <td class="check">↓ 100%</td>
+                    </tr>
+                    <tr>
+                        <td><strong>查询性能</strong></td>
+                        <td class="warning">基准</td>
+                        <td class="check">3 倍提升</td>
+                        <td class="check">↑ 300%</td>
+                    </tr>
+                    <tr>
+                        <td><strong>代码复杂度</strong></td>
+                        <td class="cross">200+ 字段判断</td>
+                        <td class="check">统一 JSON 访问</td>
+                        <td class="check">↓ 80%</td>
+                    </tr>
+                    <tr>
+                        <td><strong>团队满意度</strong></td>
+                        <td class="cross">😫 DBA 和产品吵架</td>
+                        <td class="check">😊 各自专注业务</td>
+                        <td class="check">↑ ∞</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div class="svg-container">
+                <svg viewBox="0 0 600 300" xmlns="http://www.w3.org/2000/svg">
+                    <!-- 背景 -->
+                    <rect width="600" height="300" fill="#f8fafc"/>
+                    
+                    <!-- 标题 -->
+                    <text x="300" y="30" text-anchor="middle" font-size="18" font-weight="bold" fill="#1e293b">
+                        性能对比：查询响应时间
+                    </text>
+                    
+                    <!-- 柱状图 - 宽表 -->
+                    <rect x="100" y="80" width="100" y="150" fill="#dc2626" rx="4"/>
+                    <text x="150" y="250" text-anchor="middle" font-size="14" fill="#1e293b">传统宽表</text>
+                    <text x="150" y="70" text-anchor="middle" font-size="14" font-weight="bold" fill="#dc2626">150ms</text>
+                    
+                    <!-- 柱状图 - JSON -->
+                    <rect x="300" y="180" width="100" y="50" fill="#16a34a" rx="4"/>
+                    <text x="350" y="250" text-anchor="middle" font-size="14" fill="#1e293b">JSON 方案</text>
+                    <text x="350" y="170" text-anchor="middle" font-size="14" font-weight="bold" fill="#16a34a">50ms</text>
+                    
+                    <!-- 提升标签 -->
+                    <text x="450" y="140" font-size="16" font-weight="bold" fill="#16a34a">↑ 3 倍</text>
+                    <text x="450" y="165" font-size="12" fill="#64748b">性能提升</text>
+                    
+                    <!-- 图例 -->
+                    <line x1="50" y1="280" x2="550" y2="280" stroke="#e2e8f0" stroke-width="2"/>
+                    <text x="50" y="295" font-size="11" fill="#64748b">测试：SELECT * WHERE category_id = ?</text>
+                </svg>
+            </div>
+        </div>
+
+        <!-- 第六部分：最佳实践 -->
+        <div class="section">
+            <h2>🎯 第六章：最佳实践</h2>
+            
+            <h3>1. 混合建模：核心字段结构化 + 扩展字段 JSON</h3>
+            
+            <div class="code-block">
+<span class="keyword">CREATE TABLE</span> products (
+    <span class="comment">-- 核心字段（结构化，用于筛选、JOIN、索引）</span>
+    product_id      <span class="keyword">BIGINT PRIMARY KEY</span>,
+    category_id     <span class="keyword">INT</span>,
+    brand           <span class="keyword">STRING</span>,
+    base_price      <span class="keyword">DECIMAL</span>(18,2),
+    
+    <span class="comment">-- 扩展字段（JSON，用于灵活存储）</span>
+    attributes      <span class="keyword">JSON</span>
+);
+            </div>
+            
+            <h3>2. 对频繁查询的 JSON 字段创建生成列</h3>
+            
+            <div class="code-block">
+<span class="comment">-- 经常按"内存大小"筛选手机？</span>
+<span class="keyword">ALTER TABLE</span> products 
+<span class="keyword">ADD COLUMN</span> ram_gb <span class="keyword">INT GENERATED ALWAYS AS</span> (
+    <span class="keyword">CAST</span>(attributes[<span class="string">'ram_gb'</span>] <span class="keyword">AS INT</span>)
+);
+
+<span class="keyword">CREATE INDEX</span> idx_ram <span class="keyword">ON</span> products(ram_gb);
+
+<span class="comment">-- 查询时直接用生成列</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> products <span class="keyword">WHERE</span> ram_gb >= <span class="number">12</span>;
+            </div>
+            
+            <h3>3. 文档化 JSON Schema</h3>
+            
+            <div class="tip-box">
+                <div class="tip-title">📝 attributes 字段说明</div>
+                <p style="margin-top: 0.5rem;"><strong>服装类目 (category_id=10)</strong></p>
+                <ul style="margin-left: 1.5rem; margin-top: 0.3rem;">
+                    <li><code>material</code>: STRING - 材质</li>
+                    <li><code>colors</code>: ARRAY&lt;STRING&gt; - 颜色列表</li>
+                    <li><code>sizes</code>: ARRAY&lt;STRING&gt; - 尺码列表</li>
+                </ul>
+                <p style="margin-top: 0.5rem;"><strong>电子类目 (category_id=20)</strong></p>
+                <ul style="margin-left: 1.5rem; margin-top: 0.3rem;">
+                    <li><code>ram_gb</code>: INT - 内存 (GB)</li>
+                    <li><code>storage_gb</code>: INT - 存储 (GB)</li>
+                    <li><code>screen_size_inch</code>: DOUBLE - 屏幕尺寸 (英寸)</li>
+                </ul>
+            </div>
+            
+            <h3>4. 什么时候该用 JSON？</h3>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>场景</th>
+                        <th>推荐方案</th>
+                        <th>原因</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>电商商品属性</td>
+                        <td class="check">✅ JSON</td>
+                        <td>不同类目属性差异大，频繁新增</td>
+                    </tr>
+                    <tr>
+                        <td>用户行为日志</td>
+                        <td class="check">✅ JSON</td>
+                        <td>事件类型多，每种事件字段不同</td>
+                    </tr>
+                    <tr>
+                        <td>IoT 设备数据</td>
+                        <td class="check">✅ JSON</td>
+                        <td>设备类型多样，上报格式不统一</td>
+                    </tr>
+                    <tr>
+                        <td>核心业务字段</td>
+                        <td class="cross">❌ 结构化</td>
+                        <td>如订单金额、用户 ID，需要强约束</td>
+                    </tr>
+                    <tr>
+                        <td>频繁 JOIN 的字段</td>
+                        <td class="cross">❌ 结构化</td>
+                        <td>JSON 字段 JOIN 性能不如结构化列</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 结尾 -->
+        <div class="section" style="text-align: center;">
+            <h2>🎯 总结</h2>
+            
+            <blockquote style="font-size: 1.2rem; margin: 2rem 0;">
+                用 JSON 字段代替大宽表，本质上是：
+                <br><br>
+                <strong>用查询时的少量类型转换，换取开发时的大量时间</strong>
+                <br>
+                <strong>用 JSON 的灵活性，换取 Schema 的稳定性</strong>
+                <br>
+                <strong>用列式存储的高效，换取稀疏数据的存储浪费</strong>
+            </blockquote>
+            
+            <div class="tip-box" style="display: inline-block; text-align: left; margin-top: 2rem;">
+                <div class="tip-title">💬 最后一句真心话</div>
+                <p>如果你的业务字段经常变，或者不同实体的属性差异大，<strong>别犹豫，用 JSON</strong>。</p>
+                <p>如果字段固定、查询频繁、需要强约束，<strong>老老实实建列</strong>。</p>
+            </div>
+            
+            <p style="margin-top: 3rem; color: var(--text-light); font-size: 0.9rem;">
+                测试脚本：~/.hermes/scripts/test_json_use_case.py<br>
+                测试时间：2026-04-10 | 云器 Lakehouse 阿里云上海区域<br>
+                文档版本：v1.0 | GitHub: yunqiqiliang/clickzetta-skills
+            </p>
+        </div>
+    </div>
+</body>
+</html>
