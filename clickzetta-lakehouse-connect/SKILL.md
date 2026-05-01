@@ -1,6 +1,6 @@
 ---
 name: clickzetta-lakehouse-connect
-description: Guide for connecting to ClickZetta Lakehouse. Covers Python SDK (clickzetta.connect), ZettaPark Session (DataFrame API), SQLAlchemy (ORM/BI tools), and JDBC (Java). Use this skill whenever the user mentions ClickZetta, 云器, Lakehouse connections, clickzetta-connector-python, ZettaPark, clickzetta-sqlalchemy, or needs to connect to a ClickZetta instance. Also trigger for Chinese queries like "如何连接", "连接数据库", "数据库连接配置", "连接报错", "ZettaPark 怎么用", "JDBC 连接". Also trigger when user asks to execute SQL queries, show schemas, list tables, or perform any database operations against ClickZetta.
+description: Guide for connecting to ClickZetta Lakehouse via SDK/JDBC. Covers Python SDK (clickzetta.connect), ZettaPark Session (DataFrame API), SQLAlchemy (ORM/BI tools), and JDBC (Java). Use this skill when user needs to configure a connection from external tools or code — NOT for querying data inside czcode (use execute_sql/list_objects tools instead). Trigger for: "Python SDK 连接", "JDBC 连接", "SQLAlchemy 配置", "ZettaPark 怎么用", "连接报错", "clickzetta-connector-python", "clickzetta-sqlalchemy".
 ---
 
 # ClickZetta Lakehouse 连接指南
