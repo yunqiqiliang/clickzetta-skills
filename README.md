@@ -34,6 +34,7 @@
 | 元数据查询 | [clickzetta-information-schema](./clickzetta-information-schema/) | INFORMATION_SCHEMA 元数据视图查询（表结构/作业历史/权限/Volume） |
 | 数据生命周期 | [clickzetta-data-lifecycle](./clickzetta-data-lifecycle/) | 数据 TTL 自动回收（data_lifecycle）和 Time Travel 保留周期管理 |
 | SQL 语法参考 | [clickzetta-sql-syntax-guide](./clickzetta-sql-syntax-guide/) | SQL 语法完整参考 + Snowflake/Spark 差异对照 |
+| 语义视图 | [clickzetta-semantic-view](./clickzetta-semantic-view/) | 语义视图（Semantic View）：逻辑表/维度/指标/过滤器定义与查询（邀测） |
 
 ---
 
