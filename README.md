@@ -7,6 +7,7 @@
 | 类别 | Skill | 说明 |
 |---|---|---|
 | 连接与基础 | [clickzetta-lakehouse-connect](./clickzetta-lakehouse-connect/) | Python SDK / ZettaPark / SQLAlchemy / JDBC 连接 |
+| 连接与基础 | [clickzetta-concepts](./clickzetta-concepts/) | Lakehouse 核心概念：对象层级、Workspace/Schema/VCluster、权限体系 |
 | 连接与基础 | [clickzetta-manage-comments](./clickzetta-manage-comments/) | 管理表、字段、Schema 等对象的注释 |
 | 数据导入同步 | [clickzetta-data-ingest-pipeline](./clickzetta-data-ingest-pipeline/) | 数据导入方案路由与决策 |
 | 数据导入同步 | [clickzetta-batch-sync-pipeline](./clickzetta-batch-sync-pipeline/) | 离线批量同步（MySQL/PG 等 → Lakehouse） |
@@ -38,6 +39,29 @@
 ## Skills 列表
 
 ### 连接与基础管理
+
+#### [clickzetta-concepts](./clickzetta-concepts/)
+
+介绍 ClickZetta Lakehouse 的核心概念和对象模型，帮助新用户快速建立正确的心智模型。覆盖：
+
+- **对象层级** — 账户 → 实例 → 工作空间 → Schema → 数据对象的完整层级关系
+- **Workspace vs Schema** — Workspace 等同于 Snowflake Database / Databricks Catalog；Schema 等同于传统 Database/Schema
+- **与其他系统对比** — ClickZetta / Snowflake / Databricks / 传统数据库概念映射表
+- **VCluster 三种类型** — 通用型（ETL）/ 分析型（BI 高并发）/ 同步型（数据集成），CRU 计费说明
+- **数据对象类型** — 内部表/外部表/视图/动态表/物化视图/Volume/Stream/Pipe 的区别
+- **权限体系** — RBAC/ACL 并存，实例角色 vs 工作空间角色，预置角色说明
+- **存算分离架构** — 计算层/存储层/服务层/客户端层的分层架构
+
+**触发词**：工作空间是什么、Schema 和 Database 什么关系、Catalog 是什么、实例和工作空间的区别、VCluster 是什么、CRU 是什么、内部表和外部表区别、Lakehouse 架构、对象层级、权限体系、和 Snowflake 概念对比、和 Databricks 概念对比、存算分离
+
+**相关文档**：
+[SCHEMA](https://www.yunqi.tech/documents/SCHEMA) ·
+[计算集群](https://www.yunqi.tech/documents/virtual-cluster) ·
+[访问控制概览](https://www.yunqi.tech/documents/access-control-general) ·
+[角色](https://www.yunqi.tech/documents/roles) ·
+[用户身份](https://www.yunqi.tech/documents/user-identification)
+
+---
 
 #### [clickzetta-lakehouse-connect](./clickzetta-lakehouse-connect/)
 
