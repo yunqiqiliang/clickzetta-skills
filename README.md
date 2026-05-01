@@ -31,7 +31,8 @@
 | AI | [clickzetta-ai-vector-search](./clickzetta-ai-vector-search/) | VECTOR 类型、HNSW 索引、语义检索、RAG |
 | AI | [clickzetta-external-function](./clickzetta-external-function/) | External Function / AI_COMPLETE / AI_EMBEDDING |
 | 数据共享 | [clickzetta-data-sharing](./clickzetta-data-sharing/) | 跨账户/跨实例无复制数据分享 |
-| 元数据查询 | [clickzetta-information-schema](./clickzetta-information-schema/) | INFORMATION_SCHEMA 元数据视图查询（表结构/作业历史/权限/Volume） |
+| 元数据查询 | [clickzetta-information-schema](./clickzetta-information-schema/) | INFORMATION_SCHEMA 元数据视图查询（表结构/作业历史/权限/Volume/费用分析） |
+| 元数据查询 | [clickzetta-metadata-query](./clickzetta-metadata-query/) | SHOW/DESC 命令族 + load_history()：实时元数据查询（表/分区/历史/作业/权限） |
 | 数据生命周期 | [clickzetta-data-lifecycle](./clickzetta-data-lifecycle/) | 数据 TTL 自动回收（data_lifecycle）和 Time Travel 保留周期管理 |
 | SQL 语法参考 | [clickzetta-sql-syntax-guide](./clickzetta-sql-syntax-guide/) | SQL 语法完整参考 + Snowflake/Spark 差异对照 |
 | 语义视图 | [clickzetta-semantic-view](./clickzetta-semantic-view/) | 语义视图（Semantic View）：逻辑表/维度/指标/过滤器定义与查询（邀测） |
