@@ -1,9 +1,0 @@
-{
-  "eval_id": 7,
-  "run_type": "without_skill",
-  "assertions": [
-    {"text": "包含 ALTER DYNAMIC TABLE ... SUSPEND", "passed": true, "evidence": "ALTER DYNAMIC TABLE <schema_name>.<table_name> SUSPEND; 及具体示例 ALTER DYNAMIC TABLE dw.order_summary SUSPEND;"},
-    {"text": "包含 ALTER DYNAMIC TABLE ... RESUME", "passed": true, "evidence": "ALTER DYNAMIC TABLE dw.order_summary RESUME; 等多个示例"},
-    {"text": "提到 SHOW TABLES WHERE is_dynamic=true 或等效方式列出动态表", "passed": true, "evidence": "SHOW TABLES WHERE is_dynamic = true;"}
-  ]
-}

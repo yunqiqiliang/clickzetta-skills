@@ -1,6 +1,0 @@
-{
-  "eval_id": 2,
-  "eval_name": "eval-2-debug-refresh-failure",
-  "prompt": "帮我创建一个动态表 dwd.orders_clean，每分钟刷新一次，从 ods.orders 表过滤 amount > 0 的数据，计算集群用 default_ap。",
-  "assertions": []
-}

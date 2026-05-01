@@ -1,6 +1,0 @@
-{
-  "eval_id": 4,
-  "eval_name": "eval-4-cdc-table-stream",
-  "prompt": "我想从 Kafka 持续导入订单数据到 ods.orders 表，broker 是 kafka.prod.com:9092，topic 是 orders，数据是 JSON 格式。",
-  "assertions": []
-}

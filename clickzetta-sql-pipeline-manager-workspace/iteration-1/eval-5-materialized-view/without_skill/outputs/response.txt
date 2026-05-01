@@ -1,9 +1,0 @@
-CREATE MATERIALIZED VIEW dws.mv_daily_revenue
-REFRESH EVERY 1 HOUR
-AS
-SELECT
-    DATE(order_time) AS order_date,
-    region,
-    SUM(revenue) AS total_revenue
-FROM dwd.orders_clean
-GROUP BY DATE(order_time), region;

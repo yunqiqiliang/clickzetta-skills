@@ -1,6 +1,0 @@
-{
-  "eval_id": 7,
-  "eval_name": "eval-7-suspend-resume",
-  "prompt": "我要做一个三层 ETL：ODS 原始层 → DWD 清洗层 → DWS 聚合层，都用动态表，希望 DWD 每分钟刷新，DWS 跟着 DWD 刷新。怎么设计？",
-  "assertions": []
-}

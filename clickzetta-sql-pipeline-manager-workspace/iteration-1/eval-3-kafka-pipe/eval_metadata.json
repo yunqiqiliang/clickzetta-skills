@@ -1,6 +1,0 @@
-{
-  "eval_id": 3,
-  "eval_name": "eval-3-kafka-pipe",
-  "prompt": "我有一个动态表 dws.order_hourly 刷新失败了，怎么排查？",
-  "assertions": []
-}

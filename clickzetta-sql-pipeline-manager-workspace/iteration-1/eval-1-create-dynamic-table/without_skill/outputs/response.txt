@@ -1,7 +1,0 @@
-CREATE DYNAMIC TABLE dwd.orders_clean
-  TARGET_LAG = '1 minute'
-  WAREHOUSE = default_ap
-AS
-SELECT *
-FROM ods.orders
-WHERE amount > 0;
