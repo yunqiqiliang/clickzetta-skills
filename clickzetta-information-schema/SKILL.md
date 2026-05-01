@@ -344,8 +344,13 @@ WHERE grantee = 'some_user'
 ORDER BY authorization_time DESC;
 ```
 
+---
+
+## 相关文档
+
 - [视图字段详细说明](references/views-reference.md)
 - [实例级视图字段说明](references/instance-views-reference.md)
+- [费用视图字段说明](references/metering-views-reference.md)
 
 ---
 
@@ -357,3 +362,4 @@ ORDER BY authorization_time DESC;
 4. **空间级视图无 DELETE_TIME**：空间级视图只显示当前存在的对象；实例级视图含已删除对象，用 `WHERE delete_time IS NULL` 过滤
 5. **JOB_HISTORY 有 PT_DATE 分区列**：用 `pt_date >= CAST(CURRENT_DATE - INTERVAL N DAY AS DATE)` 过滤，比 `start_time` 过滤性能更好
 6. **STATUS 值注意**：JOB_HISTORY 成功状态为 `'SUCCEED'`（非 `'SUCCEEDED'`）；MV 刷新成功为 `'SUCCEED'`（非 `'FINISHED'`）
+7. **STORAGE_METERING / INSTANCE_USAGE 仅实例级**：需 INSTANCE ADMIN 权限，通过 `SYS.information_schema.*` 访问；含实际金额字段，是费用分析的权威来源

@@ -1,11 +1,20 @@
 # 实例级 INFORMATION_SCHEMA 视图字段说明
 
 > 来源：https://www.yunqi.tech/documents/instance-informaiton-schema
+> 已通过实际 Lakehouse 连接验证（cn-shanghai-alicloud, f8866243）
 
 访问路径：`SYS.information_schema.<视图名>`
 权限要求：INSTANCE ADMIN
 
 实例级视图覆盖所有工作空间，包含已删除对象（`DELETE_TIME IS NULL` 过滤现存对象）。
+
+**完整视图列表（排除 mysql 相关）：**
+WORKSPACES · SCHEMAS · TABLES · COLUMNS · VIEWS · USERS · ROLES ·
+JOB_HISTORY · MATERIALIZED_VIEW_REFRESH_HISTORY · AUTOMV_REFRESH_HISTORY ·
+VOLUMES · CONNECTIONS · OBJECT_PRIVILEGES · SORTKEY_CANDIDATES ·
+**STORAGE_METERING**（存储费用）· **INSTANCE_USAGE**（计算费用）
+
+> 费用视图（STORAGE_METERING / INSTANCE_USAGE）字段详见 [metering-views-reference.md](metering-views-reference.md)
 
 ---
 
