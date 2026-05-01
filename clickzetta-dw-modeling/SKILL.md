@@ -1,11 +1,11 @@
 ---
 name: clickzetta-dw-modeling
 description: |
-  ClickZetta Lakehouse 数仓建模向导。通过问答引导用户完成从分层架构选择、数据源接入、
-  管道方案、表类型推荐、分区/分桶策略、层间流转、数据质量卡点、调度 DAG 到 DDL 模板
-  生成的完整数仓搭建流程。数据管道与建模一体化设计，不割裂。
-  支持三种分层模式：传统数仓分层（ODS/DWD/DWS/ADS）、大奖牌架构（Bronze/Silver/Gold）、
-  混合模式。核心原则：聚合计算层使用 Dynamic Table，不推荐物化视图。
+  ClickZetta Lakehouse 数仓建模向导。先自主探索用户的数据现状，再给出有依据的
+  具体建议让用户选择，而不是让用户填空回答问卷。
+  覆盖三种分层模式：传统数仓分层（ODS/DWD/DWS/ADS）、大奖牌架构（Bronze/Silver/Gold）、
+  混合模式。数据管道与建模一体化设计，DDL 和管道配置同步输出。
+  核心原则：聚合计算层使用 Dynamic Table，不推荐物化视图。
   当用户说"数仓建模"、"分层设计"、"建模方案"、"ODS/DWD/DWS"、"Medallion"、
   "Bronze/Silver/Gold"、"事实表"、"维度表"、"宽表设计"、"星型模型"、"雪花模型"、
   "分层架构"、"数据分层"、"建模向导"、"怎么设计表结构"、"数仓架构"、
@@ -18,196 +18,219 @@ description: |
 
 ---
 
-## 使用方式
+## 工作模式：先探索，再建议
 
-本 skill 是**向导式**的——不要直接给出方案，通过以下步骤引导用户做决策。**每一步等用户回答后再进入下一步**，不要跳步骤。
+**不要问问卷式问题。先动手看数据，再给出有依据的选择题。**
 
----
-
-## 第一步：选择分层模式
-
-> 你们的数仓采用哪种分层模式？
->
-> **A. 传统数仓分层**（ODS → DWD → DWS → ADS）
-> 适合：有成熟数仓团队、强调指标体系、BI 报表为主、数据来源相对规整
->
-> **B. 大奖牌架构**（Bronze → Silver → Gold）
-> 适合：数据湖场景、多源异构数据、探索性分析为主、希望保留原始数据
->
-> **C. 混合模式**（Bronze/Silver + DWS/ADS）
-> 适合：从数据湖向数仓演进、既要保留原始数据又要建立指标体系
+用户最多只需要回答 2 个问题：
+1. 选择 agent 给出的方案选项（A/B/C）
+2. 补充 agent 看不到的信息（业务用途、查询场景）
 
 ---
 
-## 第二步：业务场景与数据源
+## 第一阶段：自主探索数据现状
 
-同时询问以下问题（数据源类型会影响后续所有决策）：
-
-- **数据源类型**：MySQL / PostgreSQL / Kafka / OSS 文件 / 其他数据库？
-- **数据更新方式**：实时流式 / CDC 增量 / 批量全量 / 混合？
-- **数据量级**：日增量、总量大概多少？
-- **主要查询场景**：BI 报表 / Ad-Hoc 分析 / 实时看板 / 数据科学？
-
----
-
-## 第三步：数据接入管道方案
-
-根据第二步的数据源类型，推荐对应的接入管道，并告知用户需要加载对应 skill 获取详细配置：
-
-| 数据源 | 更新方式 | 推荐管道 | 对应 skill |
-|---|---|---|---|
-| MySQL / PostgreSQL | CDC 实时 | Binlog/WAL CDC 同步 | `clickzetta-cdc-sync-pipeline` |
-| MySQL / PostgreSQL | 批量全量/增量 | 批量同步任务 | `clickzetta-batch-sync-pipeline` |
-| Kafka | 实时流式 | Kafka Pipe 持续导入 | `clickzetta-kafka-ingest-pipeline` |
-| OSS / S3 / COS | 文件持续到达 | OSS Pipe 持续导入 | `clickzetta-oss-ingest-pipeline` |
-| 本地文件 / URL | 一次性批量 | COPY INTO | `clickzetta-file-import-pipeline` |
-| 单表实时（MySQL/PG/Kafka） | 实时 | 单表实时同步任务 | `clickzetta-realtime-sync-pipeline` |
-| 多源混合 | 混合 | 先用路由 skill 判断 | `clickzetta-data-ingest-pipeline` |
-
-**ODS/Bronze 层的特殊考虑**（根据管道类型调整表结构）：
-- CDC 接入 → 表需要保留 `_op`（操作类型：I/U/D）和 `_ts`（变更时间）字段
-- Kafka 接入 → 表需要考虑消息 schema，JSON 字段用 `MAP<STRING,STRING>` 或 `STRING`
-- 批量接入 → 表需要 `dw_batch_id` 或 `dw_insert_date` 标记批次
-
----
-
-## 第四步：各层表类型推荐
-
-结合数据源和分层模式给出推荐：
-
-### 传统数仓分层
-
-| 层次 | 定位 | 推荐表类型 | 说明 |
-|---|---|---|---|
-| ODS | 原始数据，贴源层 | 内部表 | 保留原始字段，不做业务转换 |
-| DWD | 明细数据，清洗标准化 | 内部表 | 清洗、类型统一、去重 |
-| DWS | 汇总数据，轻度聚合 | **Dynamic Table** | 基于 DWD 增量聚合，自动刷新 |
-| ADS | 应用数据，指标输出 | **Dynamic Table** | 面向 BI/应用，按需刷新 |
-
-### 大奖牌架构（Medallion）
-
-| 层次 | 定位 | 推荐表类型 | 说明 |
-|---|---|---|---|
-| Bronze | 原始数据，零转换 | 内部表 | 保留原始格式，支持 Time Travel |
-| Silver | 清洗标准化，可信数据 | 内部表 或 **Dynamic Table** | 去重、类型转换、业务规则 |
-| Gold | 聚合指标，业务就绪 | **Dynamic Table** | 面向消费，增量刷新 |
-
-> ⚠️ 聚合层**不推荐物化视图**，使用 Dynamic Table：
-> - CBO 增量计算，只刷新变化的分区，比物化视图全量刷新更高效
-> - 支持 Time Travel 和数据恢复
-> - 语法简洁，与普通表统一管理
-
----
-
-## 第五步：分区与分桶策略
-
-询问：主要过滤条件是什么？单表数据量大概多少？
+收到建模需求后，立即执行以下探索，**不要先问用户任何问题**：
 
 ```sql
--- 时间分区（大多数场景推荐）
-PARTITIONED BY (days(event_date))    -- 按天
-PARTITIONED BY (months(event_date))  -- 按月（数据量小时）
+-- Step 1: 看有哪些 schema
+SHOW SCHEMAS;
 
--- 分桶（大表 JOIN 优化，单表 > 1亿行时考虑）
-CLUSTERED BY (user_id) INTO 32 BUCKETS  -- 分桶数建议 2 的幂次
+-- Step 2: 看各 schema 下的表（对每个看起来有业务数据的 schema 执行）
+SHOW TABLES IN <schema>;
 
--- 组合（大表标准配置）
+-- Step 3: 查表大小和行数（先 describe_table 确认字段名）
+SELECT table_schema, table_name, table_type,
+       ROUND(bytes/1024.0/1024/1024, 2) AS size_gb,
+       row_count,
+       last_modify_time
+FROM information_schema.tables
+WHERE table_type = 'MANAGED_TABLE'
+ORDER BY bytes DESC NULLS LAST
+LIMIT 20;
+
+-- Step 4: 对最大的 2-3 张表抽样，了解字段和数据特征
+SELECT * FROM <schema>.<table> LIMIT 5;
+```
+
+**探索时的判断逻辑：**
+
+| 观察到的特征 | 推断 |
+|---|---|
+| 表名含 order/user/product/trade | 业务库原始数据，适合做 ODS/Bronze |
+| 表名含 log/event/track/click | 埋点/日志数据，数据量大，需要分区 |
+| 表名含 dw/ods/dwd/dws/ads | 已有分层，评估现有结构是否合理 |
+| 表名含 tmp/temp/bak | 临时表，不纳入建模范围 |
+| 字段含 _op/_ts/binlog | CDC 同步过来的数据 |
+| 字段含 event_time/log_time | 时序数据，按时间分区 |
+| 单表 > 10GB | 需要分区+分桶 |
+
+---
+
+## 第二阶段：给出有依据的建议
+
+基于探索结果，向用户呈现三部分内容：
+
+### 1. 数据现状摘要（agent 自己总结，不问用户）
+
+```
+我看了一下你的数据：
+- `raw` schema：orders(2.3GB/1200万行)、users(450MB)、products(120MB)
+  → 字段特征像是从 MySQL 同步的业务库，orders 有 _op/_ts 字段（CDC 接入）
+- `events` schema：user_events(18GB/8亿行)
+  → 字段含 event_time、event_type，是埋点日志数据
+- 没有发现已有的分层结构
+```
+
+### 2. 方案选项（给 A/B 或 A/B/C，不超过 3 个）
+
+```
+基于以上数据，建议两个方向：
+
+A. 传统数仓分层
+   raw → ODS（现有数据直接复用）
+   新建 DWD（清洗标准化）+ DWS（聚合，用 Dynamic Table）+ ADS（指标输出）
+   适合：BI 报表为主，有明确的指标体系需求
+
+B. 大奖牌架构（Medallion）
+   raw → Bronze（现有数据直接复用）
+   新建 Silver（标准化）+ Gold（指标，用 Dynamic Table）
+   适合：多场景复用，既做 BI 又做数据科学
+```
+
+### 3. 只问一个问题
+
+```
+你们主要用这些数据做什么？
+- BI 报表（固定报表，指标体系明确）→ 推荐 A
+- 多场景（报表+分析+数据科学）→ 推荐 B
+- 实时看板（分钟级延迟）→ 告诉我，方案会有调整
+```
+
+---
+
+## 第三阶段：方案确认后的完整输出
+
+用户选择方向后，**一次性给出完整方案**，不再追问：
+
+### 分层结构设计
+
+根据选择的模式，给出各层定义、表类型推荐：
+
+**传统分层表类型：**
+
+| 层次 | 推荐表类型 | 说明 |
+|---|---|---|
+| ODS | 内部表 | 贴源，不转换 |
+| DWD | 内部表 | 清洗标准化 |
+| DWS | **Dynamic Table** | 增量聚合，自动刷新 |
+| ADS | **Dynamic Table** | 面向应用，按需刷新 |
+
+**Medallion 表类型：**
+
+| 层次 | 推荐表类型 | 说明 |
+|---|---|---|
+| Bronze | 内部表 | 零转换，保留原始 |
+| Silver | 内部表 或 Dynamic Table | 清洗标准化 |
+| Gold | **Dynamic Table** | 聚合指标，自动刷新 |
+
+> ⚠️ 聚合层**不推荐物化视图**，使用 Dynamic Table：CBO 增量计算，只刷新变化分区，支持 Time Travel。
+
+### 数据接入管道
+
+根据探索到的数据源特征，直接给出管道推荐（不再问用户）：
+
+| 数据源特征 | 推荐管道 | 对应 skill |
+|---|---|---|
+| 有 _op/_ts 字段（CDC） | CDC 同步 | `clickzetta-cdc-sync-pipeline` |
+| Kafka 消息数据 | Kafka Pipe | `clickzetta-kafka-ingest-pipeline` |
+| OSS/S3 文件 | OSS Pipe | `clickzetta-oss-ingest-pipeline` |
+| 普通数据库表（无 CDC 标记） | 批量同步 | `clickzetta-batch-sync-pipeline` |
+
+**ODS/Bronze 层表结构调整（根据管道类型）：**
+- CDC 接入 → 保留 `_op`（I/U/D）和 `_ts` 字段，不要删除
+- 批量接入 → 增加 `dw_batch_date` 标记批次
+- Kafka 接入 → JSON 消息用 `STRING` 或 `MAP<STRING,STRING>` 存储
+
+### 分区与分桶策略
+
+根据探索到的表大小自动推荐：
+
+```sql
+-- 单表 < 1GB：不分区
+-- 单表 1GB-100GB：按天分区
+PARTITIONED BY (days(event_date))
+
+-- 单表 > 100GB：按天分区 + 分桶
 PARTITIONED BY (days(event_date))
 CLUSTERED BY (user_id) INTO 32 BUCKETS
 ```
 
 注意：ClickZetta 分区用 `PARTITIONED BY (days(col))`，不是 `PARTITIONED BY (col)`。
 
----
-
-## 第六步：层间流转设计
-
-ODS/Bronze 数据进来后，各层之间如何流转：
-
-| 流转路径 | 推荐方式 | 说明 |
-|---|---|---|
-| ODS → DWD / Bronze → Silver | SQL 任务（Studio 调度） | 清洗逻辑复杂，需要手动控制 |
-| DWD → DWS / Silver → Gold | **Dynamic Table** | 聚合逻辑稳定，自动增量刷新 |
-| DWS → ADS | **Dynamic Table** 或直接查询 | 简单指标用 Dynamic Table，复杂逻辑用 SQL 任务 |
-
-加载 `clickzetta-sql-pipeline-manager` 获取 Dynamic Table 和 Table Stream 的详细语法。
-
----
-
-## 第七步：数据质量卡点
-
-各层质量职责：
-
-| 层次 | 检查重点 | 建议时机 |
-|---|---|---|
-| ODS/Bronze | 完整性（NULL 比例）、格式合法性、CDC 操作类型分布 | 数据入库后 |
-| DWD/Silver | 唯一性、业务规则合法性、关联完整性（LEFT JOIN 验证匹配率） | ETL 任务完成后 |
-| DWS/Gold/ADS | 指标合理性（环比异常）、汇总一致性 | Dynamic Table 每次刷新后 |
-
----
-
-## 第八步：调度 DAG 设计
-
-询问数据更新频率，给出 DAG 结构建议：
+### 层间流转
 
 ```
-典型日批 DAG（传统分层）：
-数据同步任务（ODS 接入）
-    └── DWD 清洗任务（SQL 任务，Studio 调度）
-            └── 数据质量检查（DWD 层）
-                    └── DWS 层（Dynamic Table 自动刷新，无需调度）
-                            └── ADS 层（Dynamic Table 自动刷新）
-
-典型实时 DAG（Medallion）：
-Kafka/CDC 持续写入 Bronze
-    └── Silver（Dynamic Table，TARGET_LAG = '10 minutes'）
-            └── Gold（Dynamic Table，TARGET_LAG = '1 hour'）
+ODS/Bronze → DWD/Silver：SQL 任务（Studio 调度，清洗逻辑需手动控制）
+DWD/Silver → DWS/Gold：Dynamic Table（TARGET_LAG 控制延迟，自动增量）
+DWS → ADS：Dynamic Table 或直接查询
 ```
 
-Dynamic Table 的 `TARGET_LAG` 替代手动调度，减少 DAG 复杂度。
+加载 `clickzetta-sql-pipeline-manager` 获取 Dynamic Table 详细语法。
 
----
+### 数据质量卡点
 
-## 第九步：生成 DDL + 管道配置模板
+| 层次 | 检查重点 | 时机 |
+|---|---|---|
+| ODS/Bronze | NULL 比例、CDC _op 分布 | 入库后 |
+| DWD/Silver | 唯一性、关联完整性（LEFT JOIN 验证匹配率） | ETL 后 |
+| DWS/Gold/ADS | 指标环比异常、汇总一致性 | Dynamic Table 刷新后 |
 
-根据前面所有决策，同时输出：
+### 调度 DAG
 
-**1. 各层 DDL 模板**（加载 `clickzetta-sql-syntax-guide` 确认语法）
+```
+日批场景：
+数据同步（ODS 接入）→ DWD 清洗任务 → 数据质量检查
+                                          ↓
+                              DWS/Gold（Dynamic Table 自动刷新，无需调度）
 
-ODS/Bronze 层（以 CDC 接入为例）：
+实时场景：
+CDC/Kafka 持续写入 Bronze → Silver（TARGET_LAG='10min'）→ Gold（TARGET_LAG='1h'）
+```
+
+### DDL 模板
+
+加载 `clickzetta-sql-syntax-guide` 确认语法，生成各层 DDL：
+
 ```sql
+-- ODS/Bronze（以 CDC 接入为例）
 CREATE TABLE IF NOT EXISTS ods.orders (
-    order_id        BIGINT,
-    user_id         BIGINT,
-    amount          DECIMAL(18, 2),
-    status          STRING,
-    created_at      TIMESTAMP,
-    _op             STRING,     -- CDC 操作类型：I/U/D
-    _ts             TIMESTAMP,  -- 变更时间
-    dw_insert_time  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    dw_source       STRING    DEFAULT 'mysql_orders'
+    order_id       BIGINT,
+    user_id        BIGINT,
+    amount         DECIMAL(18, 2),
+    status         STRING,
+    created_at     TIMESTAMP,
+    _op            STRING,    -- CDC 操作类型：I/U/D
+    _ts            TIMESTAMP, -- 变更时间
+    dw_insert_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )
 PARTITIONED BY (days(created_at))
 COMMENT 'ODS 订单原始表，贴源不转换';
-```
 
-DWD/Silver 层：
-```sql
+-- DWD/Silver
 CREATE TABLE IF NOT EXISTS dwd.fact_orders (
-    order_id        BIGINT,
-    user_id         BIGINT,
-    amount          DECIMAL(18, 2),
-    status_code     INT,
-    order_date      DATE,
-    dw_insert_time  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    order_id       BIGINT,
+    user_id        BIGINT,
+    amount         DECIMAL(18, 2),
+    status_code    INT,
+    order_date     DATE,
+    dw_insert_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )
 PARTITIONED BY (days(order_date))
 CLUSTERED BY (user_id) INTO 32 BUCKETS
 COMMENT 'DWD 订单事实表，清洗标准化';
-```
 
-DWS/Gold 层（Dynamic Table）：
-```sql
+-- DWS/Gold（Dynamic Table，不用物化视图）
 CREATE DYNAMIC TABLE IF NOT EXISTS dws.user_order_daily
 TARGET_LAG = '1 hour'
 AS
@@ -222,20 +245,13 @@ WHERE status_code = 1
 GROUP BY user_id, order_date;
 ```
 
-**2. 管道配置提示**
-
-根据第三步选择的管道类型，告知用户加载对应 skill 完成管道配置：
-- CDC 接入 → 加载 `clickzetta-cdc-sync-pipeline`
-- Kafka 接入 → 加载 `clickzetta-kafka-ingest-pipeline`
-- 批量接入 → 加载 `clickzetta-batch-sync-pipeline`
-
 ---
 
 ## 核心原则
 
-1. **聚合层用 Dynamic Table，不用物化视图**
-2. **数据源类型决定 ODS/Bronze 表结构**，CDC 需要 `_op`/`_ts` 字段
-3. **分区用转换函数**：`days(col)` 不是 `col`
-4. **ODS/Bronze 层零转换**，保留原始数据方便回溯
-5. **数据质量分层设置**，不要全堆在最后一层
-6. **建模和管道一体设计**，DDL 和管道配置同步输出
+1. **先探索数据，再给建议**——不问问卷，看完数据再说
+2. **给选择题，不给填空题**——用户选 A/B，不要让用户凭空描述
+3. **聚合层用 Dynamic Table，不用物化视图**
+4. **建模和管道一体**——DDL 和管道配置同步输出
+5. **分区用转换函数**：`days(col)` 不是 `col`
+6. **ODS/Bronze 零转换**，保留原始数据方便回溯
