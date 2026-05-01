@@ -1,7 +1,23 @@
 # ClickZetta Lakehouse 对象模型完整参考
 
-> 来源：https://www.yunqi.tech/documents/data-lifecycle 等官方文档
+> 来源：官方产品文档 yunqi.tech
 > 参考：clickzetta-lakehouse-architecture.html
+
+---
+
+## ClickZetta 独特概念速查
+
+| 概念 | 独特之处 | 常见误区 |
+|---|---|---|
+| CRU | 跨云统一算力单位，旧规格 XS/S/M/L 已迁移为数字 1/2/4/8 | 不是 Snowflake Credit，不是 DBU |
+| VCluster 三类型 | GP/AP/Integration 各有适用场景，Dynamic Table 必须用 GP | AP 集群不支持小文件合并 |
+| Dynamic Table | CBO 自适应增量/全量，`OR REPLACE` 保留数据 | 最小 1 分钟，非秒级流式 |
+| Table Stream | 需先 `ALTER TABLE SET PROPERTIES ('change_tracking'='true')` | 实时写入数据需等 1 分钟才可读 |
+| Pipe | 每个 Pipe 对应独立 Volume，不可复用 | 不是 Snowflake Snowpipe，无自动触发 |
+| Synonym | 支持跨 Schema 别名，VOLUME/FUNCTION 类型需显式声明关键字 | 不是视图，不复制数据 |
+| 权限体系 | 无超级用户；实例角色与工作空间角色互不影响 | instance_admin 不能直接操作工作空间数据 |
+| Workspace | 连接时必须指定，≈ Snowflake Database | 不是 Databricks Workspace（那个是实例级） |
+| Schema TYPE | MANAGED（内部托管）/ EXTERNAL（外部数据湖） | EXTERNAL Schema 不支持 DML |
 
 ---
 
@@ -245,3 +261,51 @@ CREATE ROLE my_custom_role;
 ```
 
 **存算分离**：计算层和存储层独立扩展，VCluster 停止时不产生计算费用，存储按 GiB 计费。
+
+---
+
+## 数据对象横向对比
+
+### Dynamic Table vs Materialized View vs View
+
+| 维度 | 动态表 (Dynamic Table) | 物化视图 (Materialized View) | 视图 (View) |
+|---|---|---|---|
+| 数据存储 | 有（物化） | 有（物化） | 无（虚拟） |
+| 刷新方式 | 自动增量/全量（CBO 决策） | 手动或定时全量 | 每次查询实时执行 |
+| 最小刷新间隔 | 1 分钟 | 无限制（手动） | — |
+| Time Travel | 支持 | 不支持 | 不支持 |
+| UNDROP | 支持 | 不支持 | 不支持 |
+| CREATE OR REPLACE | 支持（保留数据和权限） | 支持 | 支持 |
+| 推荐集群 | GP（通用型） | GP 或 AP | — |
+| 适用场景 | 实时 ETL、多层级联 | BI 加速、固定聚合 | 简单逻辑封装 |
+
+### Table Stream 两种模式
+
+| 模式 | 捕获内容 | 典型用途 |
+|---|---|---|
+| STANDARD | INSERT + UPDATE_BEFORE + UPDATE_AFTER + DELETE | CDC UPSERT，MERGE INTO 消费 |
+| APPEND_ONLY | 仅 INSERT | 日志追加，简单 ETL |
+
+**STANDARD 模式的 delta 语义**：记录两个 offset 之间的净变化。若一行先 INSERT 后 DELETE，delta 中该行消失（不会出现 INSERT+DELETE 两条记录）。
+
+### Pipe 两种导入模式
+
+| 模式 | 触发方式 | 适用场景 | 云支持 |
+|---|---|---|---|
+| LIST_PURGE | 定期扫描 Volume 目录 | 通用，任何对象存储 | 全部 |
+| EVENT_NOTIFICATION | 云消息队列事件触发 | 低延迟，近实时 | 仅阿里云 OSS + AWS S3 |
+
+---
+
+## 地域与连接信息
+
+| 云服务商 | 地域 | 区域代码 | API Endpoint |
+|---|---|---|---|
+| 阿里云 | 华东2（上海） | cn-shanghai-alicloud | cn-shanghai-alicloud.api.clickzetta.com |
+| 腾讯云 | 华东（上海） | ap-shanghai-tencentcloud | ap-shanghai-tencentcloud.api.clickzetta.com |
+| 腾讯云 | 华北（北京） | ap-beijing-tencentcloud | ap-beijing-tencentcloud.api.clickzetta.com |
+| 腾讯云 | 华南（广州） | ap-guangzhou-tencentcloud | ap-guangzhou-tencentcloud.api.clickzetta.com |
+| AWS | 北京 | cn-north-1-aws | cn-north-1-aws.api.clickzetta.com |
+
+JDBC URL 格式：`jdbc:clickzetta://<instance_name>.<region_id>.api.clickzetta.com/`
+
