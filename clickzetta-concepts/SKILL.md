@@ -57,6 +57,9 @@ description: |
 | Share | Share | Delta Sharing | — | 跨实例零拷贝，消费方无存储费 |
 | Synonym | — | — | Synonym | 支持跨 Schema 别名 |
 | CRU | Credit | DBU | — | 跨云统一算力单位 |
+| **Studio（内置）** | **需第三方** | **需第三方** | **—** | **内置调度/集成/数据质量/目录** |
+
+> Studio 详细介绍见 [clickzetta-studio skill](../clickzetta-studio/SKILL.md)
 
 ---
 

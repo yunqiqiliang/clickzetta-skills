@@ -8,6 +8,7 @@
 |---|---|---|
 | 连接与基础 | [clickzetta-lakehouse-connect](./clickzetta-lakehouse-connect/) | Python SDK / ZettaPark / SQLAlchemy / JDBC 连接 |
 | 连接与基础 | [clickzetta-concepts](./clickzetta-concepts/) | Lakehouse 核心概念：对象层级、Workspace/Schema/VCluster、权限体系 |
+| 连接与基础 | [clickzetta-studio](./clickzetta-studio/) | Studio 一站式 Web IDE：任务开发/调度/数据集成/数据目录/数据质量/运维监控 |
 | 连接与基础 | [clickzetta-manage-comments](./clickzetta-manage-comments/) | 管理表、字段、Schema 等对象的注释 |
 | 数据导入同步 | [clickzetta-data-ingest-pipeline](./clickzetta-data-ingest-pipeline/) | 数据导入方案路由与决策 |
 | 数据导入同步 | [clickzetta-batch-sync-pipeline](./clickzetta-batch-sync-pipeline/) | 离线批量同步（MySQL/PG 等 → Lakehouse） |
@@ -60,6 +61,30 @@
 [访问控制概览](https://www.yunqi.tech/documents/access-control-general) ·
 [角色](https://www.yunqi.tech/documents/roles) ·
 [用户身份](https://www.yunqi.tech/documents/user-identification)
+
+---
+
+#### [clickzetta-studio](./clickzetta-studio/)
+
+介绍 ClickZetta Lakehouse Studio 的核心功能，这是 ClickZetta 区别于 Snowflake/Databricks 的核心差异化能力——内置一站式 Web IDE，无需第三方工具即可完成全链路数据工程。覆盖：
+
+- **六大模块** — 数据开发 IDE、任务调度编排、数据集成（30+ 数据源）、数据目录、数据质量、运维监控
+- **任务类型** — SQL/Python/Shell/JDBC/动态表/离线同步/实时同步/多表 CDC
+- **任务组 DAG** — 可视化拖拽编排，批量管理依赖关系，支持跨工作空间依赖
+- **任务参数** — `${var}` 动态变量，`$[yyyy-MM-dd, -1d]` 时间表达式，任务组参数共享
+- **数据目录** — 全局资产搜索，表详情（DDL/字段/预览/血缘/作业历史）
+- **数据质量** — 6 维度规则（完整性/唯一性/一致性/准确性/有效性/及时性）
+- **运维告警** — 飞书/企业微信 webhook，内置 + 自定义告警规则
+
+**触发词**：Studio 是什么、Studio 怎么用、任务调度、DAG 编排、任务组、任务参数、数据目录、数据质量、运维监控、告警配置、补数据、任务依赖、Studio 和其他 Lakehouse 的区别
+
+**相关文档**：
+[Studio 快速导览](https://www.yunqi.tech/documents/LakehouseStudioTour) ·
+[任务开发概念](https://www.yunqi.tech/documents/task_development) ·
+[任务组](https://www.yunqi.tech/documents/task_group) ·
+[任务参数](https://www.yunqi.tech/documents/task_param) ·
+[数据目录](https://www.yunqi.tech/documents/data_catalog) ·
+[数据质量](https://www.yunqi.tech/documents/DataQuality)
 
 ---
 
