@@ -144,6 +144,9 @@ PUT '/path/to/upper.zip' TO USER VOLUME;
 ### 步骤 3：创建 External Function
 
 ```sql
+-- ⚠️ CREATE EXTERNAL FUNCTION 不支持 OR REPLACE，只支持 IF NOT EXISTS
+-- ❌ 错误：CREATE OR REPLACE EXTERNAL FUNCTION ...
+-- ✅ 正确：
 -- 使用 User Volume 存放代码（无需 OSS）
 CREATE EXTERNAL FUNCTION IF NOT EXISTS public.str_upper
   AS 'upper.Upper'
@@ -163,7 +166,10 @@ CREATE EXTERNAL FUNCTION IF NOT EXISTS public.str_upper
 ### 步骤 4：调用函数
 
 ```sql
-SELECT id, str_upper(name) AS upper_name FROM my_table;
+-- ⚠️ 调用外部函数必须使用完整 Schema 路径，不能省略 schema
+-- ❌ 错误：SELECT str_upper(name) FROM my_table;
+-- ✅ 正确：
+SELECT id, public.str_upper(name) AS upper_name FROM my_table;
 ```
 
 ---
@@ -175,9 +181,11 @@ SELECT id, str_upper(name) AS upper_name FROM my_table;
 SHOW EXTERNAL FUNCTIONS;
 SHOW EXTERNAL FUNCTIONS LIKE 'str_%';
 
--- 删除函数
+-- 删除函数（注意：用 DROP FUNCTION，不是 DROP EXTERNAL FUNCTION）
 DROP FUNCTION IF EXISTS public.str_upper;
 ```
+
+> ⚠️ **注意**：`CREATE FUNCTION`（SQL 内联函数）只支持 SQL 表达式，不支持 Python/JavaScript 等编程语言。需要编程语言逻辑请使用 `CREATE EXTERNAL FUNCTION`。
 
 ---
 
@@ -190,3 +198,5 @@ DROP FUNCTION IF EXISTS public.str_upper;
 | 代码包 > 500MB | 依赖过大 | 改用容器镜像方式部署 |
 | AI_COMPLETE 报错 | API Key 无效或余额不足 | 检查 API Connection 的 API_KEY |
 | ROLE_ARN 权限不足 | RAM 角色未授权 | 参考文档配置 AliyunFCFullAccess + OSS 权限 |
+| 函数调用报"not found" | 省略了 Schema 前缀 | 必须用完整路径：`schema.function_name(...)` |
+| CREATE OR REPLACE 报错 | EXTERNAL FUNCTION 不支持 OR REPLACE | 改用 `CREATE EXTERNAL FUNCTION IF NOT EXISTS` |

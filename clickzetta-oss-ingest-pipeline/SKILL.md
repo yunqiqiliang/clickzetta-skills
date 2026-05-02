@@ -44,6 +44,8 @@ description: |
 - 数据加载无法保证严格有序
 - `load_history` 去重记录保留 7 天
 - 修改 `COPY_JOB_HINT` 会覆盖所有已有 hints，需一次性设置全部参数
+- **Volume PIPE 不支持 Kafka 专用参数**：`BATCH_INTERVAL_IN_SECONDS`、`BATCH_SIZE_PER_KAFKA_PARTITION`、`MAX_SKIP_BATCH_COUNT_ON_ERROR` 仅适用于 Kafka PIPE
+- **`COPY_JOB_HINT` 必须是合法 JSON 格式**，键值都要用双引号：`'{"IGNORE_TMP_FILE": "true"}'`，不能用 `KEY=VALUE` 格式
 
 ### 文件大小建议
 

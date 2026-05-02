@@ -413,6 +413,13 @@ FROM TABLE(
 | `cz.sql.split.kafka.strategy` | `simple` | `simple`=每 partition 一个 task；`size`=按条数切分 |
 | `cz.mapper.kafka.message.size` | `1000000` | 当 strategy=size 时，每个 task 处理的消息条数 |
 
+> ⚠️ **格式要求**：`COPY_JOB_HINT` 必须是合法 JSON，键值都要用双引号包围：
+> ```sql
+> -- ✅ 正确
+> ALTER PIPE my_pipe SET COPY_JOB_HINT = '{"cz.sql.split.kafka.strategy":"size","cz.mapper.kafka.message.size":"200000"}';
+> -- ❌ 错误（非 JSON 格式）
+> ALTER PIPE my_pipe SET COPY_JOB_HINT = 'cz.sql.split.kafka.strategy=size';
+> ```
 > 修改 `COPY_JOB_HINT` 会覆盖所有已有 hints，需一次性设置全部参数。
 
 ---

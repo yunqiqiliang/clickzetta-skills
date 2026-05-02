@@ -30,12 +30,16 @@ description: |
 
 前提：先创建 STORAGE CONNECTION（对象存储认证配置）
 
+> ⚠️ **跨云限制**：Storage Connection 必须与 Lakehouse 实例在同一云厂商。阿里云实例不能创建 COS/S3 Connection，腾讯云实例不能创建 OSS Connection。
+
+> ⚠️ **阿里云 OSS 参数名易混淆**：`ACCESS_ID` 对应阿里云控制台的 **AccessKey ID**；`ACCESS_KEY` 对应 **AccessKey Secret**（不是 secret_key）。
+
 ```sql
 -- 阿里云 OSS
 CREATE STORAGE CONNECTION IF NOT EXISTS my_oss_conn
   TYPE OSS
-  ACCESS_ID = 'LTAIxxxxxxxxxxxx'
-  ACCESS_KEY = 'T8Gexxxxxxmtxxxxxx'
+  ACCESS_ID = 'LTAIxxxxxxxxxxxx'       -- 对应 AccessKey ID
+  ACCESS_KEY = 'T8Gexxxxxxmtxxxxxx'    -- 对应 AccessKey Secret（注意：不是 secret_key）
   ENDPOINT = 'oss-cn-hangzhou-internal.aliyuncs.com';
 
 -- 腾讯云 COS

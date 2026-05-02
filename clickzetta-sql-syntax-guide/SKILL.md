@@ -38,6 +38,7 @@ description: |
 | 场景 | Snowflake / Spark | ClickZetta 正确写法 |
 |---|---|---|
 | 替换普通表 | `CREATE OR REPLACE TABLE t` | `CREATE TABLE IF NOT EXISTS t`（普通表不支持 OR REPLACE；Dynamic Table / View / MV 支持） |
+| OR REPLACE + IF NOT EXISTS | `CREATE OR REPLACE TABLE IF NOT EXISTS t` | ❌ 两者不能同时使用，会报错 |
 | 动态表刷新 | `TARGET_LAG = '1 minutes'` | `REFRESH INTERVAL 1 MINUTE VCLUSTER vc` |
 | Stream 元数据 | `METADATA$ACTION` | `__change_type` |
 | 对象存储导入 | `COPY INTO t FROM @stage` | `COPY INTO t FROM VOLUME v USING CSV` |
@@ -58,6 +59,10 @@ description: |
 | Delta ZORDER | `OPTIMIZE t ZORDER BY (col)` | `OPTIMIZE t`（只做小文件合并，无 ZORDER） |
 | STRUCT 命名字段 | `STRUCT(1 AS id, 'Alice' AS name)` | `named_struct('id', 1, 'name', 'Alice')` ✅ |
 | SEQUENCE 对象 | `CREATE SEQUENCE seq` | ❌ 不支持，用 `IDENTITY(1)` 列替代 |
+| IDENTITY 列类型 | `id INT IDENTITY` | `id BIGINT IDENTITY`（IDENTITY 只支持 BIGINT，INT/SMALLINT 会报错） |
+| 当前时间函数 | `NOW()` | `CURRENT_TIMESTAMP()`（ClickZetta 不支持 NOW()） |
+| 布尔类型名称 | `BOOL` | `BOOLEAN`（ClickZetta 不支持 BOOL 简写） |
+| 字符串类型 | `VARCHAR(n)` | 推荐用 `STRING`（无长度限制，最大 16MB）；`VARCHAR(n)` 也支持但不推荐 |
 | 数值类型 | `NUMBER(p,s)` (SF) | `DECIMAL(p,s)` |
 | 半结构化类型 | `VARIANT` (SF) | `JSON` |
 | 行数限制 | `SELECT TOP 10` (SF) | `SELECT ... LIMIT 10` |
