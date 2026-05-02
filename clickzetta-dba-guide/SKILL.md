@@ -260,6 +260,8 @@ SHOW TABLES HISTORY LIKE '%orders%';
 UNDROP TABLE my_schema.orders;
 UNDROP TABLE my_schema.my_dynamic_table;
 UNDROP TABLE my_schema.my_mv;
+-- ⚠️ 恢复外部函数用 UNDROP FUNCTION，不是 UNDROP EXTERNAL FUNCTION
+UNDROP FUNCTION my_schema.my_ext_function;
 ```
 
 ### 回滚到历史版本
@@ -270,11 +272,16 @@ DESC HISTORY my_schema.orders;
 -- 返回：version, time, total_rows, total_bytes, user, operation, job_id
 
 -- 恢复到指定时间点（覆盖当前数据）
-RESTORE TABLE my_schema.orders TO TIMESTAMP AS OF '2024-01-15 10:00:00';
-RESTORE TABLE my_schema.orders TO TIMESTAMP AS OF CURRENT_TIMESTAMP - INTERVAL 2 HOURS;
+-- ⚠️ 时间戳必须用 CAST() 或完整毫秒格式，不能用简单字符串
+-- ❌ 错误：RESTORE TABLE t TO TIMESTAMP AS OF '2024-01-15';
+-- ✅ 正确写法：
+RESTORE TABLE my_schema.orders TO TIMESTAMP AS OF CAST('2024-01-15 10:00:00' AS TIMESTAMP);
+RESTORE TABLE my_schema.orders TO TIMESTAMP AS OF CURRENT_TIMESTAMP() - INTERVAL '2' HOURS;
+-- 也支持完整毫秒时间戳字符串（从 DESC HISTORY 复制）：
+RESTORE TABLE my_schema.orders TO TIMESTAMP AS OF '2024-01-15 10:00:00.123';
 
 -- 查询历史数据（不覆盖，仅查看）
-SELECT * FROM my_schema.orders TIMESTAMP AS OF '2024-01-15 10:00:00';
+SELECT * FROM my_schema.orders TIMESTAMP AS OF CAST('2024-01-15 10:00:00' AS TIMESTAMP);
 ```
 
 ### 设置数据保留周期

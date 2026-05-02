@@ -306,20 +306,25 @@ REFRESH DYNAMIC TABLE dwd.orders_partitioned
 
 ### 场景 F：动态表 DML 操作（手动修正数据）
 
-动态表默认不支持 DML，需先设置参数开启：
+动态表默认不支持 DML，需先通过 SET 命令开启，**且每次执行 DML 前都需要重新 SET**：
 
 ```sql
--- 开启动态表 DML 支持
-ALTER DYNAMIC TABLE dwd.orders_clean SET PROPERTIES ('cz.dynamic.table.enable.dml' = 'true');
+-- ⚠️ 必须在同一会话/批次中先执行 SET，再执行 DML
+SET cz.sql.dt.allow.dml = true;
 
 -- 手动插入补数据
-INSERT INTO dwd.orders_clean VALUES (999, 'manual_user', 100.00, 'COMPLETED', '2024-06-15 00:00:00', '2024-06-15');
+INSERT INTO dwd.orders_clean VALUES (999, 'manual_user', 100.00, 'COMPLETED', DATE('2024-06-15'), '2024-06-15');
 
 -- 手动删除错误数据
+SET cz.sql.dt.allow.dml = true;
 DELETE FROM dwd.orders_clean WHERE order_id = 999;
 ```
 
-> ⚠️ **注意**：对动态表执行 DML 后，下一次自动刷新会触发**全量刷新**（而非增量），可能耗时较长。仅在数据修正等特殊场景使用。
+> ⚠️ **注意**：
+> - `SET cz.sql.dt.allow.dml = true` 必须与 DML 语句在同一执行批次中，不能分开执行
+> - 对动态表执行 DML 后，下一次自动刷新会触发**全量刷新**（而非增量），可能耗时较长
+> - **UPDATE 操作有限制**：动态表 UPDATE 可能因内部隐藏列（`MV__KEY`）报错，建议改用 DELETE + INSERT 或 MERGE INTO 替代
+> - 仅在数据修正等特殊场景使用 DML
 
 ---
 
@@ -332,6 +337,8 @@ DELETE FROM dwd.orders_clean WHERE order_id = 999;
 | Stream 数据为空 | 已被消费或超出保留周期 | 检查源表 `data_retention_days`，确认是否已消费 |
 | Pipe 停止摄入 | Kafka offset 问题或连接断开 | `DESC PIPE` 查看状态，检查 Kafka 连接 |
 | `Cannot ALTER AS clause` | 尝试用 ALTER 修改动态表 SQL | 改用 `CREATE OR REPLACE DYNAMIC TABLE` |
+| 动态表 UPDATE 报错 `Not support hidden column :MV__KEY` | 动态表内部实现限制 | 改用 `DELETE + INSERT` 或 `MERGE INTO` 替代 UPDATE |
+| 动态表 DML 报错 `not allowed` | 未设置 DML 开关 | 在同一批次先执行 `SET cz.sql.dt.allow.dml = true;` |
 
 ---
 

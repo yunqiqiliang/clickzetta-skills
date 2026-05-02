@@ -41,9 +41,11 @@ CREATE [ OR REPLACE ] TABLE STREAM <stream_name>
 - **SHOW_INITIAL_ROWS = FALSE**（默认）：首次消费仅返回建 Stream 后的新变更
 - 可选：指定起始时间点
 ```sql
+-- ⚠️ TIMESTAMP AS OF 功能在 ClickZetta 中不稳定，建议仅在必要时使用
+-- 如需使用，时间戳必须用 CAST() 形式
 CREATE TABLE STREAM <stream_name>
   ON TABLE <source_table>
-  TIMESTAMP AS OF '<timestamp>'
+  TIMESTAMP AS OF CAST('<timestamp>' AS TIMESTAMP)
   WITH PROPERTIES ('TABLE_STREAM_MODE' = 'STANDARD');
 ```
 

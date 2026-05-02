@@ -55,13 +55,20 @@ COMMENT '订单ID布隆过滤器';
 -- 数值/日期列（不需要 PROPERTIES）
 CREATE INVERTED INDEX id_idx ON TABLE t(order_id);
 
--- 字符串列（必须指定分词器）
+-- 字符串列（必须指定分词器，否则报错）
+-- ⚠️ 字符串列不指定 analyzer 会创建失败
 CREATE INVERTED INDEX title_idx
 ON TABLE articles(title)
-PROPERTIES('analyzer'='chinese');
+PROPERTIES('analyzer'='chinese');   -- 中文内容用 chinese
+
+-- 其他分词器选项：
+-- 'keyword'  → 不分词，整列作为一个词（适合精确匹配：状态码、标签）
+-- 'english'  → 英文分词
+-- 'unicode'  → 通用 Unicode 分词（中英混合）
+-- 'chinese'  → 中文分词（默认推荐）
 
 -- 查询
-SELECT * FROM articles WHERE match_any(title, '关键词');
+SELECT * FROM articles WHERE match_any(title, '关键词', 'analyzer'='chinese');
 ```
 
 ### 向量索引（相似度搜索）
@@ -115,7 +122,7 @@ DROP INDEX IF EXISTS index_name;
 |---|---|---|
 | 加了索引但查询没变快 | 旧数据未建索引 | 执行 `BUILD INDEX`（倒排/向量）或重写数据（Bloom Filter） |
 | BUILD INDEX 执行很慢 | 数据量大 | 按分区逐批执行 `BUILD INDEX ... WHERE partition=...` |
-| 倒排索引字符串列报错 | 未指定分词器 | 添加 `PROPERTIES('analyzer'='keyword')` |
+| 倒排索引字符串列报错 | 未指定分词器（字符串列必须指定） | 添加 `PROPERTIES('analyzer'='chinese')` 或其他分词器 |
 | 向量索引查询结果不准 | ef.construction 太小 | 调大 `ef.construction`（默认 128，可调至 200-500） |
 
 ---

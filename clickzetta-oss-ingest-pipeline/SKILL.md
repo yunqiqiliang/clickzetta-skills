@@ -121,7 +121,7 @@ OPTIONS (
 
 > **参数说明**：
 > - `INGEST_MODE = 'LIST_PURGE'`：定期扫描 Volume 目录，发现新文件即加载
-> - `purge = true`：加载成功后删除源文件（避免重复导入）
+> - `purge = true`：**LIST_PURGE 模式必须设置**，加载成功后删除源文件（避免重复导入）。即使不想删除源文件，LIST_PURGE 模式也需要此参数，否则会重复导入同一文件
 > - `VIRTUAL_CLUSTER`：指定执行 PIPE 任务的虚拟集群
 
 #### 步骤 5：验证 PIPE 状态

@@ -48,8 +48,16 @@ CREATE CATALOG CONNECTION IF NOT EXISTS hive_catalog_conn
 ### 步骤 3：创建 External Catalog
 
 ```sql
+-- ⚠️ CREATE EXTERNAL CATALOG 不支持 COMMENT 子句，加了会报错
+-- ❌ 错误：CREATE EXTERNAL CATALOG my_hive_catalog CONNECTION hive_catalog_conn COMMENT '...';
+-- ✅ 正确：
 CREATE EXTERNAL CATALOG my_hive_catalog
   CONNECTION hive_catalog_conn;
+
+-- 如需带选项（如 Iceberg REST）：
+CREATE EXTERNAL CATALOG my_iceberg_catalog
+  CONNECTION iceberg_conn
+  OPTIONS ('key1' = 'value1', 'key2' = 'value2');
 ```
 
 ---
