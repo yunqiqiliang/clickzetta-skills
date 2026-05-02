@@ -327,20 +327,6 @@ FROM SYS.information_schema.workspaces
 WHERE delete_time IS NULL
 ORDER BY workspace_storage DESC;
 
--- ⚠️ SYS.information_schema 是实例级视图，包含所有 workspace 数据
--- 必须同时指定 table_catalog（workspace 名）和 table_schema，否则返回 0 行
--- 先用 get_context 获取当前 workspace 名，再过滤
-
--- 查询当前 workspace 下某 schema 的所有表
-SELECT table_schema, table_name, table_type, row_count,
-       ROUND(bytes / 1024.0 / 1024 / 1024, 3) AS size_gb,
-       create_time
-FROM SYS.information_schema.tables
-WHERE table_catalog = '<current_workspace>'   -- 必填：workspace 名
-  AND table_schema = '<schema_name>'          -- 必填：schema 名
-  AND delete_time IS NULL
-ORDER BY bytes DESC NULLS LAST;
-
 -- 跨空间查找大表（大于 10GB）
 SELECT table_catalog, table_schema, table_name,
        row_count,
@@ -376,5 +362,5 @@ ORDER BY authorization_time DESC;
 4. **空间级视图无 DELETE_TIME**：空间级视图只显示当前存在的对象；实例级视图含已删除对象，用 `WHERE delete_time IS NULL` 过滤
 5. **JOB_HISTORY 有 PT_DATE 分区列**：用 `pt_date >= CAST(CURRENT_DATE - INTERVAL N DAY AS DATE)` 过滤，比 `start_time` 过滤性能更好
 6. **STATUS 值注意**：JOB_HISTORY 成功状态为 `'SUCCEED'`（非 `'SUCCEEDED'`）；MV 刷新成功为 `'SUCCEED'`（非 `'FINISHED'`）
-7. **SYS.information_schema 必须指定 table_catalog**：实例级视图包含所有 workspace 数据，查询特定 schema 时必须同时过滤 `table_catalog`（workspace 名）和 `table_schema`，否则返回 0 行。先用 `get_context` 获取当前 workspace 名
+7. **SYS.information_schema 包含所有 workspace 数据**：不加 `table_catalog` 过滤会返回所有 workspace 的结果（更多行，不是 0 行）。如需精确查询当前 workspace，加 `WHERE table_catalog = '<workspace>'`。字段名是 `create_time`（不是 `created_time`）
 7. **STORAGE_METERING / INSTANCE_USAGE 仅实例级**：需 INSTANCE ADMIN 权限，通过 `SYS.information_schema.*` 访问；含实际金额字段，是费用分析的权威来源
