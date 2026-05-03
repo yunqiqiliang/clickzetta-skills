@@ -100,25 +100,25 @@ def check_environment():
 
 def get_session() -> Session:
     return Session.builder.configs({
-        "service":   os.environ["CZ_SERVICE"],
-        "instance":  os.environ["CZ_INSTANCE"],
-        "workspace": os.environ["CZ_WORKSPACE"],
-        "username":  os.environ["CZ_USERNAME"],
-        "password":  os.environ["CZ_PASSWORD"],
-        "vcluster":  os.environ.get("CZ_VCLUSTER", "default_ap"),
-        "schema":    os.environ.get("CZ_SCHEMA", "public"),
+        "service":   os.environ["CLICKZETTA_SERVICE"],
+        "instance":  os.environ["CLICKZETTA_INSTANCE"],
+        "workspace": os.environ["CLICKZETTA_WORKSPACE"],
+        "username":  os.environ["CLICKZETTA_USERNAME"],
+        "password":  os.environ["CLICKZETTA_PASSWORD"],
+        "vcluster":  os.environ.get("CLICKZETTA_VCLUSTER", "default_ap"),
+        "schema":    os.environ.get("CLICKZETTA_SCHEMA", "public"),
     }).create()
 
 def get_connector_connection():
     """仅用于 pd.read_sql。禁止用于 df.to_sql()。"""
     return clickzetta.connect(
-        service=os.environ["CZ_SERVICE"],
-        instance=os.environ["CZ_INSTANCE"],
-        workspace=os.environ["CZ_WORKSPACE"],
-        username=os.environ["CZ_USERNAME"],
-        password=os.environ["CZ_PASSWORD"],
-        vcluster=os.environ.get("CZ_VCLUSTER", "default_ap"),
-        schema=os.environ.get("CZ_SCHEMA", "public"),
+        service=os.environ["CLICKZETTA_SERVICE"],
+        instance=os.environ["CLICKZETTA_INSTANCE"],
+        workspace=os.environ["CLICKZETTA_WORKSPACE"],
+        username=os.environ["CLICKZETTA_USERNAME"],
+        password=os.environ["CLICKZETTA_PASSWORD"],
+        vcluster=os.environ.get("CLICKZETTA_VCLUSTER", "default_ap"),
+        schema=os.environ.get("CLICKZETTA_SCHEMA", "public"),
     )
 ```
 
@@ -127,13 +127,13 @@ def get_connector_connection():
 ## .env 模板
 
 ```bash
-CZ_SERVICE=cn-shanghai-alicloud.api.clickzetta.com
-CZ_INSTANCE=<instance-id>
-CZ_WORKSPACE=<workspace>
-CZ_USERNAME=<username>
-CZ_PASSWORD=<password>
-CZ_VCLUSTER=default_ap
-CZ_SCHEMA=ds_workspace
+CLICKZETTA_SERVICE=cn-shanghai-alicloud.api.clickzetta.com
+CLICKZETTA_INSTANCE=<instance-id>
+CLICKZETTA_WORKSPACE=<workspace>
+CLICKZETTA_USERNAME=<username>
+CLICKZETTA_PASSWORD=<password>
+CLICKZETTA_VCLUSTER=default_ap
+CLICKZETTA_SCHEMA=ds_workspace
 ```
 
 ## pyproject.toml

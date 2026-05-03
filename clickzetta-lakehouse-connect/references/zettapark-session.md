@@ -108,13 +108,13 @@ import os
 from clickzetta.zettapark.session import Session
 
 config = {
-    "service": os.environ["CZ_SERVICE"],
-    "username": os.environ["CZ_USERNAME"],
-    "password": os.environ["CZ_PASSWORD"],
-    "instance": os.environ["CZ_INSTANCE"],
-    "workspace": os.environ["CZ_WORKSPACE"],
-    "schema": os.environ.get("CZ_SCHEMA", "public"),
-    "vcluster": os.environ.get("CZ_VCLUSTER", "default_ap"),
+    "service": os.environ["CLICKZETTA_SERVICE"],
+    "username": os.environ["CLICKZETTA_USERNAME"],
+    "password": os.environ["CLICKZETTA_PASSWORD"],
+    "instance": os.environ["CLICKZETTA_INSTANCE"],
+    "workspace": os.environ["CLICKZETTA_WORKSPACE"],
+    "schema": os.environ.get("CLICKZETTA_SCHEMA", "public"),
+    "vcluster": os.environ.get("CLICKZETTA_VCLUSTER", "default_ap"),
 }
 
 session = Session.builder.configs(config).create()

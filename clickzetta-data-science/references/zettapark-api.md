@@ -15,13 +15,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 session = Session.builder.configs({
-    "service":   os.environ["CZ_SERVICE"],
-    "instance":  os.environ["CZ_INSTANCE"],
-    "workspace": os.environ["CZ_WORKSPACE"],
-    "username":  os.environ["CZ_USERNAME"],
-    "password":  os.environ["CZ_PASSWORD"],
-    "vcluster":  os.environ["CZ_VCLUSTER"],
-    "schema":    os.environ.get("CZ_SCHEMA", "public"),
+    "service":   os.environ["CLICKZETTA_SERVICE"],
+    "instance":  os.environ["CLICKZETTA_INSTANCE"],
+    "workspace": os.environ["CLICKZETTA_WORKSPACE"],
+    "username":  os.environ["CLICKZETTA_USERNAME"],
+    "password":  os.environ["CLICKZETTA_PASSWORD"],
+    "vcluster":  os.environ["CLICKZETTA_VCLUSTER"],
+    "schema":    os.environ.get("CLICKZETTA_SCHEMA", "public"),
     "hints": {
         "sdk.job.timeout": 300,
         "query_tag": "ds_notebook"

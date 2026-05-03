@@ -23,11 +23,11 @@ session.create_dataframe(local_df).write.mode("append").save_as_table("ds_worksp
 # 方式 C：cursor 批量 INSERT（fallback）
 import clickzetta, os
 conn = clickzetta.connect(
-    service=os.environ["CZ_SERVICE"], instance=os.environ["CZ_INSTANCE"],
-    workspace=os.environ["CZ_WORKSPACE"], username=os.environ["CZ_USERNAME"],
-    password=os.environ["CZ_PASSWORD"],
-    vcluster=os.environ.get("CZ_VCLUSTER", "default_ap"),
-    schema=os.environ.get("CZ_SCHEMA", "public"),
+    service=os.environ["CLICKZETTA_SERVICE"], instance=os.environ["CLICKZETTA_INSTANCE"],
+    workspace=os.environ["CLICKZETTA_WORKSPACE"], username=os.environ["CLICKZETTA_USERNAME"],
+    password=os.environ["CLICKZETTA_PASSWORD"],
+    vcluster=os.environ.get("CLICKZETTA_VCLUSTER", "default_ap"),
+    schema=os.environ.get("CLICKZETTA_SCHEMA", "public"),
 )
 cursor = conn.cursor()
 cursor.execute("CREATE TABLE IF NOT EXISTS ds_workspace.my_table (col1 STRING, col2 BIGINT, col3 DOUBLE)")
