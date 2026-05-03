@@ -361,24 +361,83 @@ CZ_SCHEMA=ds_workspace
 **`src/config.py`（入 git）：**
 ```python
 import os
+import sys
+from pathlib import Path
 from dotenv import load_dotenv
 from clickzetta.zettapark.session import Session
+import clickzetta
 
-load_dotenv()  # 读取 .env
+# 多位置查找 .env（兼容不同用户习惯）
+for _dotenv_path in [
+    Path(__file__).parent.parent / ".env",          # 项目根目录（最常见）
+    Path.home() / ".config" / "kilo" / ".env",      # czcode 全局配置
+    Path.home() / ".czcode" / ".env",
+    Path.home() / ".env",
+]:
+    if _dotenv_path.exists():
+        load_dotenv(dotenv_path=_dotenv_path)
+        break
+
+def check_environment():
+    """启动时检查环境，打印诊断信息。在 00-env-check.ipynb 里调用。"""
+    # Python 版本（ZettaPark 硬性要求 3.10+）
+    ver = sys.version_info
+    if ver < (3, 10):
+        raise RuntimeError(
+            f"Python {ver.major}.{ver.minor} 不满足要求。ZettaPark 需要 Python 3.10+。\n"
+            "升级方案：brew install pyenv && pyenv install 3.12.9 && pyenv local 3.12.9"
+        )
+    print(f"✅ Python {ver.major}.{ver.minor}.{ver.micro}")
+
+    # 关键包
+    for pkg, module in [
+        ("clickzetta_zettapark_python", "clickzetta.zettapark"),
+        ("clickzetta-connector-python", "clickzetta"),
+        ("pandas", "pandas"),
+        ("python-dotenv", "dotenv"),
+    ]:
+        try:
+            m = __import__(module.split(".")[0])
+            print(f"✅ {pkg}: {getattr(m, '__version__', 'ok')}")
+        except ImportError:
+            print(f"❌ {pkg}: 未安装 → pip install {pkg}")
+
+    # Lakehouse 连接
+    try:
+        session = get_session()
+        result = session.sql("SELECT current_workspace(), current_user()").collect()
+        print(f"✅ Lakehouse 连接成功: {result}")
+    except Exception as e:
+        print(f"❌ Lakehouse 连接失败: {e}")
 
 def get_session() -> Session:
-    """创建 ZettaPark Session，优先读 .env，fallback 到 connections.json"""
+    """创建 ZettaPark Session，从 .env 读取配置。"""
     config = {
         "service":   os.environ["CZ_SERVICE"],
         "instance":  os.environ["CZ_INSTANCE"],
         "workspace": os.environ["CZ_WORKSPACE"],
         "username":  os.environ["CZ_USERNAME"],
         "password":  os.environ["CZ_PASSWORD"],
-        "vcluster":  os.environ["CZ_VCLUSTER"],
+        "vcluster":  os.environ.get("CZ_VCLUSTER", "default_ap"),
         "schema":    os.environ.get("CZ_SCHEMA", "public"),
     }
     return Session.builder.configs(config).create()
+
+def get_connector_connection():
+    """创建 connector-python 连接（仅用于 pd.read_sql，不支持 to_sql）。"""
+    return clickzetta.connect(
+        service=os.environ["CZ_SERVICE"],
+        instance=os.environ["CZ_INSTANCE"],
+        workspace=os.environ["CZ_WORKSPACE"],
+        username=os.environ["CZ_USERNAME"],
+        password=os.environ["CZ_PASSWORD"],
+        vcluster=os.environ.get("CZ_VCLUSTER", "default_ap"),
+        schema=os.environ.get("CZ_SCHEMA", "public"),
+    )
 ```
+
+> **重要**：`df.to_sql()` 和 SQLAlchemy dialect (`clickzetta://...`) **不支持**，会报错。
+> 写入数据只用 ZettaPark 或 cursor 批量 INSERT（见下方）。
 
 **`.gitignore` 关键内容：**
 ```
@@ -448,6 +507,33 @@ session.sql("""
 
 在动手清洗之前，先用 SQL 快速摸底：
 
+### 导入数据后必须验证合理性
+
+数据导入完成后，**立即用已知基准值验证统计结果**，再进行后续分析：
+
+```sql
+-- 验证示例：奥运奖牌数据
+-- 已知：2024 年美国金牌约 40 枚，中国约 40 枚
+-- 如果查出 300+ 枚，说明存在重复计算（运动员级别数据未去重）
+
+-- ❌ 错误：直接聚合运动员级别数据（团体项目每人一条记录）
+SELECT noc, SUM(CASE WHEN medal='Gold' THEN 1 ELSE 0 END) AS gold
+FROM medalists WHERE year=2024 GROUP BY noc ORDER BY gold DESC LIMIT 5;
+
+-- ✅ 正确：先按事件去重，再聚合
+WITH unique_medals AS (
+    SELECT DISTINCT noc, year, sport, event, medal
+    FROM medalists
+)
+SELECT noc, SUM(CASE WHEN medal='Gold' THEN 1 ELSE 0 END) AS gold
+FROM unique_medals WHERE year=2024 GROUP BY noc ORDER BY gold DESC LIMIT 5;
+```
+
+**通用验证原则**：
+- 导入后先查总行数，与数据源对比
+- 对关键指标做合理性检查（与已知数据或常识对比）
+- 发现异常立即排查，不要带着错误数据继续分析
+
 ```sql
 -- 1. 基础统计：行数、时间范围、关键字段覆盖率
 SELECT
@@ -514,6 +600,21 @@ plt.savefig('reports/figures/amount_dist.png')
 
 ---
 
+## ClickZetta SQL 注意事项
+
+ClickZetta SQL 与标准 SQL 有差异，以下语法**不支持**，遇到报错时使用替代方案：
+
+| 不支持的语法 | 错误信息 | 替代方案 |
+|------------|---------|---------|
+| `ARRAY_AGG(col IGNORE NULLS)` | `Syntax error at or near 'IGNORE'` | `MAX(col)` 或 `COALESCE(col, ...)` |
+| `QUALIFY` 子句 | `Syntax error` | 改用子查询 + `WHERE rn = 1` |
+| `PIVOT` / `UNPIVOT` | `Syntax error` | 用 `CASE WHEN` 手动转置 |
+| `CONNECT BY` 层级查询 | `Syntax error` | 用递归 CTE `WITH RECURSIVE` |
+
+遇到其他 SQL 语法报错，加载 `clickzetta-sql-syntax-guide` skill。
+
+---
+
 ## 阶段 4：数据清洗与整合
 
 ```sql
@@ -566,6 +667,15 @@ LEFT JOIN my_schema.products p ON o.product_id = p.product_id;
 
 ## 阶段 5：数据集构建（写回 Lakehouse）
 
+### 写入方式选择
+
+| 场景 | 推荐方式 |
+|------|---------|
+| ZettaPark 可用（Python 3.10+） | `save_as_table()` 或 `create_dataframe().write` |
+| 从本地 CSV/pandas 写入 | `session.create_dataframe(df).write.save_as_table()` |
+| Python 3.9 或 ZettaPark 不可用 | cursor 批量 INSERT（见下方） |
+| **禁止** | `df.to_sql()`、SQLAlchemy dialect `clickzetta://...` |
+
 ```python
 # 方式 A：ZettaPark save_as_table（推荐）
 clean_df = session.sql("""
@@ -584,6 +694,43 @@ local_df = pd.read_csv("data/processed/features.csv")
 
 zp_df = session.create_dataframe(local_df)
 zp_df.write.mode("append").save_as_table("ds_workspace.features_v1")
+```
+
+```python
+# 方式 C：cursor 批量 INSERT（ZettaPark 不可用时的 fallback）
+import clickzetta, csv
+
+conn = clickzetta.connect(
+    service=os.environ["CZ_SERVICE"],
+    instance=os.environ["CZ_INSTANCE"],
+    workspace=os.environ["CZ_WORKSPACE"],
+    username=os.environ["CZ_USERNAME"],
+    password=os.environ["CZ_PASSWORD"],
+    vcluster=os.environ.get("CZ_VCLUSTER", "default_ap"),
+    schema=os.environ.get("CZ_SCHEMA", "public"),
+)
+cursor = conn.cursor()
+
+# 先建表
+cursor.execute("""
+    CREATE TABLE IF NOT EXISTS ds_workspace.my_table (
+        col1 STRING, col2 BIGINT, col3 DOUBLE
+    )
+""")
+
+# 批量插入（每批 500 行，避免单条 SQL 过长）
+batch_size = 500
+rows = local_df.values.tolist()
+for i in range(0, len(rows), batch_size):
+    batch = rows[i:i+batch_size]
+    placeholders = ",".join(
+        f"({','.join(repr(v) for v in row)})" for row in batch
+    )
+    cursor.execute(f"INSERT INTO ds_workspace.my_table VALUES {placeholders}")
+    print(f"已插入 {min(i+batch_size, len(rows))}/{len(rows)} 行")
+
+conn.close()
+print(f"✅ 共导入 {len(rows)} 行")
 ```
 
 ```sql
