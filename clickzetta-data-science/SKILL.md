@@ -2,11 +2,13 @@
 name: clickzetta-data-science
 description: |
   数据科学家使用 ClickZetta Lakehouse 的端到端工作流指南。按工作阶段组织：
-  开发环境准备（Python 3.10+ 检查/搭建）、项目结构规范（Cookiecutter DS 标准）、
-  数据发现、数据质量评估、数据清洗与整合、数据集构建、EDA 探索分析、
+  开发环境准备（Python 3.10+ 检查/搭建）、Jupyter Notebook 配置与使用、
+  项目结构规范（Cookiecutter DS 标准）、数据发现、数据质量评估、
+  数据清洗与整合、数据集构建、EDA 探索分析、
   特征工程（SQL + ZettaPark）、模型推理上线（BITMAP 用户画像/UDF 批量推理/向量检索）。
   当用户说"数据科学"、"机器学习"、"特征工程"、"EDA"、"数据探索"、
-  "ZettaPark 机器学习"、"Jupyter 连接 Lakehouse"、"pandas 读取数据"、
+  "ZettaPark 机器学习"、"Jupyter 连接 Lakehouse"、"notebook"、"ipynb"、
+  "jupyter kernel"、"%%sql"、"magic command"、"pandas 读取数据"、
   "数据质量检查"、"数据采样"、"TABLESAMPLE"、"approx_percentile"、
   "BITMAP 用户画像"、"人群圈选"、"批量推理"、"Python 3.10"、
   "scikit-learn"、"项目目录结构"、"config.json"、".env"时触发。
@@ -17,10 +19,200 @@ description: |
 ## 工作流全景
 
 ```
-环境准备 → 项目结构 → 数据发现 → 数据质量评估 → 数据清洗整合
-                                                        ↓
-                              模型推理上线 ← 特征工程 ← EDA ← 数据集构建
+环境准备 → Jupyter 配置 → 项目结构 → 数据发现 → 数据质量评估 → 数据清洗整合
+                                                                        ↓
+                                      模型推理上线 ← 特征工程 ← EDA ← 数据集构建
 ```
+
+---
+
+## Jupyter Notebook 配置与使用
+
+Jupyter 是数据科学的主要工作环境。以下覆盖从 kernel 配置到 Lakehouse 连接的完整流程。
+
+### Kernel 配置
+
+```bash
+# 1. 在项目 venv 里安装 ipykernel
+source .venv/bin/activate
+pip install ipykernel jupyterlab
+
+# 2. 将 venv 注册为 Jupyter kernel（关键步骤，否则 notebook 用的是系统 Python）
+python -m ipykernel install --user --name lakehouse-ds --display-name "Python (lakehouse-ds)"
+
+# 3. 启动 JupyterLab
+jupyter lab
+# 或指定端口/不自动打开浏览器
+jupyter lab --port=8888 --no-browser
+```
+
+> **常见问题**：notebook 里 `import clickzetta` 报 ModuleNotFoundError → kernel 没有选对。
+> 在 JupyterLab 右上角切换到 "Python (lakehouse-ds)"，或在 VS Code 里选择对应 venv 的 Python 解释器。
+
+### 在 Notebook 里连接 Lakehouse
+
+**方式 A：ZettaPark Session（推荐，DataFrame API）**
+
+```python
+# Cell 1 — 初始化（每个 notebook 开头执行一次）
+import os
+from dotenv import load_dotenv
+from clickzetta.zettapark.session import Session
+
+load_dotenv()  # 读取项目根目录的 .env
+
+session = Session.builder.configs({
+    "service":   os.environ["CZ_SERVICE"],
+    "instance":  os.environ["CZ_INSTANCE"],
+    "workspace": os.environ["CZ_WORKSPACE"],
+    "username":  os.environ["CZ_USERNAME"],
+    "password":  os.environ["CZ_PASSWORD"],
+    "vcluster":  os.environ.get("CZ_VCLUSTER", "default_ap"),
+    "schema":    os.environ.get("CZ_SCHEMA", "public"),
+    "hints": {"query_tag": "jupyter_notebook"},
+}).create()
+
+print(f"✅ 连接成功: {session.sql('SELECT current_workspace(), current_user()').collect()}")
+```
+
+**方式 B：connector-python（纯 SQL，适合简单查询）**
+
+```python
+import clickzetta
+import pandas as pd
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+conn = clickzetta.connect(
+    service=os.environ["CZ_SERVICE"],
+    instance=os.environ["CZ_INSTANCE"],
+    workspace=os.environ["CZ_WORKSPACE"],
+    username=os.environ["CZ_USERNAME"],
+    password=os.environ["CZ_PASSWORD"],
+    vcluster=os.environ.get("CZ_VCLUSTER", "default_ap"),
+    schema=os.environ.get("CZ_SCHEMA", "public"),
+)
+
+# 直接读成 pandas DataFrame
+df = pd.read_sql("SELECT * FROM my_schema.orders LIMIT 1000", conn)
+df.head()
+```
+
+### SQL Magic Commands
+
+安装 `jupysql` 后可以在 notebook cell 里直接写 SQL：
+
+```bash
+pip install jupysql
+```
+
+```python
+# Cell — 加载 magic 扩展
+%load_ext sql
+
+# 配置连接（使用 clickzetta SQLAlchemy dialect）
+%sql clickzetta://username:password@service/instance/workspace?vcluster=default_ap&schema=public
+```
+
+```sql
+-- Cell — 单行 SQL（结果显示为表格）
+%sql SELECT COUNT(*) FROM my_schema.orders
+
+-- Cell — 多行 SQL
+%%sql
+SELECT
+    DATE_TRUNC('month', order_date) AS month,
+    COUNT(*)                        AS order_cnt,
+    SUM(amount)                     AS revenue
+FROM my_schema.orders
+GROUP BY 1
+ORDER BY 1
+```
+
+```python
+# Cell — 把 SQL 结果存入 pandas DataFrame
+result = %sql SELECT * FROM my_schema.orders LIMIT 10000
+df = result.DataFrame()
+df.describe()
+```
+
+### Notebook 里的典型数据科学 Cell 模式
+
+```python
+# ── 数据加载 ──────────────────────────────────────────────
+df = session.sql("""
+    SELECT * FROM my_schema.orders
+    TABLESAMPLE ROW (10)   -- 10% 采样，避免 OOM
+""").to_pandas()
+
+print(f"Shape: {df.shape}")
+df.head()
+```
+
+```python
+# ── 快速 EDA ──────────────────────────────────────────────
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+
+df['amount'].hist(bins=50, ax=axes[0])
+axes[0].set_title('Amount Distribution')
+
+df.groupby('status')['amount'].sum().plot(kind='bar', ax=axes[1])
+axes[1].set_title('Revenue by Status')
+
+plt.tight_layout()
+plt.savefig('../reports/figures/eda_overview.png', dpi=150)
+plt.show()
+```
+
+```python
+# ── 结果写回 Lakehouse ────────────────────────────────────
+result_df = df[df['amount'] > 100][['user_id', 'amount', 'order_date']]
+
+session.create_dataframe(result_df) \
+    .write.mode("overwrite") \
+    .save_as_table("ds_workspace.high_value_orders")
+
+print(f"✅ 写入 {len(result_df)} 行到 ds_workspace.high_value_orders")
+```
+
+### VS Code / Cursor 里使用 Notebook
+
+VS Code 和 Cursor 原生支持 `.ipynb`，无需启动 JupyterLab：
+
+1. 打开 `.ipynb` 文件
+2. 右上角 "Select Kernel" → 选择 "Python (lakehouse-ds)"（即之前注册的 venv kernel）
+3. 直接在 IDE 里运行 cell，支持变量查看、调试
+
+> **推荐**：用 VS Code/Cursor 开发 notebook，比浏览器版 JupyterLab 有更好的代码补全和 Git 集成。
+
+### Notebook 转 Python 脚本
+
+探索完成后，将 notebook 转为可调度的 `.py` 脚本：
+
+```bash
+# 方式 A：nbconvert（保留所有 cell）
+jupyter nbconvert --to script notebooks/05-feature-engineering.ipynb
+# 输出：notebooks/05-feature-engineering.py
+
+# 方式 B：只导出非 EDA cell（手动整理后放入 src/）
+# 建议：把核心逻辑提取到 src/features/build_features.py，notebook 只做调用
+```
+
+### 常见 Notebook 问题
+
+| 问题 | 原因 | 修复 |
+|------|------|------|
+| `ModuleNotFoundError: clickzetta` | kernel 未选对 | 切换到注册的 venv kernel |
+| `.env` 读不到 | `load_dotenv()` 路径问题 | 改为 `load_dotenv(dotenv_path='../.env')` |
+| `to_pandas()` OOM | 数据量太大 | 加 `TABLESAMPLE ROW(1)` 或 `LIMIT` |
+| kernel 死掉/无响应 | 内存溢出 | 重启 kernel，减小采样比例 |
+| 图表不显示 | 缺少 `%matplotlib inline` | 在 notebook 开头加 `%matplotlib inline` |
+| JupyterLab 端口占用 | 上次未正常关闭 | `jupyter lab --port=8889` 换端口 |
 
 ---
 
