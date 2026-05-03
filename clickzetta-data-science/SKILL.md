@@ -63,30 +63,33 @@ print(f"✅ 连接成功: {result}")
 ### 路径 B：全新搭建
 
 ```bash
-# 推荐：创建 Python 3.12 conda 环境
-conda create -n lakehouse-ds python=3.12 -y
-conda activate lakehouse-ds
+# 方式 1：venv（Python 内置，推荐）
+python3.12 -m venv .venv
+source .venv/bin/activate          # macOS/Linux
+# .venv\Scripts\activate           # Windows
+pip install clickzetta_zettapark_python clickzetta-connector-python \
+    python-dotenv pandas numpy scikit-learn pyarrow jupyterlab matplotlib seaborn
 
-# 安装依赖（国内用清华镜像）
-pip install -i https://pypi.tuna.tsinghua.edu.cn/simple \
-    clickzetta_zettapark_python \
-    clickzetta-connector-python \
-    python-dotenv \
-    pandas numpy scikit-learn pyarrow \
-    jupyterlab matplotlib seaborn
+# 方式 2：pyenv（需要切换 Python 版本时）
+pyenv install 3.12.9 && pyenv local 3.12.9
+python -m venv .venv && source .venv/bin/activate
+pip install clickzetta_zettapark_python clickzetta-connector-python \
+    python-dotenv pandas numpy scikit-learn pyarrow jupyterlab matplotlib seaborn
 
-# 启动 Jupyter
-jupyter lab
+# 方式 3：conda（数据科学环境）
+conda create -n lakehouse-ds python=3.12 -y && conda activate lakehouse-ds
+pip install clickzetta_zettapark_python clickzetta-connector-python \
+    python-dotenv pandas numpy scikit-learn pyarrow jupyterlab matplotlib seaborn
 ```
 
 ### 常见问题修复
 
 | 问题 | 原因 | 修复 |
 |---|---|---|
-| `Python 3.8/3.9` | 版本不满足 | `conda create -n lh python=3.10` |
+| `Python 3.8/3.9` | 版本不满足 | `pyenv install 3.12.9` 或 `python3.12 -m venv .venv` 新建环境 |
 | `pyarrow` 版本冲突 | 与其他包冲突 | `pip install pyarrow==14.0.0` |
 | 连接超时 | VCluster 未启动 | 在 Studio 中手动启动集群 |
-| M1/M2 Mac 报错 | ARM 架构兼容 | 用 `conda` 安装，不用 `pip` |
+| M1/M2 Mac 报错 | ARM 架构兼容 | 用 `pip install --no-binary :all:` 或改用 conda |
 
 ---
 

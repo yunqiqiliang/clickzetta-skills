@@ -10,7 +10,17 @@
 ## 1. 安装
 
 ```bash
-# 推荐：Python 3.12 环境
+# 方式 1：venv（Python 内置，推荐）
+python3.12 -m venv .venv
+source .venv/bin/activate   # macOS/Linux  |  .venv\Scripts\activate (Windows)
+pip install clickzetta-connector-python
+
+# 方式 2：pyenv（需要切换 Python 版本时）
+pyenv install 3.12.9 && pyenv local 3.12.9
+python -m venv .venv && source .venv/bin/activate
+pip install clickzetta-connector-python
+
+# 方式 3：conda（数据科学环境）
 conda create -n lakehouse python=3.12 -y && conda activate lakehouse
 pip install clickzetta-connector-python
 ```

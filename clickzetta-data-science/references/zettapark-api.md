@@ -1,6 +1,7 @@
 # ZettaPark API 数据科学常用操作
 
 > 来源：https://www.yunqi.tech/documents/ZettaparkQuickStart
+> **Python 版本**：推荐 3.12（最低 3.10）。安装：`python3.12 -m venv .venv && pip install clickzetta_zettapark_python`
 
 ---
 
