@@ -1,6 +1,7 @@
 # SQLAlchemy 连接器详细参考
 
 > **包名**: `clickzetta-sqlalchemy`（依赖 `clickzetta-connector-python`）
+> **Python 版本**: 推荐 **Python 3.12**（最低 3.10，不支持 3.9 及以下）
 > **返回**: [ClickZetta 连接主指南](../SKILL.md)
 
 ## 目录

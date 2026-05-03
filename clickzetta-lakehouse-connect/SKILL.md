@@ -185,9 +185,18 @@ session.close()
 
 ## 安装
 
+> ⚠️ **Python 版本要求**：推荐 **Python 3.12**（最低 3.10）。Python 3.9 及以下不支持。
+
 | 连接方式 | 安装命令 |
 |:--|:--|
 | Python SDK | `pip install clickzetta-connector-python` |
 | ZettaPark | `pip install clickzetta-zettapark-python` |
 | SQLAlchemy | `pip install clickzetta-connector-python clickzetta-sqlalchemy` |
 | JDBC | Maven: `com.clickzetta:clickzetta-java` |
+
+```bash
+# 推荐：用 conda 创建 Python 3.12 环境
+conda create -n lakehouse python=3.12 -y
+conda activate lakehouse
+pip install clickzetta-connector-python clickzetta-zettapark-python
+```

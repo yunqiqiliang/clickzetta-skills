@@ -2,6 +2,7 @@
 
 > **包名**: `clickzetta-connector-python`
 > **最低版本**: >= 0.8.92
+> **Python 版本**: 推荐 **Python 3.12**（最低 3.10，不支持 3.9 及以下）
 > **返回**: [ClickZetta 连接主指南](../SKILL.md)
 
 ---
@@ -9,6 +10,8 @@
 ## 1. 安装
 
 ```bash
+# 推荐：Python 3.12 环境
+conda create -n lakehouse python=3.12 -y && conda activate lakehouse
 pip install clickzetta-connector-python
 ```
 

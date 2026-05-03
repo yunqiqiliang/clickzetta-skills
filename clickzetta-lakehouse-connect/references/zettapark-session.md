@@ -1,6 +1,7 @@
 # ZettaPark Session 详细参考
 
 > **定位**：ZettaPark 是 ClickZetta Lakehouse 的 DataFrame API 库，提供类似 PySpark/Snowpark 的编程体验。  
+> **Python 版本**: 推荐 **Python 3.12**（最低 3.10，不支持 3.9 及以下）  
 > 本文档基于 `clickzetta_quickstart/Zettapark/` 目录下的真实代码整理。
 
 ## 目录
@@ -23,6 +24,8 @@
 ## 1. 安装
 
 ```bash
+# 推荐：Python 3.12 环境
+conda create -n lakehouse python=3.12 -y && conda activate lakehouse
 pip install clickzetta-zettapark-python
 ```
 

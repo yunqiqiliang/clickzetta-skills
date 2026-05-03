@@ -29,10 +29,12 @@ description: |
 ### 路径 A：检查现有环境（最常见）
 
 ```python
-# 1. 检查 Python 版本（必须 >= 3.10，含 3.10）
+# 1. 检查 Python 版本（推荐 3.12，最低 3.10）
 import sys
 print(sys.version)
 assert sys.version_info >= (3, 10), f"需要 Python 3.10+，当前 {sys.version}"
+if sys.version_info < (3, 12):
+    print("⚠️  建议升级到 Python 3.12 以获得最佳兼容性")
 
 # 2. 检查关键包
 packages = {
@@ -61,8 +63,8 @@ print(f"✅ 连接成功: {result}")
 ### 路径 B：全新搭建
 
 ```bash
-# 创建 Python 3.10 conda 环境
-conda create -n lakehouse-ds python=3.10 -y
+# 推荐：创建 Python 3.12 conda 环境
+conda create -n lakehouse-ds python=3.12 -y
 conda activate lakehouse-ds
 
 # 安装依赖（国内用清华镜像）
@@ -197,7 +199,7 @@ __pycache__/
 ```toml
 [project]
 name = "my-lakehouse-ds-project"
-requires-python = ">=3.10"
+requires-python = ">=3.10"   # 最低 3.10，推荐 3.12
 dependencies = [
     "clickzetta_zettapark_python>=0.1.2",
     "clickzetta-connector-python>=1.0.0",
