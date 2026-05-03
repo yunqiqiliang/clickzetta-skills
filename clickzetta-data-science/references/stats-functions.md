@@ -65,9 +65,9 @@ FROM (
 SELECT approx_top_k(city, 10) AS top_cities
 FROM my_schema.orders;
 
--- 返回结构体数组：[{item, count}, ...]
--- 解析展开
-SELECT item.item AS city, item.count AS cnt
+-- 返回结构体数组：[{value, count}, ...]
+-- 解析展开（字段名是 value 和 count）
+SELECT item.value AS city, item.count AS cnt
 FROM (
     SELECT EXPLODE(approx_top_k(city, 10)) AS item
     FROM my_schema.orders
@@ -121,6 +121,8 @@ WHERE rn <= CEIL(cat_total * 0.1);  -- 每类取 10%
 | ML 训练集构建 | ROW | 精确随机，保证代表性 |
 | 数据质量抽检 | SYSTEM | 快速抽样验证 |
 | 统计分析 | ROW | 精确概率采样 |
+
+> ⚠️ **注意**：TABLESAMPLE 在小表（< 数万行）上可能返回全部数据，百分比采样不精确。小表直接用 `LIMIT` 即可。
 
 ---
 
