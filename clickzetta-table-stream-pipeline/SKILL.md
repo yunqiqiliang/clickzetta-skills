@@ -5,6 +5,7 @@ description: |
   数据消费到增量 ETL 的端到端工作流。当用户说"创建 Table Stream"、"Table Stream CDC"、
   "Table Stream 管道"、"Table Stream 增量消费"、"Stream 消费"时触发。
   包含变更跟踪开启、模式选择、offset 管理、元数据字段使用、幂等消费等 ClickZetta 特有逻辑。
+  Keywords: table stream, CDC, change capture, incremental ETL, stream
 ---
 
 # Table Stream 变更数据捕获工作流

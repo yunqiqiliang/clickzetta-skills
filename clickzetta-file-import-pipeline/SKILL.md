@@ -5,6 +5,7 @@ description: |
   表创建、COPY INTO 导入、结果验证的完整流程。当用户说"导入数据"、"从 URL 加载"、
   "上传 CSV 到表"、"文件导入"、"COPY INTO"时触发。包含 ClickZetta USER VOLUME 机制、
   COPY INTO 语法、格式推断规则、写入模式语义等平台特有知识。
+  Keywords: file import, URL, CSV, JSON, Parquet, COPY INTO, Volume
 ---
 
 # URL/文件数据导入工作流

@@ -10,6 +10,7 @@ description: |
   "save_as_table"、"session.table"、"session.sql"、"collect()"、"to_pandas"、
   "Python 数据工程"、"Python 写入 Lakehouse"、"Python 读取 Lakehouse"、
   "clickzetta_zettapark_python"时触发。
+  Keywords: ZettaPark, DataFrame, pandas-like, Python, SQL translation, distributed compute
 ---
 
 # ClickZetta ZettaPark

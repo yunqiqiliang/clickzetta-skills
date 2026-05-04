@@ -11,6 +11,7 @@ description: |
   包含 READ_KAFKA 函数探查、JSON 多层嵌套解析、Kafka Pipe DDL、Kafka 外部表 + Table Stream、
   SASL 认证配置、生产调优（BATCH_SIZE / COPY_JOB_HINT / VCluster 规格）、
   延迟监控（pipe_latency / query_tag）等 ClickZetta 特有逻辑。
+  Keywords: Kafka, READ_KAFKA, Pipe, streaming ingestion, topic, consumer
 ---
 
 # Kafka 数据接入管道工作流

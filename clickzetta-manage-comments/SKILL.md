@@ -9,6 +9,7 @@ description: >
   "COMMENT 相关操作"、"更新字段说明"时触发。
   包含 ClickZetta 特有的注释语法（与标准 SQL 不同），以及各对象类型的语法差异和单引号转义处理。
   务必在用户提到 ClickZetta 注释、元数据补充、字段描述、表说明等场景时使用此 skill。
+  Keywords: COMMENT, annotation, table comment, column comment, metadata
 ---
 
 # ClickZetta 注释管理

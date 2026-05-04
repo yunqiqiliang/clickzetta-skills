@@ -9,6 +9,7 @@ description: |
   "semantic_view() 怎么用"、"统一指标口径"、"业务语义模型"、"逻辑表"、
   "DIMENSIONS"、"METRICS"、"FILTERS"、"DROP SEMANTIC VIEW"、
   "SHOW SEMANTIC VIEWS"时触发。
+  Keywords: semantic view, dimension, metric, logical model, unified metrics, semantic layer
 ---
 
 # ClickZetta 语义视图（Semantic View）

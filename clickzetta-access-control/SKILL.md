@@ -8,6 +8,7 @@ description: |
   "创建角色"、"角色管理"、"RBAC"、"权限管理"、"查看权限"、"数据脱敏"、
   "动态脱敏"、"列级安全"、"敏感数据保护"、"用户权限"、"网络策略"、
   "IP 白名单"、"IP 黑名单"、"NETWORK POLICY"时触发。
+  Keywords: RBAC, GRANT, REVOKE, role, user, permission, masking policy, column-level security
 ---
 
 # ClickZetta 访问控制与数据安全

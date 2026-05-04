@@ -5,6 +5,7 @@ description: |
   推荐最合适的数据导入方式，并引导到对应的专项 Skill 或直接执行简单导入操作。
   当用户说"导入数据到 Lakehouse"、"数据入仓"、"数据入湖"、"怎么把数据导进来"、
   "数据采集"、"数据加载"、"ingest data"、"load data"、"数据导入方案选择"时触发。
+  Keywords: data ingestion, import, routing, pipeline selection, data source
 ---
 
 # Lakehouse 数据导入总览与路由

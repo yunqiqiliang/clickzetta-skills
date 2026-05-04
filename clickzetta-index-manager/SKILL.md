@@ -7,6 +7,7 @@ description: |
   当用户说"创建索引"、"加索引"、"Bloom Filter"、"布隆过滤器"、"倒排索引"、
   "全文检索"、"向量索引"、"向量搜索"、"相似度搜索"、"BUILD INDEX"、
   "DROP INDEX"、"SHOW INDEX"、"查询加速"、"索引优化"时触发。
+  Keywords: index, bloom filter, inverted index, vector index, full-text search
 ---
 
 # ClickZetta 索引管理

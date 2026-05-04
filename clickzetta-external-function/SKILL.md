@@ -10,6 +10,7 @@ description: |
   "Remote Function"、"调用 LLM"、"AI_COMPLETE"、"AI_EMBEDDING"、
   "文本向量化"、"调用阿里云函数计算"、"调用云函数"、"Python UDF"、
   "Java UDF"、"CREATE EXTERNAL FUNCTION"时触发。
+  Keywords: external function, UDF, Python UDF, Java UDF, LLM, custom function
 ---
 
 # ClickZetta External Function

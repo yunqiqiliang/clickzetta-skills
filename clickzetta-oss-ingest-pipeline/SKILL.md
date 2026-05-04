@@ -8,6 +8,7 @@ description: |
   "批量导入 OSS"、"从 OSS 加载数据"、"Volume 导入"时触发。
   包含 PIPE 持续导入（两种 INGEST_MODE）、批量导入（Volume + COPY/INSERT）、Connection/Volume 创建、
   监控管理等 ClickZetta 特有逻辑。
+  Keywords: OSS, S3, COS, object storage, PIPE, COPY INTO, file ingestion
 ---
 
 # 对象存储数据管道搭建工作流

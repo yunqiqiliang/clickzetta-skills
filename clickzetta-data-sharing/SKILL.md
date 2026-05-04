@@ -8,6 +8,7 @@ description: |
   当用户说"数据分享"、"数据共享"、"Share"、"跨账户共享"、"跨实例共享"、
   "CREATE SHARE"、"GRANT TO SHARE"、"CREATE SCHEMA FROM SHARE"、
   "无复制共享"、"分享数据给其他公司"、"接收共享数据"、"INBOUND"、"OUTBOUND"时触发。
+  Keywords: data sharing, SHARE, cross-account, cross-instance, provider, consumer
 ---
 
 # ClickZetta 数据分享

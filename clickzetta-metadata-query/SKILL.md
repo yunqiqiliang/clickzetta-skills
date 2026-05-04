@@ -13,6 +13,7 @@ description: |
   "查看分区"、"查看历史版本"、"查看删除的表"、"查看导入历史"、"load_history"、
   "SHOW JOBS"、"查看集群状态"、"查看连接"、"查看权限"、"SHOW GRANTS"、
   "查看函数"、"查看 Volume"、"查看 Share"、"查看 Catalog"时触发。
+  Keywords: SHOW, DESC, DESCRIBE, metadata, load_history, object info
 ---
 
 # ClickZetta 元数据查询命令

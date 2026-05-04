@@ -8,6 +8,7 @@ description: |
   "调整集群规格"、"集群扩容"、"集群缩容"、"自动停止"、"自动启动"、
   "预加载缓存"、"PRELOAD"、"集群类型"、"GP集群"、"AP集群"、"分析型集群"、
   "通用型集群"、"同步型集群"时触发。
+  Keywords: VCluster, compute cluster, create, suspend, resume, resize, auto-scale
 ---
 
 # ClickZetta 计算集群管理

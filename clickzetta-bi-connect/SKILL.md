@@ -8,6 +8,7 @@ description: |
   "DataGrip"、"BI 工具"、"JDBC 连接"、"SQLAlchemy 连接"、"帆软"、"FineBI"、
   "数据库客户端"、"可视化工具连接"、"BI 报表"、"PowerBI"、"Navicat"、
   "MySQL 协议连接"时触发。
+  Keywords: BI, Superset, Tableau, Metabase, DBeaver, DataGrip, FineBI, JDBC, connection
 ---
 
 # ClickZetta BI 工具连接

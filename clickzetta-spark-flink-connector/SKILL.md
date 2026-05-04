@@ -9,6 +9,7 @@ description: |
   "Flink 写入 Lakehouse"、"spark-clickzetta"、"igs-flink-connector"、
   "Spark DataFrame 写入"、"Flink CDC 写入"、"Flink sink"、
   "spark.read.format clickzetta"时触发。
+  Keywords: Spark, Flink, DataFrame, connector, read, write, CDC, igs-dynamic-table
 ---
 
 # ClickZetta Spark & Flink Connector

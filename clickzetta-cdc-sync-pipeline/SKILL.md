@@ -10,6 +10,7 @@ description: |
   "Binlog 位点过期"、"server-id 冲突"、"补充全量同步"、"新增同步表"时触发。
   包含源端数据库准备（参数配置+权限）、三种同步模式选择、任务创建部署、运维 SOP（补全量/加表/数据修复）、
   监控告警配置（5 种告警规则+IM webhook）、详细故障排除等 ClickZetta Studio 特有逻辑。
+  Keywords: CDC, real-time sync, MySQL, PostgreSQL, change data capture, mirror, merge
 ---
 
 # 多表实时同步 Pipeline 工作流

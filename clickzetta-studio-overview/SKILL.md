@@ -10,6 +10,7 @@ description: |
   当用户说"Studio 是什么"、"Studio 有哪些功能"、"Studio 和其他 Lakehouse 的区别"、
   "任务调度怎么配"、"DAG 编排"、"任务组"、"任务参数"、"${} 参数怎么用"、
   "数据目录"、"数据质量"、"运维监控"、"告警配置"、"补数据"、"任务依赖"时触发。
+  Keywords: Studio, Web IDE, scheduler, DAG, data catalog, data quality, monitoring
 ---
 
 # ClickZetta Lakehouse Studio 功能概览

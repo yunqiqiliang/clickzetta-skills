@@ -10,6 +10,7 @@ description: |
   "集群负载"、"作业失败"、"查询失败"、"监控"、"job history"、
   "information_schema"、"缓存命中率"、"查询耗时"、"作业状态"、
   "元数据查询"、"查看所有表"、"表大小"、"列信息"、"资产盘点"时触发。
+  Keywords: monitoring, job status, performance, resource usage, SHOW JOBS, slow query
 ---
 
 # ClickZetta 作业监控与分析

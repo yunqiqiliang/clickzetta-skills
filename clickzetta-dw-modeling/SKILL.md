@@ -10,6 +10,7 @@ description: |
   "Bronze/Silver/Gold"、"事实表"、"维度表"、"宽表设计"、"星型模型"、"雪花模型"、
   "分层架构"、"数据分层"、"建模向导"、"怎么设计表结构"、"数仓架构"、
   "数据管道设计"、"数据流转"、"端到端数仓搭建"时触发。
+  Keywords: data warehouse, modeling, star schema, medallion, ODS, DWD, DWS, ADS, layering
 ---
 
 # ClickZetta 数仓建模向导

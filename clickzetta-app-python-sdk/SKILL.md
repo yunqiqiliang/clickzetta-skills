@@ -12,6 +12,7 @@ description: |
   "executemany"、"execute_async"、"参数绑定 Python"、
   "IGS 实时写入"、"实时写入 Python"、"ingestion-python-v2"、
   "主键表写入 Python"、"CDC 写入"、"UPSERT Python"时触发。
+  Keywords: Python SDK, clickzetta-connector-python, clickzetta-ingestion-python, bulk insert, async query, SQLAlchemy, IGS
 ---
 
 # ClickZetta Lakehouse — Python SDK

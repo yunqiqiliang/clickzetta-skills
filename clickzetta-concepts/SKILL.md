@@ -16,6 +16,7 @@ description: |
   "云器是什么"、"Singdata 是什么"、"ClickZetta 和云器什么关系"、
   "国际版地址"、"Singdata 地址"、"API 地址"、"控制台地址"、
   "service 参数填什么"、"JDBC 地址"、"连接地址"时触发。
+  Keywords: concepts, architecture, workspace, schema, instance, VCluster, object model
 ---
 
 # ClickZetta Lakehouse 核心概念

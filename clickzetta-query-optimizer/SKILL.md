@@ -6,6 +6,7 @@ description: |
   当用户说"查询慢"、"SQL 性能优化"、"执行计划"、"EXPLAIN"、"查看 Job"、
   "慢查询"、"小文件"、"OPTIMIZE"、"结果缓存"、"Result Cache"、
   "Map Join"、"排序列"、"sort key"、"查询调优"、"性能诊断"时触发。
+  Keywords: query optimization, EXPLAIN, execution plan, slow query, cache, Map Join, Sort Key
 ---
 
 # ClickZetta 查询性能优化

@@ -7,6 +7,7 @@ description: |
   "多表同步"、"定期同步"、"周期性数据同步"、"分库分表合并"、"离线数据迁移"时触发。
   包含单表/多表离线同步任务创建、数据源配置、字段映射、同步规则、调度部署、任务运维等
   ClickZetta Studio 特有逻辑。
+  Keywords: batch sync, offline sync, full load, mirror, multi-table sync
 ---
 
 # 离线同步（批量同步）Pipeline 工作流

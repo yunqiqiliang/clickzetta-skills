@@ -9,6 +9,7 @@ description: |
   "RAG"、"ANN 搜索"、"HNSW"、"cosine_distance"、"l2_distance"、
   "VECTOR 类型"、"向量数据库"、"相似度搜索"、"向量 + 标量融合检索"、
   "文本向量化"时触发。
+  Keywords: vector, HNSW, embedding, RAG, semantic search, similarity, VECTOR type
 ---
 
 # ClickZetta 向量检索

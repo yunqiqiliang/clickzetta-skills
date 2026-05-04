@@ -9,6 +9,7 @@ description: |
   "TARGET_LAG"、"REFRESH SCHEDULE"、"CREATE DYNAMIC TABLE"、
   "数据管道自动化"、"增量计算"、"自动物化"、"定时刷新"、
   "依赖刷新"时触发。
+  Keywords: dynamic table, incremental refresh, TARGET_LAG, materialized, auto-refresh pipeline
 ---
 
 # ClickZetta Dynamic Table

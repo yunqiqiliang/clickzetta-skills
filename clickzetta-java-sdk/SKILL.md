@@ -8,6 +8,7 @@ description: |
   当用户说"Java SDK"、"BulkloadStream"、"RealtimeStream"、
   "Java 写入 Lakehouse"、"Java 批量上传"、"Kafka Java 写入"、
   "clickzetta-java"、"Maven 依赖"、"Java 数据导入"时触发。
+  Keywords: Java SDK, BulkloadStream, RealtimeStream, Kafka consumer, batch write, real-time write
 ---
 
 # ClickZetta Java SDK

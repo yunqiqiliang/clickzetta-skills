@@ -9,6 +9,7 @@ description: |
   "取消作业"、"慢查询"、"恢复误删表"、"UNDROP"、"RESTORE"、
   "小文件合并"、"OPTIMIZE"、"ANALYZE TABLE"、"网络策略"、"IP 白名单"、
   "动态脱敏"、"成本分析"、"存储用量"、"DBA 操作"时触发。
+  Keywords: DBA, operations, monitoring, troubleshooting, cluster management, cost
 ---
 
 # ClickZetta Lakehouse DBA 运维手册

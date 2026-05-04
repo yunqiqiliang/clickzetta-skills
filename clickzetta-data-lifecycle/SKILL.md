@@ -8,6 +8,7 @@ description: |
   "表数据过期"、"自动回收数据"、"设置数据保留"、"data_retention_days"、
   "Time Travel 保留周期"、"查看哪些表有生命周期"、"批量设置生命周期"、
   "生命周期到期"、"数据生命周期管理"时触发。
+  Keywords: TTL, data retention, time travel, lifecycle, auto-purge, storage
 ---
 
 # ClickZetta 数据生命周期管理

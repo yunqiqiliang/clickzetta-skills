@@ -12,6 +12,7 @@ description: |
   "数据质量检查"、"数据采样"、"TABLESAMPLE"、"approx_percentile"、
   "BITMAP 用户画像"、"人群圈选"、"批量推理"、"Python 3.10"、
   "scikit-learn"、"项目目录结构"、"config.json"、".env"时触发。
+  Keywords: data science, Jupyter, EDA, feature engineering, ML, pandas, notebook
 ---
 
 # ClickZetta Lakehouse 数据科学工作流

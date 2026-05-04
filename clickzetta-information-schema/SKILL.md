@@ -14,6 +14,7 @@ description: |
   "查看 Volume 列表"、"查看 Connection"、"查看物化视图刷新历史"、
   "元数据查询"、"information_schema"、"查看所有表"、"查看 Schema 列表"、
   "统计存储用量"、"查看删除的表"时触发。
+  Keywords: information_schema, metadata, table info, column info, job history, system view
 ---
 
 # ClickZetta Lakehouse INFORMATION_SCHEMA 查询指南

@@ -13,6 +13,7 @@ description: >
   "帮我设计 ETL"、"构建数据管道"、"数据接入方案"、
   "Medallion Architecture"、"Bronze Silver Gold"、"奖章架构"、
   "湖仓分层"、"Bronze 层"、"Silver 层"、"Gold 层"时触发。
+  Keywords: SQL pipeline, dynamic table, materialized view, table stream, Pipe, data pipeline
 ---
 
 # ClickZetta SQL 数据管道管理

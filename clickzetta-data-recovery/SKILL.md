@@ -11,6 +11,7 @@ description: |
 
   包含 ClickZetta 特有的语法（TIMESTAMP AS OF、RESTORE TABLE TO、UNDROP TABLE）
   以及数据保留周期默认值（默认 1 天，最长 90 天）等关键约束。
+  Keywords: time travel, UNDROP, RESTORE, version history, data recovery, rollback
 ---
 
 # ClickZetta Lakehouse 数据恢复 Skill

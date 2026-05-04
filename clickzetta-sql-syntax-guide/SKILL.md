@@ -13,6 +13,7 @@ description: |
   "隐式转换"、"implicit cast"、"日期写入"、"BOOLEAN 写入"、"UNION"、"INTERSECT"、
   "EXCEPT"、"集合运算"、"STRUCT AS"、"named_struct"、"JSON"、"半结构化"、
   "大宽表"、"VARIANT"、"JSON 字段"、"灵活 Schema"、"客户案例"时触发。
+  Keywords: SQL syntax, DDL, DML, DQL, migration, Snowflake, Databricks, Spark SQL, compatibility
 ---
 
 # ClickZetta Lakehouse SQL 语法指南

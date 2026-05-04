@@ -8,6 +8,7 @@ description: |
   "MySQL 单表实时同步"、"单表实时同步"、"实时数据迁移"时触发。
   包含实时同步任务创建、数据源配置、字段映射（含 JSONPath 计算列）、部署运维等
   ClickZetta Studio 特有逻辑。
+  Keywords: real-time sync, single table, Kafka source, MySQL source, streaming
 ---
 
 # 实时同步（单表）Pipeline 工作流

@@ -10,6 +10,7 @@ description: |
   "从Volume导入数据"、"导出到Volume"、"COPY INTO VOLUME"、"SELECT FROM VOLUME"、
   "User Volume"、"数据湖文件"、"数据导出"、"导出数据"、"导出CSV"、"导出Parquet"、
   "COPY OVERWRITE INTO"时触发。
+  Keywords: Volume, OSS, COS, S3, mount, file query, COPY INTO, external storage
 ---
 
 # ClickZetta Volume 管理

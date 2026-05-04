@@ -7,6 +7,7 @@ description: |
   当用户说"外部数据目录"、"External Catalog"、"联邦查询"、"Hive 联邦"、
   "访问 Hive 数据"、"Databricks 联邦"、"Iceberg 联邦"、"跨数据源查询"、
   "不迁移数据直接查询"、"Catalog Connection"时触发。
+  Keywords: external catalog, Hive, Iceberg, Databricks, federation, read-only
 ---
 
 # ClickZetta External Catalog
