@@ -125,7 +125,7 @@ stream.apply(row);
 | 定时批量 ETL（每小时/每天） | BulkloadStream |
 | Kafka 实时消费 | RealtimeStream |
 | 5 分钟以内高频写入 | RealtimeStream |
-| 主键表写入 | ❌ 两者均不支持，改用 JDBC + MERGE |
+| 主键表写入（UPSERT / DELETE） | RealtimeStream CDC 模式 |
 
 ---
 
@@ -133,7 +133,7 @@ stream.apply(row);
 
 | 限制 | BulkloadStream | RealtimeStream |
 |---|---|---|
-| 主键表 | ❌ 不支持 | ❌ 不支持 |
+| 主键表 | ❌ 不支持 | ✅ CDC 模式支持 |
 | 高频写入（< 5 分钟） | ❌ 不适合 | ✅ 支持 |
 | 数据可见延迟 | 写完 close() 后可见 | ~1 分钟后可见 |
 | Table Stream/Dynamic Table 可见 | close() 后 | ~1 分钟后 |
