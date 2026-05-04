@@ -4,14 +4,20 @@
 
 ```sql
 CREATE [ OR REPLACE ] DYNAMIC TABLE [ IF NOT EXISTS ] <name>
-  { TARGET_LAG = '<lag_value>' | REFRESH SCHEDULE = '<cron_expr>' }
-  WAREHOUSE = '<vcluster_name>'
-  [ COMMENT = '<comment>' ]
+  PROPERTIES ('<key>' = '<value>' [, '<key>' = '<value>' ...])
 AS
   <select_statement>;
 ```
 
-### TARGET_LAG 合法值
+### PROPERTIES 参数
+
+| 参数 | 说明 | 示例 |
+|---|---|---|
+| `target_lag` | 数据最大延迟容忍，与 `refresh_schedule` 二选一 | `'1 hour'`、`'30 minutes'` |
+| `refresh_schedule` | 固定 cron 调度（5 字段），与 `target_lag` 二选一 | `'*/30 * * * *'` |
+| `warehouse` | 执行刷新的 VCluster 名称 | `'default_ap'` |
+
+### target_lag 合法值
 
 | 格式 | 示例 |
 |---|---|
@@ -19,7 +25,7 @@ AS
 | N hours | `'1 hour'`、`'6 hours'` |
 | N days | `'1 day'` |
 
-### REFRESH SCHEDULE cron 格式
+### refresh_schedule cron 格式
 
 标准 5 字段 cron（分 时 日 月 周）：
 
@@ -45,17 +51,14 @@ ALTER DYNAMIC TABLE <name> SUSPEND;
 -- 恢复自动刷新
 ALTER DYNAMIC TABLE <name> RESUME;
 
--- 修改 TARGET_LAG
-ALTER DYNAMIC TABLE <name> SET TARGET_LAG = '<new_lag>';
+-- 修改 target_lag
+ALTER DYNAMIC TABLE <name> SET PROPERTIES ('target_lag' = '<new_lag>');
 
--- 修改 REFRESH SCHEDULE
-ALTER DYNAMIC TABLE <name> SET REFRESH SCHEDULE = '<new_cron>';
+-- 修改 refresh_schedule
+ALTER DYNAMIC TABLE <name> SET PROPERTIES ('refresh_schedule' = '<new_cron>');
 
--- 修改 WAREHOUSE
-ALTER DYNAMIC TABLE <name> SET WAREHOUSE = '<new_vcluster>';
-
--- 修改注释
-ALTER DYNAMIC TABLE <name> SET COMMENT = '<new_comment>';
+-- 修改 warehouse
+ALTER DYNAMIC TABLE <name> SET PROPERTIES ('warehouse' = '<new_vcluster>');
 ```
 
 ---
@@ -70,15 +73,9 @@ DROP DYNAMIC TABLE [ IF EXISTS ] <name>;
 
 ---
 
-## SHOW / DESC
+## DESC / SHOW HISTORY
 
 ```sql
--- 列出当前 Schema 下所有 Dynamic Table
-SHOW DYNAMIC TABLES;
-
--- 列出指定 Schema 下的
-SHOW DYNAMIC TABLES IN SCHEMA <schema_name>;
-
 -- 查看表定义（含 SQL、刷新模式、调度配置）
 DESC DYNAMIC TABLE <name>;
 
@@ -87,20 +84,24 @@ SHOW DYNAMIC TABLE REFRESH HISTORY FOR <name>;
 SHOW DYNAMIC TABLE REFRESH HISTORY FOR <name> LIMIT 20;
 ```
 
+刷新历史返回列：`state`、`refresh_mode`（FULL/INCREMENTAL）、`duration`、`refresh_trigger`、`error_message`、`source_tables`、`job_id` 等。
+
 ---
 
-## information_schema 查询
+## 查询 Dynamic Table 列表
+
+`SHOW DYNAMIC TABLES` 语法不支持，通过 `information_schema.tables` 查询：
 
 ```sql
--- 查看所有 Dynamic Table 状态
-SELECT
-  table_name,
-  refresh_mode,          -- FULL 或 INCREMENTAL
-  scheduling_state,      -- ACTIVE / SUSPENDED / FAILED
-  last_refresh_time,
-  last_refresh_duration_seconds,
-  target_lag_seconds
-FROM information_schema.dynamic_tables
-WHERE schema_name = '<schema_name>'
-ORDER BY last_refresh_time DESC;
+-- 查看当前 Schema 下所有表（含 Dynamic Table）
+SELECT table_name, table_type, last_modify_time
+FROM information_schema.tables
+WHERE table_schema = '<schema_name>';
+```
+
+或通过 `SHOW TABLES IN <schema>` 查看，结果包含 `is_dynamic` 列：
+
+```sql
+SHOW TABLES IN <schema_name>;
+-- 返回列：schema_name, table_name, is_view, is_materialized_view, is_external, is_dynamic
 ```
