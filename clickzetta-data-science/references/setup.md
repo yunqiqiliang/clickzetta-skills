@@ -7,18 +7,21 @@
 python3.12 -m venv .venv
 source .venv/bin/activate          # macOS/Linux
 pip install clickzetta_zettapark_python clickzetta-connector-python \
-    python-dotenv pandas numpy scikit-learn pyarrow jupyterlab matplotlib seaborn
+    python-dotenv pandas numpy scikit-learn pyarrow jupyterlab matplotlib seaborn \
+    -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # 方式 2：pyenv（需要切换 Python 版本时）
 pyenv install 3.12.9 && pyenv local 3.12.9
 python -m venv .venv && source .venv/bin/activate
 pip install clickzetta_zettapark_python clickzetta-connector-python \
-    python-dotenv pandas numpy scikit-learn pyarrow jupyterlab matplotlib seaborn
+    python-dotenv pandas numpy scikit-learn pyarrow jupyterlab matplotlib seaborn \
+    -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # 方式 3：conda
 conda create -n lakehouse-ds python=3.12 -y && conda activate lakehouse-ds
 pip install clickzetta_zettapark_python clickzetta-connector-python \
-    python-dotenv pandas numpy scikit-learn pyarrow jupyterlab matplotlib seaborn
+    python-dotenv pandas numpy scikit-learn pyarrow jupyterlab matplotlib seaborn \
+    -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 
 | 问题 | 修复 |
