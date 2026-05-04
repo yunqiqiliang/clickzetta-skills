@@ -6,16 +6,22 @@ description: |
   VCluster 三种类型与 CRU 计费，Dynamic Table 增量刷新机制，Table Stream CDC，
   三层缓存体系，Pipe 持续导入，Synonym 跨 Schema 别名，权限体系（RBAC/ACL），
   以及与 Snowflake/Databricks 的关键差异对比。
+  还覆盖品牌关系：ClickZetta（技术品牌）= 云器（国内）= Singdata（国际），
+  以及国内（云器）和国际（Singdata）的控制台、API、JDBC 地址。
   当用户说"工作空间是什么"、"Schema 和 Database 什么关系"、"Catalog 是什么"、
   "实例和工作空间的区别"、"VCluster 是什么"、"CRU 是什么"、"内部表和外部表区别"、
   "动态表和物化视图区别"、"Table Stream 是什么"、"Pipe 是什么"、"同义词是什么"、
   "Lakehouse 架构"、"对象层级"、"权限体系"、"和 Snowflake 概念对比"、
-  "和 Databricks 概念对比"、"存算分离"、"CBO 增量计算"时触发。
+  "和 Databricks 概念对比"、"存算分离"、"CBO 增量计算"、
+  "云器是什么"、"Singdata 是什么"、"ClickZetta 和云器什么关系"、
+  "国际版地址"、"Singdata 地址"、"API 地址"、"控制台地址"、
+  "service 参数填什么"、"JDBC 地址"、"连接地址"时触发。
 ---
 
 # ClickZetta Lakehouse 核心概念
 
 阅读 [references/object-model.md](references/object-model.md) 了解完整对象层级和差异对比。
+阅读 [references/brands-and-endpoints.md](references/brands-and-endpoints.md) 了解品牌关系（云器/Singdata/ClickZetta）和各环境服务地址。
 
 ---
 
