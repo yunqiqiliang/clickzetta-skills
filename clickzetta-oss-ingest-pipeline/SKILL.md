@@ -356,10 +356,8 @@ ALTER PIPE my_oss_pipe SET PIPE_EXECUTION_PAUSED = false;
 ALTER PIPE my_oss_pipe SET VIRTUAL_CLUSTER = 'new_vc';
 
 -- 修改 COPY_JOB_HINT（注意：会覆盖所有已有 hints，需一次性设置全部参数）
-ALTER PIPE my_oss_pipe SET COPY_JOB_HINT = (
-  'max_file_count' = '100',
-  'force' = 'false'
-);
+-- 必须是合法 JSON 格式，键值都要用双引号
+ALTER PIPE my_oss_pipe SET COPY_JOB_HINT = '{"max_file_count":"100","force":"false"}';
 ```
 
 > **限制**：每次 ALTER PIPE 只能修改一个属性。不支持修改 COPY 语句逻辑，需删除 PIPE 重新创建。

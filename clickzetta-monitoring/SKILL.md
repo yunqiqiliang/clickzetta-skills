@@ -49,7 +49,7 @@ SELECT
     virtual_cluster,
     COUNT(*) AS job_count,
     AVG(execution_time) AS avg_seconds,
-    ROUND(SUM(CASE WHEN status = 'SUCCESS' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) AS success_rate
+    ROUND(SUM(CASE WHEN status = 'SUCCEED' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) AS success_rate
 FROM sys.information_schema.job_history
 WHERE start_time >= CURRENT_DATE() - INTERVAL 7 DAY
 GROUP BY virtual_cluster
@@ -140,9 +140,9 @@ jdbc:clickzetta://instance.region.api.clickzetta.com/workspace?query_tag=my_app
 SELECT * FROM information_schema.schemas;
 
 -- 查看所有表及其大小、行数
-SELECT table_schema, table_name, table_type, row_count, total_bytes
+SELECT table_schema, table_name, table_type, row_count, bytes
 FROM information_schema.tables
-ORDER BY total_bytes DESC;
+ORDER BY bytes DESC;
 
 -- 查看所有列的详细信息（字段名、类型、是否可空、注释）
 SELECT table_schema, table_name, column_name, data_type, is_nullable, comment
@@ -171,10 +171,10 @@ WHERE start_time >= CURRENT_DATE() - INTERVAL 7 DAY;
 
 ```sql
 -- 找出最大的 10 张表
-SELECT table_schema, table_name, row_count, total_bytes
+SELECT table_schema, table_name, row_count, bytes
 FROM information_schema.tables
 WHERE table_type = 'TABLE'
-ORDER BY total_bytes DESC
+ORDER BY bytes DESC
 LIMIT 10;
 
 -- 找出没有注释的表
@@ -191,7 +191,7 @@ WHERE (comment IS NULL OR comment = '')
 -- 统计各 Schema 下的表数量和总存储
 SELECT table_schema,
        COUNT(*) AS table_count,
-       SUM(total_bytes) AS total_storage
+       SUM(bytes) AS total_storage
 FROM information_schema.tables
 GROUP BY table_schema
 ORDER BY total_storage DESC;

@@ -73,9 +73,9 @@ df = df.with_column("is_high_value", when(col("amount") > 1000, 1).otherwise(0))
 
 # 聚合
 agg_df = df.group_by("user_id").agg(
-    F_sum("amount").alias("total_amount"),
-    F_count("order_id").alias("order_cnt"),
-    F_avg("amount").alias("avg_amount")
+    F_sum("amount").as_("total_amount"),
+    F_count("order_id").as_("order_cnt"),
+    F_avg("amount").as_("avg_amount")
 )
 
 # JOIN

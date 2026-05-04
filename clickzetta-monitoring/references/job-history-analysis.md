@@ -15,7 +15,7 @@
 | job_id | String | 作业唯一标识 |
 | execution_time | Float | 执行时长（秒） |
 | start_time | Timestamp | 开始时间 |
-| status | String | 状态（SUCCESS/FAILED/...） |
+| status | String | 状态（SUCCEED/FAILED/CANCELLED/...） |
 | input_tables | String | 输入表（JSON 格式） |
 | input_bytes | String | 读取字节数 |
 | cache_hit | String | 缓存命中字节数 |
@@ -32,7 +32,7 @@ SELECT
     COUNT(*) AS job_count,
     SUM(execution_time) AS total_execution_time,
     AVG(execution_time) AS avg_execution_time,
-    ROUND(SUM(CASE WHEN status = 'SUCCESS' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) AS success_rate
+    ROUND(SUM(CASE WHEN status = 'SUCCEED' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) AS success_rate
 FROM sys.information_schema.job_history
 WHERE start_time >= CURRENT_DATE() - INTERVAL 30 DAY
 GROUP BY virtual_cluster

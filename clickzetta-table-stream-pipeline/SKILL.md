@@ -28,7 +28,7 @@ SHOW CREATE TABLE <source_table>;
 CREATE [ OR REPLACE ] TABLE STREAM <stream_name>
   ON TABLE <source_table>
   [ TIMESTAMP AS OF '<timestamp>' ]
-  [ COMMENT = '<描述>' ]
+  [ COMMENT '<描述>' ]
   WITH PROPERTIES (
     'TABLE_STREAM_MODE' = 'STANDARD | APPEND_ONLY',
     'SHOW_INITIAL_ROWS' = 'TRUE | FALSE'
@@ -150,5 +150,5 @@ Stream 不捕获变更：
 解决方案：改用 MERGE 语句；记录最后消费的 `__commit_version` 和 `__commit_timestamp` 用于断点恢复
 
 COMMENT 语法错误：
-原因：使用了 `COMMENT '...'`（不带等号）而非 `COMMENT = '...'`
-解决方案：正确语法为 `COMMENT = '注释内容'`，必须带等号
+原因：使用了 `COMMENT = '...'`（带等号）而非 `COMMENT '...'`
+解决方案：正确语法为 `COMMENT '注释内容'`，不带等号
