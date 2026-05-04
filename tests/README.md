@@ -46,6 +46,8 @@ python -m pytest . -q
 | `test_manage_comments.py` | clickzetta-manage-comments | ALTER TABLE SET COMMENT, CHANGE COLUMN COMMENT, COMMENT ON TABLE fails, quote escaping |
 | `test_query_optimizer.py` | clickzetta-query-optimizer | EXPLAIN, EXPLAIN EXTENDED, SET result cache, ANALYZE TABLE, MAPJOIN hint |
 | `test_vcluster_manager.py` | clickzetta-vcluster-manager | SHOW/DESC VCLUSTER, CREATE/ALTER/DROP VCLUSTER, USE VCLUSTER |
+| `test_data_recovery.py` | clickzetta-data-recovery | DESC HISTORY, SHOW TABLES HISTORY, Time Travel, RESTORE, UNDROP, data_retention_days |
+| `test_dba_guide.py` | clickzetta-dba-guide | CREATE/DROP USER/ROLE, GRANT/REVOKE, NETWORK POLICY COMMENT (no =), OPTIMIZE, ANALYZE |
 
 ## Environment Variables
 
