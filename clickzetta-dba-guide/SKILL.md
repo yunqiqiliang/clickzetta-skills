@@ -375,13 +375,13 @@ ORDER BY ratio DESC;
 -- 创建网络策略（白名单）
 CREATE NETWORK POLICY office_policy
   ALLOWED_IP_LIST = ('10.0.0.0/8', '192.168.1.0/24')
-  COMMENT = '办公网络白名单';
+  COMMENT '办公网络白名单';
 
 -- 创建网络策略（白名单 + 黑名单）
 CREATE NETWORK POLICY strict_policy
   ALLOWED_IP_LIST = ('10.0.0.0/8')
   BLOCKED_IP_LIST = ('10.0.1.100')
-  COMMENT = '严格访问控制';
+  COMMENT '严格访问控制';
 
 -- 修改网络策略（覆盖式，必须包含所有 IP）
 ALTER NETWORK POLICY office_policy

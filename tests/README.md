@@ -39,6 +39,13 @@ python -m pytest . -q
 | `test_table_stream.py` | clickzetta-table-stream-pipeline | COMMENT without =, __change_type field, offset behavior |
 | `test_access_control.py` | clickzetta-access-control | SHOW NETWORK POLICY (singular), GRANT/REVOKE, CREATE ROLE |
 | `test_data_lifecycle.py` | clickzetta-data-lifecycle | DESC HISTORY columns, Time Travel, UNDROP, RESTORE |
+| `test_index_manager.py` | clickzetta-index-manager | BLOOMFILTER/INVERTED/VECTOR INDEX CREATE, string column needs analyzer, BUILD/DROP/SHOW INDEX |
+| `test_information_schema.py` | clickzetta-information-schema | `bytes` not `total_bytes`, pt_date partition, `SUCCEED` status, schemas/columns/users views |
+| `test_zettapark.py` | clickzetta-zettapark | Session, filter/groupBy/.as_() (not .alias()), save_as_table, collect, to_pandas |
+| `test_metadata_query.py` | clickzetta-metadata-query | SHOW TABLES/SCHEMAS/COLUMNS/VCLUSTERS/JOBS, DESC, FROM (SHOW) subquery, load_history() |
+| `test_manage_comments.py` | clickzetta-manage-comments | ALTER TABLE SET COMMENT, CHANGE COLUMN COMMENT, COMMENT ON TABLE fails, quote escaping |
+| `test_query_optimizer.py` | clickzetta-query-optimizer | EXPLAIN, EXPLAIN EXTENDED, SET result cache, ANALYZE TABLE, MAPJOIN hint |
+| `test_vcluster_manager.py` | clickzetta-vcluster-manager | SHOW/DESC VCLUSTER, CREATE/ALTER/DROP VCLUSTER, USE VCLUSTER |
 
 ## Environment Variables
 
