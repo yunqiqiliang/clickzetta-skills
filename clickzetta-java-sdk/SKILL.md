@@ -118,7 +118,7 @@ Options options = Options.builder()
     .withMutationBufferLinesNum(10)  // 缓冲行数
     .build();
 
-// 创建 RealtimeStream
+// 创建 RealtimeStream（普通表，APPEND_ONLY）
 RealtimeStream stream = client.newRealtimeStreamBuilder()
     .operate(RowStream.RealTimeOperate.APPEND_ONLY)
     .options(options)
@@ -131,6 +131,34 @@ Row row = stream.createRow(Stream.Operator.INSERT);
 row.setValue("id", 1);
 row.setValue("event", "{\"type\":\"click\"}");
 stream.apply(row);
+stream.close();
+```
+
+## RealtimeStream CDC 示例（主键表 UPSERT / DELETE）
+
+```java
+// 建表：CREATE TABLE orders (txid STRING NOT NULL PRIMARY KEY, amount DOUBLE, status STRING);
+
+RealtimeStream stream = client.newRealtimeStreamBuilder()
+    .operate(RowStream.RealTimeOperate.CDC)   // 主键表必须用 CDC
+    .options(options)
+    .schema("public")
+    .table("orders")
+    .build();
+
+// UPSERT：存在则更新，不存在则插入
+Row row = stream.createRow(Stream.Operator.UPSERT);
+row.setValue("txid", "order-001");
+row.setValue("amount", 299.99);
+row.setValue("status", "paid");
+stream.apply(row);
+
+// DELETE_IGNORE：删除，目标行不存在时自动忽略
+Row del = stream.createRow(Stream.Operator.DELETE_IGNORE);
+del.setValue("txid", "order-001");
+stream.apply(del);
+
+stream.close();
 ```
 
 ---

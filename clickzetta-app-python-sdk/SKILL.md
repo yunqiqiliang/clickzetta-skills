@@ -90,6 +90,55 @@ data = [(1, 'a'), (2, 'b'), (3, 'c')]
 cursor.executemany('INSERT INTO test (id, name) VALUES (?, ?)', data)
 ```
 
+## IGS 实时写入快速示例（ingestion-python-v2）
+
+普通表（APPEND_ONLY）：
+
+```python
+from clickzetta.connector.v0.connection import connect
+from clickzetta.connector.v0.enums import RealtimeOperation
+from clickzetta_ingestion.realtime.realtime_options import RealtimeOptionsBuilder, FlushMode
+from clickzetta_ingestion.realtime.arrow_stream import RowOperator
+
+with connect(**CONN_ARGS) as conn:
+    stream = conn.get_realtime_stream(
+        schema='your_schema',
+        table='your_table',
+        operate=RealtimeOperation.APPEND_ONLY,
+        options=RealtimeOptionsBuilder().with_flush_mode(FlushMode.AUTO_FLUSH_BACKGROUND).build()
+    )
+    row = stream.create_row(RowOperator.INSERT)
+    row.set_value('id', 1)
+    row.set_value('name', 'alice')
+    stream.apply(row)
+    stream.close()
+```
+
+主键表 CDC（UPSERT / DELETE）：
+
+```python
+# 建表：CREATE TABLE users (id STRING NOT NULL PRIMARY KEY, name STRING, age INT);
+
+with connect(**CONN_ARGS) as conn:
+    stream = conn.get_realtime_stream(
+        schema='your_schema',
+        table='users',
+        operate=RealtimeOperation.CDC,           # 主键表必须用 CDC
+        options=RealtimeOptionsBuilder().with_flush_mode(FlushMode.AUTO_FLUSH_SYNC).build()
+    )
+    # UPSERT
+    row = stream.create_row(RowOperator.UPSERT)
+    row.set_value('id', 'u1')
+    row.set_value('name', 'bob')
+    row.set_value('age', 25)
+    stream.apply(row)
+    # DELETE_IGNORE
+    row = stream.create_row(RowOperator.DELETE_IGNORE)
+    row.set_value('id', 'u1')
+    stream.apply(row)
+    stream.close()
+```
+
 ---
 
 ## 选择指南
