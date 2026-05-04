@@ -3,3 +3,12 @@
 
 # macOS
 .DS_Store
+
+# Credentials
+.env
+tests/.env
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/

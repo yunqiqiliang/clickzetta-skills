@@ -1,0 +1,2 @@
+clickzetta-connector
+pytest

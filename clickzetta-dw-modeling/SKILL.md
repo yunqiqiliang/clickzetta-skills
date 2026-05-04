@@ -232,7 +232,8 @@ COMMENT 'DWD 订单事实表，清洗标准化';
 
 -- DWS/Gold（Dynamic Table，不用物化视图）
 CREATE DYNAMIC TABLE IF NOT EXISTS dws.user_order_daily
-TARGET_LAG = '1 hour'
+  REFRESH interval 1 HOUR
+  VCLUSTER default_ap
 AS
 SELECT
     user_id,
