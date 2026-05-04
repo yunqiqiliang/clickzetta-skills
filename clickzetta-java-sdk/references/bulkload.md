@@ -6,6 +6,7 @@
 ## Maven 依赖
 
 ```xml
+<!-- 最新版本见 https://central.sonatype.com/artifact/com.clickzetta/clickzetta-java -->
 <dependency>
     <groupId>com.clickzetta</groupId>
     <artifactId>clickzetta-java</artifactId>
@@ -100,7 +101,7 @@ public class BulkloadFile {
     }
 
     private static void initialize() throws Exception {
-        // 推荐：2.0.0 起支持显式参数
+        // 推荐：显式参数方式（2.0.0+ 支持）
         client = ClickZettaClient.newBuilder()
             .service("cn-shanghai-alicloud.api.clickzetta.com")
             .instance("your_instance")

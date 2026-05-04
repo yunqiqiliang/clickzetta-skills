@@ -5,6 +5,7 @@
 ## Maven 依赖
 
 ```xml
+<!-- 最新版本见 https://central.sonatype.com/artifact/com.clickzetta/clickzetta-java -->
 <dependency>
     <groupId>com.clickzetta</groupId>
     <artifactId>clickzetta-java</artifactId>
@@ -33,7 +34,7 @@
 ## 普通表写入（APPEND_ONLY）
 
 ```java
-// 推荐：2.0.0 起支持显式参数（不依赖 URL 解析）
+// 推荐：显式参数方式（2.0.0+ 支持，不依赖 URL 解析）
 ClickZettaClient client = ClickZettaClient.newBuilder()
     .service("cn-shanghai-alicloud.api.clickzetta.com")
     .instance("your_instance")

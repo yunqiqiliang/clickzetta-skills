@@ -46,7 +46,7 @@ RealtimeStream + Kafka 还需要：
 ## 连接 URL 格式
 
 ```java
-// 推荐：2.0.0 起支持显式参数（不依赖 URL 解析）
+// 推荐：显式参数方式（2.0.0+ 支持，不依赖 URL 解析）
 ClickZettaClient client = ClickZettaClient.newBuilder()
     .service("cn-shanghai-alicloud.api.clickzetta.com")
     .instance("your_instance")
@@ -72,7 +72,7 @@ ClickZettaClient client = ClickZettaClient.newBuilder().url(url).build();
 JDBC 连接（DDL / 查询）：
 
 ```java
-// 2.0.0 驱动类：com.clickzetta.client.jdbc.ClickZettaDriver
+// 2.0.0+ 驱动类：com.clickzetta.client.jdbc.ClickZettaDriver
 // 1.x 驱动类：com.clickzetta.jdbc.ClickZettaDriver
 Class.forName("com.clickzetta.client.jdbc.ClickZettaDriver");
 Connection conn = DriverManager.getConnection(jdbcUrl);
