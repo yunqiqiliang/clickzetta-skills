@@ -49,6 +49,7 @@ python -m pytest . -q
 | `test_data_recovery.py` | clickzetta-data-recovery | DESC HISTORY, SHOW TABLES HISTORY, Time Travel, RESTORE, UNDROP, data_retention_days |
 | `test_dba_guide.py` | clickzetta-dba-guide | CREATE/DROP USER/ROLE, GRANT/REVOKE, NETWORK POLICY COMMENT (no =), OPTIMIZE, ANALYZE |
 | `test_sql_pipeline_manager.py` | clickzetta-sql-pipeline-manager | Dynamic Table REFRESH interval, MV REFRESH AUTO EVERY, Table Stream, SHOW PIPES |
+| `test_dw_modeling.py` | clickzetta-dw-modeling | PARTITIONED BY (days(col)), CLUSTERED BY BUCKETS, Dynamic Table DWS layer, bytes field |
 
 ## Environment Variables
 
