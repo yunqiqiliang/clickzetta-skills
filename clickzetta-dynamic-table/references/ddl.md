@@ -90,18 +90,21 @@ SHOW DYNAMIC TABLE REFRESH HISTORY FOR <name> LIMIT 20;
 
 ## 查询 Dynamic Table 列表
 
-`SHOW DYNAMIC TABLES` 语法不支持，通过 `information_schema.tables` 查询：
+`SHOW DYNAMIC TABLES` 语法不支持，用以下方式替代：
 
 ```sql
--- 查看当前 Schema 下所有表（含 Dynamic Table）
+-- 列出指定 Schema 下所有 Dynamic Table（最常用）
+SHOW TABLES IN <schema_name> WHERE is_dynamic;
+
+-- 列出当前 Schema 下所有 Dynamic Table
+SHOW TABLES WHERE is_dynamic;
+-- 返回列：schema_name, table_name, is_view, is_materialized_view, is_external, is_dynamic
+```
+
+也可通过 `information_schema.tables` 查询：
+
+```sql
 SELECT table_name, table_type, last_modify_time
 FROM information_schema.tables
 WHERE table_schema = '<schema_name>';
-```
-
-或通过 `SHOW TABLES IN <schema>` 查看，结果包含 `is_dynamic` 列：
-
-```sql
-SHOW TABLES IN <schema_name>;
--- 返回列：schema_name, table_name, is_view, is_materialized_view, is_external, is_dynamic
 ```

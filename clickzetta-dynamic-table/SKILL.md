@@ -59,11 +59,11 @@ DESC DYNAMIC TABLE silver.orders_daily;
 SHOW DYNAMIC TABLE REFRESH HISTORY FOR silver.orders_daily;
 SHOW DYNAMIC TABLE REFRESH HISTORY FOR silver.orders_daily LIMIT 20;
 
--- 通过 information_schema.tables 查看 Dynamic Table 列表
--- is_dynamic = true 的行即为 Dynamic Table
-SELECT table_name, table_type
-FROM information_schema.tables
-WHERE table_schema = 'silver';
+-- 列出指定 Schema 下所有 Dynamic Table（最常用）
+SHOW TABLES IN silver WHERE is_dynamic;
+
+-- 列出当前 Schema 下所有 Dynamic Table
+SHOW TABLES WHERE is_dynamic;
 ```
 
 ### 3. 手动触发刷新
@@ -211,10 +211,11 @@ WHERE __change_type IN ('INSERT', 'UPDATE_AFTER');
 -- 返回列：state, refresh_mode, duration, error_message, source_tables 等
 SHOW DYNAMIC TABLE REFRESH HISTORY FOR silver.orders_daily;
 
--- 通过 information_schema.tables 查看当前 Schema 下的 Dynamic Table
-SELECT table_name, table_type, last_modify_time
-FROM information_schema.tables
-WHERE table_schema = 'silver';
+-- 列出指定 Schema 下所有 Dynamic Table（最常用）
+SHOW TABLES IN silver WHERE is_dynamic;
+
+-- 列出当前 Schema 下所有 Dynamic Table
+SHOW TABLES WHERE is_dynamic;
 ```
 
 常见问题：
