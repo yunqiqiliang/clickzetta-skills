@@ -59,7 +59,7 @@ SELECT
   COUNT(*)                        AS event_count,
   COUNT(DISTINCT user_id)         AS unique_users
 FROM silver.events_cleaned
-WHERE event_time >= DATEADD('day', -7, CURRENT_TIMESTAMP)
+WHERE event_time >= DATEADD(day, -7, CURRENT_TIMESTAMP)
 GROUP BY 1, 2;
 ```
 
@@ -101,7 +101,7 @@ SELECT
   AVG(amount)             AS avg_order_value_24h,
   COUNT(DISTINCT customer_id) AS unique_buyers_24h
 FROM silver.orders_cleaned
-WHERE created_at >= DATEADD('hour', -24, CURRENT_TIMESTAMP);
+WHERE created_at >= DATEADD(hour, -24, CURRENT_TIMESTAMP);
 ```
 
 ---

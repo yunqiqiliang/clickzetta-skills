@@ -217,7 +217,7 @@ CREATE NETWORK POLICY mixed_policy
   COMMENT '允许内网但阻止特定 IP';
 
 -- 查看网络策略
-SHOW NETWORK POLICIES;
+SHOW NETWORK POLICY;
 
 -- 删除网络策略
 DROP NETWORK POLICY IF EXISTS office_only;

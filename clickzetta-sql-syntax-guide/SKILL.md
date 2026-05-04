@@ -39,7 +39,7 @@ description: |
 |---|---|---|
 | 替换普通表 | `CREATE OR REPLACE TABLE t` | `CREATE TABLE IF NOT EXISTS t`（普通表不支持 OR REPLACE；Dynamic Table / View / MV 支持） |
 | OR REPLACE + IF NOT EXISTS | `CREATE OR REPLACE TABLE IF NOT EXISTS t` | ❌ 两者不能同时使用，会报错 |
-| 动态表刷新 | `TARGET_LAG = '1 minutes'` | `REFRESH INTERVAL 1 MINUTE VCLUSTER vc` |
+| 动态表刷新 | `TARGET_LAG = '1 hour'` (SF) | `PROPERTIES ('target_lag' = '1 hour', 'warehouse' = 'vc')` |
 | Stream 元数据 | `METADATA$ACTION` | `__change_type` |
 | 对象存储导入 | `COPY INTO t FROM @stage` | `COPY INTO t FROM VOLUME v USING CSV` |
 | 窗口过滤 | `QUALIFY ROW_NUMBER() = 1` | `QUALIFY ROW_NUMBER() = 1` ✅ ClickZetta 也支持！ |
@@ -53,7 +53,7 @@ description: |
 | 不区分大小写匹配 | `ILIKE` (SF) | `ILIKE` ✅ ClickZetta 也支持！ |
 | 差集运算 | `MINUS` (Oracle/DB2) | `MINUS` ✅ ClickZetta 也支持！ |
 | 递归 CTE | `WITH RECURSIVE` (SF/Databricks) | ❌ 不支持，需用 Python/ZettaPark 替代 |
-| 集合运算 | `UNION` / `UNION ALL` / `INTERSECT` / `EXCEPT` | ❌ 不支持，用 JOIN + 应用层合并替代 |
+| 集合运算 | `UNION` / `UNION ALL` / `INTERSECT` / `EXCEPT` | ✅ 全部支持 |
 | 事务 | `BEGIN; COMMIT; ROLLBACK;` | ❌ 不支持，用 MERGE 实现原子操作 |
 | MERGE 不匹配删除 | `WHEN NOT MATCHED BY SOURCE THEN DELETE` | ❌ 不支持，需两步：MERGE + DELETE |
 | Delta ZORDER | `OPTIMIZE t ZORDER BY (col)` | `OPTIMIZE t`（只做小文件合并，无 ZORDER） |

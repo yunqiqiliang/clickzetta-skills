@@ -181,7 +181,7 @@ SELECT
   COUNT(*)                       AS order_cnt,
   AVG(amount)                    AS avg_order_value
 FROM silver.orders_cleaned
-WHERE order_time >= DATEADD('day', -30, CURRENT_DATE)
+WHERE order_time >= DATEADD(day, -30, CURRENT_DATE)
 GROUP BY 1, 2;
 ```
 

@@ -472,34 +472,22 @@ LATERAL VIEW STACK(3,
 ## SET 操作
 
 ```sql
--- ⚠️ ClickZetta 不支持 UNION/UNION ALL/INTERSECT/EXCEPT 集合操作
--- Snowflake/Spark SQL 支持：
+-- ClickZetta 支持 UNION / UNION ALL / INTERSECT / EXCEPT 集合操作
 SELECT id FROM orders_2023
 UNION ALL
 SELECT id FROM orders_2024;
 
--- ClickZetta 替代方案：
+SELECT id FROM orders_2023
+UNION
+SELECT id FROM orders_2024;
 
--- 1. UNION ALL → 用多个查询分别执行，应用层合并结果
--- 或在 Python/ZettaPark 中合并 DataFrame
+SELECT id FROM orders_2023
+INTERSECT
+SELECT id FROM orders_2024;
 
--- 2. INTERSECT → 用 INNER JOIN + DISTINCT 替代
-SELECT DISTINCT a.id 
-FROM orders_2023 a
-INNER JOIN orders_2024 b ON a.id = b.id;
-
--- 3. EXCEPT → 用 LEFT JOIN + WHERE NULL 替代
-SELECT a.id 
-FROM orders_2023 a
-LEFT JOIN orders_2024 b ON a.id = b.id
-WHERE b.id IS NULL;
-
--- 4. UNION（去重）→ 用 UNION ALL + DISTINCT 替代
-SELECT DISTINCT id FROM (
-    SELECT id FROM orders_2023
-    UNION ALL
-    SELECT id FROM orders_2024
-);
+SELECT id FROM orders_2023
+EXCEPT
+SELECT id FROM orders_2024;
 ```
 
 ---
