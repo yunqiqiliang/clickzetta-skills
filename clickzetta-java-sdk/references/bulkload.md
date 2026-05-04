@@ -9,7 +9,7 @@
 <dependency>
     <groupId>com.clickzetta</groupId>
     <artifactId>clickzetta-java</artifactId>
-    <version>1.3.1</version>
+    <version>2.0.0</version>
 </dependency>
 ```
 
@@ -100,13 +100,16 @@ public class BulkloadFile {
     }
 
     private static void initialize() throws Exception {
-        // BulkloadStream URL 用 virtualcluster= 参数（注意：不是 vcluster=）
-        String url = MessageFormat.format(
-            "jdbc:clickzetta://{0}/{1}?schema={2}&username={3}&password={4}&virtualcluster={5}",
-            "your_instance.cn-shanghai-alicloud.api.clickzetta.com",
-            workspace, schema, user, password, vc
-        );
-        client = ClickZettaClient.newBuilder().url(url).build();
+        // 推荐：2.0.0 起支持显式参数
+        client = ClickZettaClient.newBuilder()
+            .service("cn-shanghai-alicloud.api.clickzetta.com")
+            .instance("your_instance")
+            .workspace(workspace)
+            .schema(schema)
+            .username(user)
+            .password(password)
+            .vcluster(vc)
+            .build();
         bulkloadStream = client.newBulkloadStreamBuilder()
             .schema(schema)
             .table(table)

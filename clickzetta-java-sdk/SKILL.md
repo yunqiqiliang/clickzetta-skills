@@ -27,7 +27,7 @@ Java SDK 提供两种写入接口：
 <dependency>
     <groupId>com.clickzetta</groupId>
     <artifactId>clickzetta-java</artifactId>
-    <version>1.3.1</version>
+    <version>2.0.0</version>
 </dependency>
 ```
 
@@ -46,19 +46,36 @@ RealtimeStream + Kafka 还需要：
 ## 连接 URL 格式
 
 ```java
-// BulkloadStream 用 virtualcluster 参数
-String url = MessageFormat.format(
+// 推荐：2.0.0 起支持显式参数（不依赖 URL 解析）
+ClickZettaClient client = ClickZettaClient.newBuilder()
+    .service("cn-shanghai-alicloud.api.clickzetta.com")
+    .instance("your_instance")
+    .workspace("your_workspace")
+    .schema("public")
+    .username("your_user")
+    .password("your_password")
+    .vcluster("default")
+    .build();
+
+// 兼容：URL 方式（BulkloadStream 用 virtualcluster=，RealtimeStream 用 vcluster=）
+String bulkUrl = MessageFormat.format(
     "jdbc:clickzetta://{0}.{1}/{2}?schema={3}&username={4}&password={5}&virtualcluster={6}",
     instance, region_endpoint, workspace, schema, username, password, vcluster
 );
-
-// RealtimeStream 用 vcluster 参数（注意拼写不同）
-String url = MessageFormat.format(
+String rtUrl = MessageFormat.format(
     "jdbc:clickzetta://{0}.{1}/{2}?schema={3}&username={4}&password={5}&vcluster={6}",
     instance, region_endpoint, workspace, schema, username, password, vcluster
 );
-
 ClickZettaClient client = ClickZettaClient.newBuilder().url(url).build();
+```
+
+JDBC 连接（DDL / 查询）：
+
+```java
+// 2.0.0 驱动类：com.clickzetta.client.jdbc.ClickZettaDriver
+// 1.x 驱动类：com.clickzetta.jdbc.ClickZettaDriver
+Class.forName("com.clickzetta.client.jdbc.ClickZettaDriver");
+Connection conn = DriverManager.getConnection(jdbcUrl);
 ```
 
 ---
