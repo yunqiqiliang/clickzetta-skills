@@ -26,6 +26,7 @@ description: |
 - **所有索引只对新写入数据生效**，旧数据需用 `BUILD INDEX` 补建（Bloom Filter 除外，不支持 BUILD INDEX）
 - Bloom Filter 旧数据生效方法：`INSERT OVERWRITE table SELECT * FROM table`（重写数据）
 - `BUILD INDEX` 是同步任务，大表建议按分区逐批执行
+- **索引必须与表在同一 Schema 中**，跨 Schema 创建索引会报错（`index and table must in the same schema`）
 
 ---
 

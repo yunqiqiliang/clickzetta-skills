@@ -102,7 +102,7 @@ SHOW SEMANTIC VIEWS IN my_schema;
 -- 函数
 SHOW FUNCTIONS LIKE '%date%';           -- 内置函数（按名称过滤）
 SHOW EXTERNAL FUNCTIONS;                -- 用户创建的外部函数
-SHOW EXTERNAL FUNCTIONS IN my_schema;
+-- ⚠️ 不支持 IN schema 子句，SHOW EXTERNAL FUNCTIONS IN my_schema 会报语法错误
 ```
 
 ### Catalog（联邦查询）
@@ -167,6 +167,9 @@ SHOW SHARES;
 
 ```sql
 -- 表历史（含已删除表，delete_time 为 NULL 表示未删除）
+-- 返回字段说明：
+--   delete_time：删除时间，NULL 表示表仍存在
+--   retention_time：Time Travel 保留期（秒），保留期内可用 UNDROP 恢复或 AS OF 查询历史数据
 SHOW TABLES HISTORY;
 SHOW TABLES HISTORY IN my_schema;
 SHOW TABLES HISTORY LIKE '%temp%';
@@ -290,6 +293,6 @@ LEFT JOIN information_schema.tables i
 4. **`SHOW PARTITIONS WHERE col='x'`**：不支持按分区列名过滤，用 `PARTITION(col='x')` 子句
 5. **`load_history()` 语法**：参数必须是带引号的字符串 `'schema.table'`
 6. **`DESC FUNCTION`**：仅支持用户创建的外部函数，不支持内置函数
-7. **`SHOW JOBS`**：只显示最近 7 天，最多 10000 条
+7. **`SHOW JOBS`**：只显示最近 7 天，最多 10000 条；**不支持 ORDER BY 子句**，需用 LIMIT 控制返回量
 8. **`SHOW DYNAMIC TABLE REFRESH HISTORY`**：只显示最近 7 天，最多 10000 条
 9. **`LIKE` 和 `WHERE` 不能同时用**：用 `FROM (SHOW TABLES) WHERE table_name LIKE 'x%'` 替代

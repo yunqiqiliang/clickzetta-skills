@@ -57,6 +57,7 @@ GROUP BY 1, 2;
 DESC DYNAMIC TABLE silver.orders_daily;
 
 -- 查看刷新历史（含耗时、状态、错误信息）
+-- ⚠️ 刷新完成后立即查询可能返回空结果，历史记录有数秒写入延迟，稍后重试即可
 SHOW DYNAMIC TABLE REFRESH HISTORY FOR silver.orders_daily;
 SHOW DYNAMIC TABLE REFRESH HISTORY FOR silver.orders_daily LIMIT 20;
 

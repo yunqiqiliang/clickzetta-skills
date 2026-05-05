@@ -54,6 +54,7 @@ description: |
 | 不区分大小写匹配 | `ILIKE` (SF) | `ILIKE` ✅ ClickZetta 也支持！ |
 | 差集运算 | `MINUS` (Oracle/DB2) | `MINUS` ✅ ClickZetta 也支持！ |
 | 递归 CTE | `WITH RECURSIVE` (SF/Databricks) | ❌ 不支持，需用 Python/ZettaPark 替代 |
+| **⚠️ 时间戳字符串写入** | `INSERT INTO t VALUES (1, '2026-05-01 10:00:00')` | ❌ **报错**：必须显式转换 `CAST('2026-05-01 10:00:00' AS TIMESTAMP)` 或 `TIMESTAMP '2026-05-01 10:00:00'` |
 | 集合运算 | `UNION` / `UNION ALL` / `INTERSECT` / `EXCEPT` | ✅ 全部支持 |
 | 事务 | `BEGIN; COMMIT; ROLLBACK;` | ❌ 不支持，用 MERGE 实现原子操作 |
 | MERGE 不匹配删除 | `WHEN NOT MATCHED BY SOURCE THEN DELETE` | ❌ 不支持，需两步：MERGE + DELETE |
