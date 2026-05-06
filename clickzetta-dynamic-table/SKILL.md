@@ -72,7 +72,7 @@ SHOW TABLES WHERE is_dynamic;
 
 ```sql
 -- 立即刷新（不等调度）
-ALTER DYNAMIC TABLE silver.orders_daily REFRESH;
+REFRESH DYNAMIC TABLE silver.orders_daily;
 ```
 
 ---
