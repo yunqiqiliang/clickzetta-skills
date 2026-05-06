@@ -75,6 +75,11 @@ SHOW TABLES WHERE is_dynamic;
 REFRESH DYNAMIC TABLE silver.orders_daily;
 ```
 
+> ⚠️ **Dynamic Table 创建后必须完成第一次刷新才能查询。**
+> 创建后立即查询会报 `CZLH-66000: Data is not initialized yet`。
+> 解决方法：创建后执行一次 `REFRESH DYNAMIC TABLE <name>`，等待刷新完成再查询。
+> 也可以等待系统按调度自动完成第一次刷新。
+
 ---
 
 ## TARGET_LAG vs REFRESH SCHEDULE
