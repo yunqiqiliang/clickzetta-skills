@@ -25,9 +25,9 @@ description: >
 | 功能 | ❌ 错误写法（Snowflake/标准SQL） | ✅ ClickZetta 正确写法 |
 |---|---|---|
 | 动态表计算集群 | `WAREHOUSE = compute_wh` | `VCLUSTER default_ap`（直接跟名称，不带等号） |
-| 动态表刷新调度 | `TARGET_LAG = '1 minutes'` | `REFRESH interval 1 MINUTE VCLUSTER default_ap` |
+| 动态表刷新调度 | `TARGET_LAG = '1 minutes'` | `REFRESH INTERVAL 1 MINUTE vcluster default_ap` |
 | Kafka 读取函数 | `KAFKA_SOURCE(...)` | `READ_KAFKA(KAFKA_BROKER => ..., KAFKA_DATA_FORMAT => 'json')` |
-| 物化视图定时刷新 | `REFRESH EVERY 1 HOUR` | `REFRESH AUTO EVERY '1 hours'`（带引号，带 AUTO 关键字） |
+| 物化视图定时刷新 | `REFRESH EVERY 1 HOUR` | `REFRESH INTERVAL 60 MINUTE vcluster default_ap`（与动态表语法相同） |
 | 物化视图手动刷新 | `REFRESH MATERIALIZED VIEW` 放在 CREATE 里 | 单独执行 `REFRESH MATERIALIZED VIEW <name>;` |
 | 修改动态表 SQL | `ALTER DYNAMIC TABLE ... AS ...` | `CREATE OR REPLACE DYNAMIC TABLE ...`（ALTER 不支持修改 AS 子句） |
 
@@ -250,8 +250,7 @@ WHERE __change_type IN ('INSERT', 'UPDATE_AFTER', 'DELETE');
 -- 创建每小时刷新的物化视图
 CREATE OR REPLACE MATERIALIZED VIEW dws.mv_daily_revenue
   COMMENT '每日收入汇总，供 BI 工具查询'
-  REFRESH AUTO EVERY '1 hours'
-  VCLUSTER = default_ap
+  REFRESH INTERVAL 60 MINUTE vcluster default_ap
 AS
 SELECT
   DATE(created_at) AS day,
