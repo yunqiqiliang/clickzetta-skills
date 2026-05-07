@@ -174,7 +174,7 @@ REFRESH DYNAMIC TABLE change_table;
 - **列定义可省略类型**：`CREATE DYNAMIC TABLE dt (i, j) AS SELECT ...` 类型由 SELECT 推断
 - **DROP 语法**：必须用 `DROP DYNAMIC TABLE dt_name`，不能用 `DROP TABLE dt_name`（会报错）
 - **UNDROP 语法**：必须用 `UNDROP TABLE dt_name`，不能用 `UNDROP DYNAMIC TABLE dt_name`
-- **DESC 不支持 EXTENDED**：`DESC DYNAMIC TABLE dt_name EXTENDED` 不支持，直接用 `DESC TABLE dt_name`
+- **DESC 语法**：动态表用 `DESC TABLE dt_name`，不要写 `DESC DYNAMIC TABLE dt_name EXTENDED`（EXTENDED 不支持）
 
 ## 故障排除
 
