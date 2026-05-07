@@ -172,6 +172,9 @@ REFRESH DYNAMIC TABLE change_table;
 - **CREATE OR REPLACE 风险**：涉及计算逻辑变化时会触发全量刷新，大表可能耗时较长
 - **schema 前缀**：所有 ALTER/CREATE 语句中表名应包含 schema 前缀
 - **列定义可省略类型**：`CREATE DYNAMIC TABLE dt (i, j) AS SELECT ...` 类型由 SELECT 推断
+- **DROP 语法**：必须用 `DROP DYNAMIC TABLE dt_name`，不能用 `DROP TABLE dt_name`（会报错）
+- **UNDROP 语法**：必须用 `UNDROP TABLE dt_name`，不能用 `UNDROP DYNAMIC TABLE dt_name`
+- **DESC 不支持 EXTENDED**：`DESC DYNAMIC TABLE dt_name EXTENDED` 不支持，直接用 `DESC TABLE dt_name`
 
 ## 故障排除
 
@@ -179,6 +182,9 @@ REFRESH DYNAMIC TABLE change_table;
 |---|---|---|
 | ALTER 报 "Syntax error at or near 'REFRESH'" | `ALTER ... SET REFRESH INTERVAL` 语法不存在 | 使用 `CREATE OR REPLACE DYNAMIC TABLE ... REFRESH INTERVAL ...` 重建 |
 | ALTER 报 "unsupported operation" | 尝试对动态表执行 B 类操作的 ALTER 语法 | 使用 CREATE OR REPLACE 重建 |
+| `DROP TABLE dt_name` 报错 | 动态表必须用 `DROP DYNAMIC TABLE` | 改为 `DROP DYNAMIC TABLE dt_name` |
+| `UNDROP DYNAMIC TABLE` 报错 | UNDROP 不支持 DYNAMIC TABLE 关键字 | 改为 `UNDROP TABLE dt_name` |
+| `DESC DYNAMIC TABLE ... EXTENDED` 报错 | 不支持 EXTENDED 参数 | 改为 `DESC TABLE dt_name`（不加 EXTENDED） |
 | UPDATE/DELETE 报 "MV__KEY" 相关错误 | 动态表有隐藏列 MV__KEY，默认禁止 DML | 先执行 `SET cz.sql.dt.allow.dml = true;` |
 | CREATE OR REPLACE 后数据为空 | AS SELECT 子句引用的源表或列不正确 | 先用 `read_query` 验证 SELECT 子句 |
 | CREATE OR REPLACE 后全量刷新 | 新增列参与了计算逻辑（JOIN key、GROUP key 等） | 预期行为，等待全量刷新完成 |
