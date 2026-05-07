@@ -80,6 +80,23 @@
       ]
     },
     {
+      "name": "clickzetta-dynamic-table",
+      "description": "ClickZetta Dynamic Table（动态表）使用指南，覆盖创建、修改、增量计算配置和性能优化。包含静态分区 DT vs 动态分区 DT 声明策略、SQL 支持矩阵、增量配置参考、刷新历史查询、ALTER 操作指南，以及维度表 JOIN、性能优化、非分区表风险等最佳实践。",
+      "files": [
+        "SKILL.md",
+        "dt-creator/SKILL.md",
+        "dt-creator/references/dt-declaration-strategy.md",
+        "dt-creator/references/sql-limitations.md",
+        "dt-creator/references/incremental-config-reference.md",
+        "dt-creator/references/refresh-history-guide.md",
+        "dynamic-table-alter/SKILL.md",
+        "best-practices/dimension-table-join-guide.md",
+        "best-practices/performance-optimization.md",
+        "best-practices/non-partitioned-merge-into-warning.md",
+        "best-practices/medallion-and-stream-patterns.md"
+      ]
+    },
+    {
       "name": "clickzetta-dba-guide",
       "description": "ClickZetta Lakehouse DBA 日常运维操作手册。集中覆盖 DBA 最常用的 8 类操作：",
       "files": [
