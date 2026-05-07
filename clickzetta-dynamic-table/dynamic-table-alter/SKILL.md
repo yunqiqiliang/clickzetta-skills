@@ -70,6 +70,7 @@ ALTER DYNAMIC TABLE dt_name UNSET PROPERTIES('key');
 ### 步骤 3：执行 CREATE OR REPLACE 重建（仅 B 类操作）
 
 1. 用 `read_query` 执行 `SHOW CREATE TABLE schema_name.table_name` 获取原始 DDL
+   > ⚠️ `SHOW CREATE TABLE` 不支持 LIMIT/WHERE 子句，直接执行即可
 2. 解析出：列定义、REFRESH 子句、AS SELECT 子句、COMMENT 等
 3. 根据操作修改对应部分
 4. 用 `write_query` 执行重建 SQL
