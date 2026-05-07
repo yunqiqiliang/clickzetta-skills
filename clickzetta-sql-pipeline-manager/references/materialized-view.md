@@ -1,9 +1,8 @@
 # Materialized View（物化视图）SQL 参考
 
 > **⚠️ ClickZetta 特有语法**
-> - 手动刷新：`REFRESH MATERIALIZED VIEW <name>;`（官方文档确认支持）
-> - 定时刷新写法：`REFRESH AUTO EVERY '1 hours'`（⚠️ 仅特定版本支持，使用前请验证）
-> - 如果 `REFRESH AUTO` 报语法错误，说明当前环境不支持定时刷新，请改用外部调度 + 手动 REFRESH
+> - 定时刷新：`REFRESH INTERVAL 10 MINUTE vcluster default`（与动态表语法相同）
+> - 手动刷新：`REFRESH MATERIALIZED VIEW <name>;`
 > - 修改注释用 `ALTER TABLE`，不是 `ALTER MATERIALIZED VIEW`
 
 物化视图将查询结果预计算并物理存储，适合固定维度的聚合加速场景。与动态表的区别：物化视图支持手动或定时刷新，不支持增量刷新。
@@ -14,28 +13,24 @@
 CREATE [ OR REPLACE ] MATERIALIZED VIEW <name>
   [ COMMENT = '<comment>' ]
   [ BUILD DEFERRED ]
+  [ REFRESH INTERVAL <N> { SECOND | MINUTE | HOUR | DAY } vcluster <vcluster_name> ]
   [ DISABLE QUERY REWRITE ]
-  [ REFRESH
-      { MANUAL
-      | AUTO EVERY '<num> { seconds | minutes | hours | days }'  -- ⚠️ 仅特定版本支持
-      }
-  ]
-  [ VCLUSTER = <vcluster_name> ]
 AS
   <query>;
 ```
 
 **关键参数：**
-- `REFRESH MANUAL`：只能手动触发刷新（默认）
-- `REFRESH AUTO EVERY '1 hours'`：定时自动刷新（⚠️ 仅特定版本支持，使用前请验证）
+- `REFRESH INTERVAL 10 MINUTE vcluster default`：定时自动刷新（与动态表语法相同）
+- 不写 REFRESH 子句：只能手动触发 `REFRESH MATERIALIZED VIEW <name>;`
 - `BUILD DEFERRED`：延迟构建，创建时不立即计算结果
 - `DISABLE QUERY REWRITE`：禁用查询改写（不自动用 MV 加速查询）
-- `VCLUSTER`：执行刷新的计算集群
 
 **示例：**
 ```sql
--- 基础物化视图（立即构建）
-CREATE MATERIALIZED VIEW dw.mv_dept_stats AS
+-- 定时自动刷新的物化视图（每 10 分钟）
+CREATE MATERIALIZED VIEW mv_dept_stats
+REFRESH INTERVAL 10 MINUTE vcluster default
+AS
 SELECT
   d.dept_id,
   d.dept_name,
@@ -45,10 +40,11 @@ FROM departments d
 JOIN employees e ON d.dept_id = e.dept_id
 GROUP BY d.dept_id, d.dept_name;
 
--- 延迟构建 + 禁用查询改写（用于 CREATE OR REPLACE 加列场景）
-CREATE OR REPLACE MATERIALIZED VIEW dw.mv_dept_stats
-  BUILD DEFERRED
-  DISABLE QUERY REWRITE
+-- 修改刷新周期（需要 CREATE OR REPLACE）
+CREATE OR REPLACE MATERIALIZED VIEW mv_dept_stats
+BUILD DEFERRED
+REFRESH INTERVAL 20 MINUTE vcluster default
+DISABLE QUERY REWRITE
 AS
 SELECT
   d.dept_id,
@@ -62,7 +58,7 @@ JOIN employees e ON d.dept_id = e.dept_id
 GROUP BY d.dept_id, d.dept_name, d.location;
 
 -- 手动刷新
-REFRESH MATERIALIZED VIEW dw.mv_dept_stats;
+REFRESH MATERIALIZED VIEW mv_dept_stats;
 ```
 
 ## ALTER MATERIALIZED VIEW
