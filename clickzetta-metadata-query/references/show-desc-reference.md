@@ -43,8 +43,8 @@ SHOW <object_type_plural>
 | CATALOG | ✅ | ✅ | `category` |
 | ROLE | ✅ | ❌ | — |
 | USER | ❌ | ❌ | — |
-| FUNCTION | ✅ | ❌ | — |
-| GRANT | ❌ | ❌ | 用 `SHOW GRANTS ON/TO` 语法代替 |
+| FUNCTION | ❌ | ❌ | `SHOW FUNCTIONS` 不支持 LIKE/WHERE；用 `SHOW EXTERNAL FUNCTIONS LIKE '%xxx%'` 查用户自定义函数 |
+| GRANT | ❌ | ❌ | 用 `SHOW GRANTS ON/TO` 语法代替；⚠️ 不支持 LIMIT |
 
 ---
 
@@ -211,6 +211,28 @@ SHOW DYNAMIC TABLE REFRESH HISTORY WHERE name = 'my_dt' AND state = 'SUCCEED' LI
 
 ---
 
+## DESC 命令支持的对象类型
+
+| 对象类型 | 语法 | EXTENDED 支持 | 说明 |
+|---|---|---|---|
+| table/view/dynamic_table/materialized_view/external_table | `DESC TABLE [EXTENDED] name` | ✅ | 所有表类型统一用 DESC TABLE |
+| semantic_view | `DESC EXTENDED name` | — | 返回维度/指标/逻辑表定义 |
+| schema | `DESC SCHEMA [EXTENDED] name` | ✅ | EXTENDED 返回创建者、时间、权限等 |
+| vcluster | `DESC VCLUSTER name` | ❌ | — |
+| connection | `DESC CONNECTION [EXTENDED] name` | ✅ | EXTENDED 返回完整属性 |
+| catalog | `DESC CATALOG name` | ❌ | — |
+| stream/table_stream | `DESC TABLE STREAM name` | ❌ | — |
+| job | `DESC JOB job_id` | ❌ | object_name 为 job_id |
+| share | `DESC SHARE name` | ❌ | 返回 share 中包含的对象 |
+| index | `DESC INDEX [EXTENDED] name` | ✅ | — |
+| function/external_function | `DESC FUNCTION [EXTENDED] name` | ✅ | 仅支持用户创建的函数 |
+| volume | `DESC VOLUME name` | ❌ | — |
+| pipe | `DESC PIPE name` | ❌ | — |
+
+> ⚠️ `DESC FUNCTION` 不支持内置函数（如 `year`、`count`），只支持用户创建的外部函数。
+
+---
+
 ## DESC HISTORY 返回字段
 
 | 字段 | 说明 |
@@ -247,22 +269,19 @@ SELECT * FROM load_history('schema_name.table_name') LIMIT 100;
 
 ## FROM (SHOW ...) 子查询
 
-SHOW 命令结果可直接作为子查询，支持 WHERE/GROUP BY/JOIN：
+> ⚠️ **不支持**：`SELECT ... FROM (SHOW TABLES)` 语法在 ClickZetta 中会报错（"table or view not found - SHOW TABLES"）。
+
+替代方案：直接在 SHOW 命令上使用 WHERE 过滤：
 
 ```sql
--- 过滤
+-- ❌ 不支持
 SELECT schema_name, table_name FROM (SHOW TABLES) WHERE is_view = false;
 
--- 聚合
-SELECT state, COUNT(*) FROM (SHOW VCLUSTERS) GROUP BY state;
-
--- 结合 information_schema
-SELECT t.table_name, i.row_count
-FROM (SHOW TABLES WHERE is_dynamic = true) t
-LEFT JOIN information_schema.tables i ON t.table_name = i.table_name;
+-- ✅ 正确做法：直接在 SHOW 命令上过滤
+SHOW TABLES WHERE is_view = false;
+SHOW TABLES WHERE is_dynamic = true;
+SHOW VCLUSTERS WHERE state = 'RUNNING';
 ```
-
-**不支持**：创建包含 SHOW 命令的视图（`CREATE VIEW AS SELECT * FROM (SHOW TABLES)` 会失败）
 
 ---
 
@@ -270,10 +289,13 @@ LEFT JOIN information_schema.tables i ON t.table_name = i.table_name;
 
 | 命令 | 陷阱 | 正确做法 |
 |---|---|---|
-| `SHOW SCHEMAS WHERE type=...` | 不支持 WHERE | `SHOW SCHEMAS EXTENDED` 后应用层过滤 |
+| `SHOW SCHEMAS WHERE type=...` | `type` 字段不存在 | `SHOW SCHEMAS WHERE schema_name LIKE '%xxx%'` |
 | `SHOW VIEWS IN schema` | 语法不支持 | `SHOW TABLES WHERE is_view=true` |
-| `SHOW VOLUMES IN schema` | 语法不支持 | `SHOW VOLUMES WHERE schema_name='x'` |
+| `SHOW VOLUMES IN schema` | 语法不支持 | `SHOW VOLUMES WHERE external=true/false` 或 `WHERE connection='xxx'` |
+| `SHOW VOLUMES WHERE schema_name='x'` | `schema_name` 字段不可过滤 | `SHOW VOLUMES LIKE '%name%'` |
 | `SHOW PARTITIONS t WHERE dt='x'` | 不支持按分区列 WHERE | `SHOW PARTITIONS t PARTITION(dt='x')` |
 | `load_history(schema.table)` | 需要字符串 | `load_history('schema.table')` |
 | `DESC FUNCTION year` | 不支持内置函数 | 仅支持用户创建的外部函数 |
-| `LIKE` + `WHERE` 同时用 | 不支持 | 用 `FROM (SHOW ...) WHERE table_name LIKE 'x%'` |
+| `LIKE` + `WHERE` 同时用 | 不支持 | 用 `WHERE table_name LIKE 'x%'` 代替 |
+| `SHOW GRANTS ... LIMIT n` | 不支持 LIMIT | 直接 `SHOW GRANTS TO USER name` |
+| `SHOW FUNCTIONS LIKE '%xxx%'` | 不支持 LIKE | 用 `SHOW EXTERNAL FUNCTIONS LIKE '%xxx%'` |
