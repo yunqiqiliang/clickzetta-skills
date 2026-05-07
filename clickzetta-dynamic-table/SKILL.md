@@ -34,6 +34,11 @@ REFRESH DYNAMIC TABLE silver.orders_daily;
 
 -- 4. 列出所有 Dynamic Table
 SHOW TABLES IN silver WHERE is_dynamic;
+-- 返回列：schema_name, table_name, is_view, is_materialized_view, is_external, is_dynamic
+-- ⚠️ 列名是 table_name（不是 name），过滤用 WHERE table_name = 'xxx'
+
+-- 5. 查看指定表是否为动态表
+SHOW TABLES IN silver WHERE table_name = 'orders_daily';
 ```
 
 ### 调度方式
