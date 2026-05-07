@@ -17,6 +17,9 @@ AS SELECT ...;
 
 -- 方式2：Session 配置（在 REFRESH 前设置，灵活可动态调整）
 -- set CZ_OPTIMIZER_INCREMENTAL_DIMENSION_TABLES=dim_table1:dim_table2
+
+-- 查看已设置的 TBLPROPERTIES（使用 SHOW CREATE TABLE，不支持 SHOW TBLPROPERTIES）
+SHOW CREATE TABLE my_dt;
 ```
 
 ## 各 JOIN 类型下的增量行为

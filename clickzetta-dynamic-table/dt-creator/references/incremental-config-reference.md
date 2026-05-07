@@ -87,6 +87,9 @@ CREATE DYNAMIC TABLE my_dt
 TBLPROPERTIES('mv_const_tables' = 'dim_product,dim_region')
 AS SELECT ...;
 
+-- 查看已设置的 TBLPROPERTIES（⚠️ 不支持 SHOW TBLPROPERTIES 语法）
+SHOW CREATE TABLE my_dt;
+
 -- 或通过 Session 配置（在 REFRESH 语句前执行）
 SET cz.optimizer.incremental.dimension.tables = 'dim_product,dim_region';
 REFRESH DYNAMIC TABLE my_dt;
