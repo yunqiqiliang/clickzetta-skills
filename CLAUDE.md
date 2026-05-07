@@ -89,7 +89,8 @@ FROM source_table;
      "files": ["SKILL.md", "references/xxx.md"]
    }
    ```
-4. 提交并推送
+4. 更新 `README.md` 的 Skills 总览表，添加新 Skill 到对应类别
+5. 提交并推送
 
 ## 修改现有 Skill
 
