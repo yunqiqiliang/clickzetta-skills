@@ -56,10 +56,12 @@ ALTER DYNAMIC TABLE dt_name UNSET PROPERTIES('key');
 
 **B. CREATE OR REPLACE 操作**（6种，需要重建动态表）：
 
+> ⚠️ **以下操作不支持 ALTER 语法**。`ALTER DYNAMIC TABLE ... SET REFRESH INTERVAL` 等语法不存在，会报语法错误。必须使用 `CREATE OR REPLACE DYNAMIC TABLE` 重建。
+
 这些操作涉及 SQL 查询逻辑变化，无法通过 ALTER 直接完成：
 
-7. **修改调度周期**
-8. **修改计算集群**
+7. **修改调度周期** — ❌ 不支持 `ALTER ... SET REFRESH INTERVAL`
+8. **修改计算集群** — ❌ 不支持 `ALTER ... SET VCLUSTER`
 9. **增加列**
 10. **减列**
 11. **修改列类型**
@@ -174,6 +176,7 @@ REFRESH DYNAMIC TABLE change_table;
 
 | 错误 | 原因 | 解决方案 |
 |---|---|---|
+| ALTER 报 "Syntax error at or near 'REFRESH'" | `ALTER ... SET REFRESH INTERVAL` 语法不存在 | 使用 `CREATE OR REPLACE DYNAMIC TABLE ... REFRESH INTERVAL ...` 重建 |
 | ALTER 报 "unsupported operation" | 尝试对动态表执行 B 类操作的 ALTER 语法 | 使用 CREATE OR REPLACE 重建 |
 | UPDATE/DELETE 报 "MV__KEY" 相关错误 | 动态表有隐藏列 MV__KEY，默认禁止 DML | 先执行 `SET cz.sql.dt.allow.dml = true;` |
 | CREATE OR REPLACE 后数据为空 | AS SELECT 子句引用的源表或列不正确 | 先用 `read_query` 验证 SELECT 子句 |
