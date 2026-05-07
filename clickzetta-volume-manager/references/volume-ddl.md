@@ -172,16 +172,23 @@ SUBDIRECTORY 'data/';
 ## COPY INTO VOLUME（导出到 Volume）
 
 ```sql
--- 导出表到 Volume
+-- 导出表到 External Volume
 COPY INTO VOLUME my_oss_volume
 SUBDIRECTORY 'export/'
-FROM my_table
-USING CSV
-OPTIONS('header' = 'true');
+FROM TABLE my_table
+FILE_FORMAT = (TYPE = CSV);
 
 -- 导出查询结果
 COPY INTO VOLUME my_oss_volume
 SUBDIRECTORY 'export/'
 FROM (SELECT * FROM orders WHERE year = 2024)
-USING PARQUET;
+FILE_FORMAT = (TYPE = PARQUET COMPRESSION = 'GZIP');
+
+-- 导出到 User Volume
+COPY INTO USER VOLUME
+SUBDIRECTORY 'export/'
+FROM TABLE my_table
+FILE_FORMAT = (TYPE = CSV);
 ```
+
+> ⚠️ 导出用 `FILE_FORMAT = (TYPE = ...)` 指定格式，不是 `USING`。`USING` 仅用于 `SELECT FROM VOLUME`。

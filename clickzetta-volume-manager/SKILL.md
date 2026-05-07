@@ -185,32 +185,33 @@ OPTIONS('header' = 'true');
 ### 导出表到 Volume
 
 ```sql
--- 导出整张表为 Parquet
+-- 导出整张表为 Parquet（到 External Volume）
 COPY INTO VOLUME my_oss_volume
 SUBDIRECTORY 'export/'
-FROM my_table
-USING PARQUET;
+FROM TABLE my_table
+FILE_FORMAT = (TYPE = PARQUET);
 
--- 导出查询结果为 CSV
+-- 导出查询结果为 CSV（带压缩）
 COPY INTO VOLUME my_oss_volume
 SUBDIRECTORY 'export/2024/'
 FROM (SELECT * FROM orders WHERE year = 2024)
-USING CSV
-OPTIONS('header' = 'true');
-
--- 导出为 JSON 格式
-COPY INTO VOLUME my_oss_volume
-SUBDIRECTORY 'export/json/'
-FROM (SELECT * FROM orders LIMIT 1000)
-USING JSON;
+FILE_FORMAT = (TYPE = CSV COMPRESSION = 'GZIP');
 
 -- 导出到 User Volume
 COPY INTO USER VOLUME
 SUBDIRECTORY 'my_export/'
-FROM my_table
-USING CSV
-OPTIONS('header' = 'true');
+FROM TABLE my_table
+FILE_FORMAT = (TYPE = CSV);
+
+-- 导出到 Table Volume
+COPY INTO TABLE VOLUME my_table
+SUBDIRECTORY 'backup/'
+FROM TABLE my_table
+FILE_FORMAT = (TYPE = PARQUET);
 ```
+
+> ⚠️ `COPY INTO VOLUME` 导出使用 `FILE_FORMAT = (TYPE = CSV/PARQUET)`，不是 `USING CSV`。
+> `USING` 关键字仅用于 `SELECT FROM VOLUME` 查询文件。
 
 ### 导出到本地（GET 命令）
 
