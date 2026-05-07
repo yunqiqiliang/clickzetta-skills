@@ -27,7 +27,7 @@ GROUP BY 1, 2;
 
 -- 2. 查看状态与刷新历史
 DESC DYNAMIC TABLE silver.orders_daily;
-SHOW DYNAMIC TABLE REFRESH HISTORY FOR silver.orders_daily;
+SHOW DYNAMIC TABLE REFRESH HISTORY WHERE name = 'orders_daily' LIMIT 10;
 
 -- 3. 手动触发刷新
 REFRESH DYNAMIC TABLE silver.orders_daily;

@@ -11,22 +11,20 @@
 ### 语法
 
 ```sql
--- 查看指定 DT 的刷新历史
-SHOW DYNAMIC TABLE REFRESH HISTORY FOR my_dt;
-
--- 通过 WHERE 过滤（name 列匹配表名）
+-- 查看指定 DT 的刷新历史（使用 WHERE name = 过滤）
 SHOW DYNAMIC TABLE REFRESH HISTORY WHERE name = 'my_dt';
 
 -- 限制返回行数
-SHOW DYNAMIC TABLE REFRESH HISTORY FOR my_dt LIMIT 10;
+SHOW DYNAMIC TABLE REFRESH HISTORY WHERE name = 'my_dt' LIMIT 10;
 
--- 组合 WHERE + LIMIT
+-- 组合 WHERE + LIMIT + 状态过滤
 SHOW DYNAMIC TABLE REFRESH HISTORY WHERE name = 'my_dt' AND state = 'SUCCEED' LIMIT 20;
 
 -- MV 也支持同样的语法
-SHOW MATERIALIZED VIEW REFRESH HISTORY FOR my_mv;
 SHOW MATERIALIZED VIEW REFRESH HISTORY WHERE name = 'my_mv' LIMIT 10;
 ```
+
+> ⚠️ 注意：`FOR <table_name>` 语法在当前版本中可能返回空结果，请使用 `WHERE name = '<table_name>'` 语法。
 
 ### 输出列
 
@@ -83,7 +81,7 @@ SHOW MATERIALIZED VIEW REFRESH HISTORY WHERE name = 'my_mv' LIMIT 10;
 
 ```sql
 -- 查看最近 5 次刷新是否成功
-SHOW DYNAMIC TABLE REFRESH HISTORY FOR my_dt LIMIT 5;
+SHOW DYNAMIC TABLE REFRESH HISTORY WHERE name = 'my_dt' LIMIT 5;
 
 -- 查看失败的刷新记录
 SHOW DYNAMIC TABLE REFRESH HISTORY WHERE name = 'my_dt' AND state = 'FAILED';
