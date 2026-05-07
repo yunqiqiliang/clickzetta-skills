@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Table Lineage Graph</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root, html[data-theme="light"] {
+  --bg: #f5f7fa; --surface: #ffffff; --surface2: #f0f1f4;
+  --border: #d8dce6; --text: #1e2330; --text2: #6b7280;
+  --accent: #4f46e5; --accent2: #6366f1;
+  --red: #dc2626; --orange: #d97706; --green: #16a34a;
+  --purple: #9333ea; --teal: #0d9488; --gray: #9ca3af;
+  --shadow: rgba(0,0,0,0.08);
+}
+html[data-theme="dark"] {
+  --bg: #0f1117; --surface: #1a1d27; --surface2: #242836;
+  --border: #2e3348; --text: #e1e4ed; --text2: #8b90a0;
+  --accent: #6366f1; --accent2: #818cf8;
+  --red: #ef4444; --orange: #f59e0b; --green: #22c55e;
+  --purple: #a855f7; --teal: #14b8a6; --gray: #6b7280;
+  --shadow: rgba(0,0,0,0.3);
+}
+body { font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; height: 100vh; }
+#topbar { display: flex; align-items: center; gap: 12px; padding: 10px 20px; background: var(--surface); border-bottom: 1px solid var(--border); z-index: 100; position: relative; }
+#topbar h1 { font-size: 15px; font-weight: 600; white-space: nowrap; }
+#topbar .logo { display: flex; align-items: center; gap: 8px; }
+#topbar .logo svg { width: 22px; height: 22px; color: var(--accent); }
+.tb-sep { width: 1px; height: 24px; background: var(--border); }
+#search-box { display: flex; align-items: center; gap: 6px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px; min-width: 240px; transition: border-color 0.2s; }
+#search-box:focus-within { border-color: var(--accent); }
+#search-box svg { width: 14px; height: 14px; color: var(--text2); flex-shrink: 0; }
+#search-input { background: none; border: none; outline: none; color: var(--text); font-size: 13px; width: 100%; }
+#search-input::placeholder { color: var(--text2); }
+#search-count { font-size: 11px; color: var(--text2); white-space: nowrap; }
+.tb-btn { display: flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface2); color: var(--text2); cursor: pointer; font-size: 12px; font-weight: 500; transition: all 0.15s; white-space: nowrap; }
+.tb-btn:hover { background: var(--border); color: var(--text); }
+.tb-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+.tb-btn svg { width: 14px; height: 14px; }
+#stats { margin-left: auto; font-size: 12px; color: var(--text2); white-space: nowrap; }
+#stats .warn { color: var(--red); font-weight: 600; }
+#canvas { width: 100%; height: calc(100vh - 46px); position: relative; overflow: hidden; cursor: grab; }
+#canvas:active { cursor: grabbing; }
+#canvas svg { width: 100%; height: 100%; }
+.node-card { position: absolute; border-radius: 10px; border: 1.5px solid var(--border); background: var(--surface); padding: 0; cursor: pointer; transition: border-color 0.2s, box-shadow 0.2s, opacity 0.3s; min-width: 180px; user-select: none; }
+.node-card:hover { border-color: var(--accent2); box-shadow: 0 0 0 1px var(--accent2), 0 4px 20px rgba(99,102,241,0.15); z-index: 10; }
+.node-card.highlighted { border-color: var(--orange); box-shadow: 0 0 0 2px var(--orange), 0 4px 24px rgba(245,158,11,0.25); z-index: 20; }
+.node-card.highlighted-down { border-color: #06b6d4; box-shadow: 0 0 0 2px #06b6d4, 0 4px 24px rgba(6,182,212,0.25); z-index: 15; }
+.node-card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent), 0 4px 24px rgba(99,102,241,0.3); z-index: 30; }
+.node-card.dimmed { opacity: 0.12; pointer-events: none; }
+.node-card.search-match { border-color: var(--green); box-shadow: 0 0 0 1px var(--green), 0 2px 12px rgba(34,197,94,0.2); }
+.node-header { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--border); border-radius: 10px 10px 0 0; }
+.node-type-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.node-title { font-size: 12px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }
+.node-badge { margin-left: auto; font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0; }
+.node-body { padding: 6px 12px 8px; }
+.node-metric { display: flex; justify-content: space-between; align-items: center; padding: 2px 0; }
+.node-metric-label { font-size: 10px; color: var(--text2); }
+.node-metric-value { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.node-metric-value.acc { color: var(--orange); }
+.port { position: absolute; width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+.port-in { left: -4px; top: 50%; transform: translateY(-50%); }
+.port-out { right: -4px; top: 50%; transform: translateY(-50%); }
+#minimap { position: absolute; right: 16px; bottom: 16px; width: 180px; height: 120px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; z-index: 50; }
+#minimap canvas { width: 100%; height: 100%; }
+.minimap-viewport { position: absolute; border: 1.5px solid var(--accent); background: rgba(99,102,241,0.08); border-radius: 2px; cursor: move; pointer-events: all; }
+#tooltip { position: fixed; padding: 12px 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; pointer-events: none; font-size: 12px; line-height: 1.7; display: none; z-index: 9999; max-width: 420px; box-shadow: 0 8px 32px var(--shadow); backdrop-filter: blur(8px); }
+.tt-name { font-weight: 600; font-size: 13px; color: var(--accent2); word-break: break-all; margin-bottom: 6px; }
+.tt-row { display: flex; justify-content: space-between; gap: 20px; }
+.tt-label { color: var(--text2); } .tt-value { font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+.tt-sep { border-top: 1px solid var(--border); margin: 4px 0; }
+.tt-acc { color: var(--orange); } .tt-type { font-weight: 600; margin-bottom: 4px; }
+#legend { position: absolute; bottom: 16px; left: 16px; display: flex; align-items: center; gap: 14px; padding: 8px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font-size: 11px; color: var(--text2); z-index: 50; flex-wrap: wrap; }
+.leg-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+.leg-item { display: flex; align-items: center; gap: 3px; white-space: nowrap; }
+#edges-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+#edges-svg path { fill: none; stroke-width: 1.5; transition: stroke 0.3s, opacity 0.3s; }
+#edges-svg path.edge-normal { stroke: var(--border); }
+#edges-svg path.edge-bidirectional { stroke: var(--red); stroke-width: 2; stroke-dasharray: 6 3; }
+#edges-svg path.edge-highlighted { stroke: var(--orange); stroke-width: 2.5; opacity: 1 !important; }
+#edges-svg path.edge-highlighted-down { stroke: #06b6d4; stroke-width: 2; opacity: 1 !important; }
+#edges-svg path.edge-dimmed { opacity: 0.06; }
+#edges-svg marker { overflow: visible; }
+/* Upload overlay */
+#upload-overlay { position: fixed; inset: 0; background: var(--bg); z-index: 200; display: flex; align-items: center; justify-content: center; }
+#upload-box { background: var(--surface); border: 2px dashed var(--border); border-radius: 16px; padding: 48px 56px; text-align: center; max-width: 520px; width: 90%; }
+#upload-box h2 { font-size: 22px; margin-bottom: 8px; }
+#upload-box p { color: var(--text2); font-size: 13px; margin-bottom: 24px; line-height: 1.6; }
+#upload-box .file-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+#upload-box label { font-size: 13px; font-weight: 600; min-width: 120px; text-align: right; }
+#upload-box input[type=file] { font-size: 13px; color: var(--text); }
+#upload-box .go-btn { margin-top: 20px; padding: 10px 32px; border-radius: 8px; border: none; background: var(--accent); color: white; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+#upload-box .go-btn:hover { background: var(--accent2); }
+#upload-box .go-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+#upload-box .err { color: var(--red); font-size: 12px; margin-top: 10px; min-height: 18px; }
+#upload-box .hint { color: var(--text2); font-size: 11px; margin-top: 16px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div id="upload-overlay">
+  <div id="upload-box">
+    <h2>📊 Table Lineage Viewer</h2>
+    <p>Select your CSV files to visualize the table dependency graph.<br>All processing happens locally in your browser.</p>
+    <div class="file-row"><label>table_relation.csv</label><input type="file" id="file-relation" accept=".csv"></div>
+    <div class="file-row"><label>table_cost.csv</label><input type="file" id="file-cost" accept=".csv"></div>
+    <button class="go-btn" id="go-btn" onclick="loadFiles()">Visualize</button>
+    <div class="err" id="upload-err"></div>
+    <div class="hint">Relation CSV: table_name, upstream<br>Cost CSV: table_name, dml_cru, dml_job_cnt, query_cru, query_job_cnt<br>Cost file is optional.</div>
+  </div>
+</div>
+<div id="topbar" style="display:none">
+  <div class="logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+    <h1>Table Lineage</h1>
+  </div>
+  <span class="tb-sep"></span>
+  <button class="tb-btn" onclick="showUpload()" title="Load new files">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    Load
+  </button>
+  <span class="tb-sep"></span>
+  <div id="search-box">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+    <input id="search-input" placeholder="Search tables..." autocomplete="off" spellcheck="false">
+    <span id="search-count"></span>
+  </div>
+  <span class="tb-sep"></span>
+  <button class="tb-btn" onclick="zoomIn()">+</button>
+  <button class="tb-btn" onclick="zoomOut()">−</button>
+  <button class="tb-btn" onclick="zoomFit()">Fit</button>
+  <button class="tb-btn active" onclick="clearHighlight()">Clear</button>
+  <button class="tb-btn" id="theme-toggle" onclick="toggleTheme()">
+    <svg id="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+    <svg id="theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  </button>
+  <span id="stats"></span>
+</div>
+<div id="canvas" style="display:none">
+  <svg id="edges-svg"><defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--border)"/></marker>
+    <marker id="arrow-hl" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--orange)"/></marker>
+    <marker id="arrow-bi" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--red)"/></marker>
+    <marker id="arrow-down" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#06b6d4"/></marker>
+  </defs></svg>
+  <div id="nodes-container" style="position:absolute;top:0;left:0;z-index:2;"></div>
+</div>
+<div id="legend" style="display:none">
+  <span class="leg-item"><span class="leg-dot" style="background:var(--red)"></span>CRU/day&gt;1000</span>
+  <span class="leg-item"><span class="leg-dot" style="background:var(--orange)"></span>100–1000</span>
+  <span class="leg-item"><span class="leg-dot" style="background:var(--green)"></span>&lt;100</span>
+  <span class="leg-item"><span class="leg-dot" style="background:var(--gray)"></span>No data</span>
+  <span style="color:var(--border)">│</span>
+  <span class="leg-item"><span class="leg-dot" style="background:var(--purple)"></span>Kafka</span>
+  <span class="leg-item"><span class="leg-dot" style="background:var(--teal)"></span>Volume</span>
+  <span style="color:var(--border)">│</span>
+  <span style="color:var(--red)">━━</span> Bidirectional
+  <span style="color:var(--border)">│</span>
+  <span>Click node: <span style="color:var(--orange)">■</span> upstream <span style="color:#06b6d4">■</span> downstream</span>
+</div>
+<div id="minimap" style="display:none"><canvas id="minimap-canvas"></canvas><div class="minimap-viewport" id="minimap-vp"></div></div>
+<div id="tooltip"></div>
+<!-- Data injection point: include a JS file that sets window.LINEAGE_DATA before this script -->
+<!-- e.g. <script src="lineage_data.js"></script> or inline <script>window.LINEAGE_DATA={relation:"...",cost:"..."};</script> -->
+<script>
+'use strict';
+// --- Theme (runs immediately) ---
+function applyTheme(t){document.documentElement.setAttribute('data-theme',t);localStorage.setItem('lineage-theme',t);var s=document.getElementById('theme-icon-sun'),m=document.getElementById('theme-icon-moon');if(s&&m){if(t==='dark'){s.style.display='none';m.style.display='';}else{s.style.display='';m.style.display='none';}}}
+window.toggleTheme=function(){var c=document.documentElement.getAttribute('data-theme')||'light';applyTheme(c==='dark'?'light':'dark');};
+applyTheme(localStorage.getItem('lineage-theme')||'light');
+
+// --- CSV parsing ---
+function parseCSV(text){
+  var lines=text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+  if(lines.length<2)return[];
+  var hdr=parseCSVLine(lines[0]);
+  var rows=[];
+  for(var i=1;i<lines.length;i++){
+    var vals=parseCSVLine(lines[i]);
+    if(vals.length<hdr.length)continue;
+    var obj={};
+    for(var j=0;j<hdr.length;j++) obj[hdr[j].trim().replace(/^\uFEFF/,'')]=vals[j];
+    rows.push(obj);
+  }
+  return rows;
+}
+function parseCSVLine(line){
+  var result=[],cur='',inQ=false;
+  for(var i=0;i<line.length;i++){
+    var c=line[i];
+    if(inQ){if(c==='"'){if(i+1<line.length&&line[i+1]==='"'){cur+='"';i++;}else inQ=false;}else cur+=c;}
+    else{if(c==='"')inQ=true;else if(c===','){result.push(cur);cur='';}else cur+=c;}
+  }
+  result.push(cur);
+  return result;
+}
+
+// --- Build graph from parsed CSV rows ---
+function buildGraph(relRows, costRows){
+  var edges=[], costs={};
+  // Parse relations
+  relRows.forEach(function(r){
+    var tn=(r.table_name||'').trim(), up=(r.upstream||'').trim();
+    if(!up)return;
+    up.split(',').forEach(function(u){
+      u=u.trim(); if(u&&u!==tn) edges.push({source:u,target:tn});
+    });
+  });
+  // Parse costs
+  (costRows||[]).forEach(function(r){
+    var tn=(r.table_name||'').trim();
+    if(!tn)return;
+    function cl(v){v=(v||'').trim().replace(/,/g,'');return v?parseFloat(v)||0:0;}
+    costs[tn]={dml_cru:cl(r.dml_cru),dml_job_cnt:Math.round(cl(r.dml_job_cnt)),query_cru:cl(r.query_cru),query_job_cnt:Math.round(cl(r.query_job_cnt))};
+  });
+  // Collect tables
+  var tSet={};
+  edges.forEach(function(e){tSet[e.source]=1;tSet[e.target]=1;});
+  var tableNames=Object.keys(tSet);
+  // Upstream map
+  var upMap={};
+  tableNames.forEach(function(t){upMap[t]=[];});
+  edges.forEach(function(e){if(upMap[e.target])upMap[e.target].push(e.source);});
+  // Accumulated cost via upstream sets
+  var usCache={};
+  function getUS(id){
+    if(usCache[id])return usCache[id];
+    var res={},stack=[id],vis={};
+    while(stack.length){
+      var n=stack.pop();
+      if(usCache[n]){for(var k in usCache[n])res[k]=1;continue;}
+      if(vis[n]){res[n]=1;continue;}
+      if(res[n])continue;
+      vis[n]=1;res[n]=1;
+      (upMap[n]||[]).forEach(function(u){if(usCache[u]){for(var k in usCache[u])res[k]=1;}else if(!res[u])stack.push(u);});
+    }
+    usCache[id]=res;return res;
+  }
+  var accCosts={};
+  tableNames.forEach(function(t){
+    var us=getUS(t),sum=0;
+    for(var k in us)sum+=(costs[k]||{}).dml_cru||0;
+    accCosts[t]=sum;
+  });
+  // Build nodes
+  var nodes=[];
+  tableNames.sort().forEach(function(t){
+    var c=costs[t]||{}, parts=t.split('.'), short=parts.length>=2?parts.slice(-2).join('.'):t;
+    var tt=t.startsWith('KAFKA.')?'kafka':t.startsWith('VOLUME.')?'volume':'normal';
+    nodes.push({id:t,name:t,shortName:short,type:tt,dml_cru:c.dml_cru||0,dml_job_cnt:c.dml_job_cnt||0,query_cru:c.query_cru||0,query_job_cnt:c.query_job_cnt||0,accumulated_cost:accCosts[t]||0});
+  });
+  // Bidirectional detection
+  var eSet={};
+  edges.forEach(function(e){eSet[e.source+'|'+e.target]=1;});
+  var biPairs={};
+  edges.forEach(function(e){if(eSet[e.target+'|'+e.source]){var p=[e.source,e.target].sort().join('|');biPairs[p]=1;}});
+  var links=[];
+  edges.forEach(function(e){var p=[e.source,e.target].sort().join('|');links.push({source:e.source,target:e.target,bidirectional:!!biPairs[p]});});
+  return {nodes:nodes,links:links};
+}
+
+// --- Layout + render ---
+var LAYER_GAP=280, NODE_H=76, NODE_GAP=16, NODE_W=200;
+var G={}; // global state for interactions
+
+function renderGraph(NODES,LINKS){
+  // Reset
+  var container=document.getElementById('nodes-container');
+  container.innerHTML='';
+  var edgesSvg=document.getElementById('edges-svg');
+  var oldG=edgesSvg.querySelector('g.edges-group');
+  if(oldG)oldG.remove();
+  var canvas=document.getElementById('canvas');
+
+  var nodeMap={};
+  NODES.forEach(function(n){nodeMap[n.id]=n;});
+  var childrenOf={},parentsOf={};
+  NODES.forEach(function(n){childrenOf[n.id]=[];parentsOf[n.id]=[];});
+  LINKS.forEach(function(l){childrenOf[l.source].push(l.target);parentsOf[l.target].push(l.source);});
+
+  // Layers via longest-path
+  var layers={};
+  function assignLayer(id,vis){
+    if(layers[id]!==undefined)return layers[id];
+    if(!vis)vis={};if(vis[id])return 0;vis[id]=true;
+    var mx=-1;
+    (parentsOf[id]||[]).forEach(function(p){mx=Math.max(mx,assignLayer(p,Object.assign({},vis)));});
+    layers[id]=mx+1;return layers[id];
+  }
+  NODES.forEach(function(n){assignLayer(n.id);});
+  var maxLayer=0;
+  NODES.forEach(function(n){if(layers[n.id]>maxLayer)maxLayer=layers[n.id];});
+
+  // Group by layer (for global maxLayer)
+  var lg={};
+  NODES.forEach(function(n){var l=layers[n.id];if(!lg[l])lg[l]=[];lg[l].push(n);});
+
+  // Detect connected components (subgraphs) via BFS
+  var visited={}, components=[];
+  NODES.forEach(function(n){
+    if(visited[n.id])return;
+    var comp=[],queue=[n.id];
+    while(queue.length){
+      var cur=queue.shift();
+      if(visited[cur])continue;
+      visited[cur]=true;comp.push(cur);
+      (childrenOf[cur]||[]).forEach(function(c){if(!visited[c])queue.push(c);});
+      (parentsOf[cur]||[]).forEach(function(p){if(!visited[p])queue.push(p);});
+    }
+    components.push(comp);
+  });
+  // Sort components: largest first
+  components.sort(function(a,b){return b.length-a.length;});
+
+  // Position each subgraph independently, stacked vertically
+  var SUBGRAPH_GAP=60;
+  var positions={}, curY=0;
+  components.forEach(function(comp){
+    var compSet={};comp.forEach(function(id){compSet[id]=true;});
+    // Build per-component layer groups
+    var cLg={}, cMaxLayer=0;
+    comp.forEach(function(id){var l=layers[id];if(l>cMaxLayer)cMaxLayer=l;if(!cLg[l])cLg[l]=[];cLg[l].push(nodeMap[id]);});
+    // Barycenter within component
+    for(var it=0;it<5;it++){
+      for(var l=1;l<=cMaxLayer;l++){if(!cLg[l])continue;cLg[l].forEach(function(n){var ps=parentsOf[n.id].filter(function(p){return compSet[p];});if(!ps.length){n._b=0;return;}var s=0;ps.forEach(function(p){var pg=cLg[layers[p]];s+=pg?pg.indexOf(nodeMap[p]):0;});n._b=s/ps.length;});cLg[l].sort(function(a,b){return a._b-b._b;});}
+      for(var l=cMaxLayer-1;l>=0;l--){if(!cLg[l])continue;cLg[l].forEach(function(n){var cs=childrenOf[n.id].filter(function(c){return compSet[c];});if(!cs.length){n._b=0;return;}var s=0;cs.forEach(function(c){var cg=cLg[layers[c]];s+=cg?cg.indexOf(nodeMap[c]):0;});n._b=s/cs.length;});cLg[l].sort(function(a,b){return a._b-b._b;});}
+    }
+    // Assign positions within this component, vertically centered per layer
+    var compMaxH=0;
+    for(var l=0;l<=cMaxLayer;l++){
+      var grp=cLg[l]||[],totalH=grp.length*NODE_H+(grp.length-1)*NODE_GAP;
+      if(totalH>compMaxH)compMaxH=totalH;
+    }
+    for(var l=0;l<=cMaxLayer;l++){
+      var grp=cLg[l]||[],totalH=grp.length*NODE_H+(grp.length-1)*NODE_GAP;
+      var offsetY=curY+(compMaxH-totalH)/2;
+      grp.forEach(function(n,i){positions[n.id]={x:l*LAYER_GAP,y:offsetY+i*(NODE_H+NODE_GAP)};});
+    }
+    curY+=compMaxH+SUBGRAPH_GAP;
+  });
+
+  // Helpers
+  function getColor(n){if(n.type==='kafka')return'var(--purple)';if(n.type==='volume')return'var(--teal)';if(n.dml_cru>1000)return'var(--red)';if(n.dml_cru>100)return'var(--orange)';if(n.dml_cru>0)return'var(--green)';return'var(--gray)';}
+  function fmt(v){return v>=1000?(v/1000).toFixed(1)+'k':v>=1?v.toFixed(1):v>0?v.toFixed(3):'0';}
+  function getBadge(n){if(n.type==='kafka')return'<span class="node-badge" style="background:rgba(168,85,247,0.15);color:var(--purple)">Kafka</span>';if(n.type==='volume')return'<span class="node-badge" style="background:rgba(20,184,166,0.15);color:var(--teal)">Vol</span>';return'';}
+
+  // Edges
+  var edgesGroup=document.createElementNS('http://www.w3.org/2000/svg','g');
+  edgesGroup.classList.add('edges-group');
+  edgesSvg.appendChild(edgesGroup);
+  var edgeEls={};
+  LINKS.forEach(function(l,i){
+    var path=document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.classList.add(l.bidirectional?'edge-bidirectional':'edge-normal');
+    path.setAttribute('marker-end','url(#'+(l.bidirectional?'arrow-bi':'arrow')+')');
+    edgesGroup.appendChild(path);edgeEls[i]=path;
+  });
+  function updateEdgePaths(){
+    LINKS.forEach(function(l,i){
+      var sp=positions[l.source],tp=positions[l.target];if(!sp||!tp)return;
+      var x1=sp.x+NODE_W,y1=sp.y+NODE_H/2,x2=tp.x,y2=tp.y+NODE_H/2,dx=(x2-x1)*0.4;
+      edgeEls[i].setAttribute('d','M'+x1+','+y1+' C'+(x1+dx)+','+y1+' '+(x2-dx)+','+y2+' '+x2+','+y2);
+    });
+  }
+
+  // Nodes
+  var nodeEls={};
+  NODES.forEach(function(n){
+    var div=document.createElement('div');div.className='node-card';div.dataset.id=n.id;
+    var color=getColor(n);
+    div.innerHTML='<div class="node-header"><span class="node-type-dot" style="background:'+color+'"></span><span class="node-title" title="'+n.name+'">'+n.shortName+'</span>'+getBadge(n)+'</div><div class="node-body"><div class="node-metric"><span class="node-metric-label">DML CRU/day</span><span class="node-metric-value">'+fmt(n.dml_cru)+'</span></div><div class="node-metric"><span class="node-metric-label">Acc. CRU/day</span><span class="node-metric-value acc">'+fmt(n.accumulated_cost)+'</span></div></div><span class="port port-in"></span><span class="port port-out"></span>';
+    div.style.position='absolute';div.style.left=positions[n.id].x+'px';div.style.top=positions[n.id].y+'px';div.style.width=NODE_W+'px';
+    container.appendChild(div);nodeEls[n.id]=div;
+  });
+  updateEdgePaths();
+
+  // Store globals for interactions
+  G={NODES:NODES,LINKS:LINKS,nodeMap:nodeMap,parentsOf:parentsOf,childrenOf:childrenOf,layers:layers,maxLayer:maxLayer,positions:positions,nodeEls:nodeEls,edgeEls:edgeEls,container:container,edgesSvg:edgesSvg,canvas:canvas};
+
+  // Stats
+  var biCount=LINKS.filter(function(l){return l.bidirectional;}).length;
+  var biPairs=Math.floor(biCount/2);
+  var html='<strong>'+NODES.length+'</strong> tables, <strong>'+LINKS.length+'</strong> deps, <strong>'+(maxLayer+1)+'</strong> layers, <strong>'+components.length+'</strong> subgraphs';
+  if(biPairs>0)html+=' | <span class="warn">'+biPairs+' bidirectional</span>';
+  document.getElementById('stats').innerHTML=html;
+
+  initInteractions();
+  setTimeout(zoomFit,50);
+}
+
+// --- Interactions (called after render) ---
+var vp={x:0,y:0,z:1}, panStart=null, interactionsInit=false;
+
+function computeBounds(){
+  var minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  G.NODES.forEach(function(n){var p=G.positions[n.id];if(p.x<minX)minX=p.x;if(p.y<minY)minY=p.y;if(p.x+NODE_W>maxX)maxX=p.x+NODE_W;if(p.y+NODE_H>maxY)maxY=p.y+NODE_H;});
+  return{minX:minX,minY:minY,maxX:maxX,maxY:maxY,w:maxX-minX,h:maxY-minY};
+}
+function applyTransform(){
+  G.container.style.transform='translate('+vp.x+'px,'+vp.y+'px) scale('+vp.z+')';
+  G.container.style.transformOrigin='0 0';
+  var g=G.edgesSvg.querySelector('g.edges-group');
+  if(g)g.setAttribute('transform','translate('+vp.x+','+vp.y+') scale('+vp.z+')');
+  updateMinimap();
+}
+window.zoomFit=function(){
+  var b=computeBounds(),cw=G.canvas.clientWidth,ch=G.canvas.clientHeight,pad=80;
+  var zx=(cw-pad*2)/b.w,zy=(ch-pad*2)/b.h;
+  vp.z=Math.max(Math.min(zx,zy,1.5),0.05);
+  vp.x=(cw-b.w*vp.z)/2-b.minX*vp.z;vp.y=(ch-b.h*vp.z)/2-b.minY*vp.z;
+  applyTransform();
+};
+window.zoomIn=function(){vp.z=Math.min(vp.z*1.3,5);applyTransform();};
+window.zoomOut=function(){vp.z=Math.max(vp.z*0.7,0.02);applyTransform();};
+
+// Upstream highlight
+var selectedId=null;
+function getUpstream(id,vis){if(!vis)vis={};if(vis[id])return[];vis[id]=true;var r=[id];(G.parentsOf[id]||[]).forEach(function(p){r=r.concat(getUpstream(p,vis));});return r;}
+function getDownstream(id,vis){if(!vis)vis={};if(vis[id])return[];vis[id]=true;var r=[id];(G.childrenOf[id]||[]).forEach(function(c){r=r.concat(getDownstream(c,vis));});return r;}
+function highlightLineage(id){
+  if(selectedId===id){clearHighlight();return;}
+  selectedId=id;
+  var ups={},downs={};
+  getUpstream(id).forEach(function(u){ups[u]=true;});
+  getDownstream(id).forEach(function(d){downs[d]=true;});
+  var upE={},downE={};
+  G.LINKS.forEach(function(l,i){
+    if(ups[l.source]&&ups[l.target])upE[i]=true;
+    else if(downs[l.source]&&downs[l.target])downE[i]=true;
+  });
+  G.NODES.forEach(function(n){var el=G.nodeEls[n.id];el.classList.remove('highlighted','highlighted-down','dimmed','selected');if(n.id===id)el.classList.add('selected');else if(ups[n.id])el.classList.add('highlighted');else if(downs[n.id])el.classList.add('highlighted-down');else el.classList.add('dimmed');});
+  G.LINKS.forEach(function(l,i){var p=G.edgeEls[i];p.classList.remove('edge-highlighted','edge-highlighted-down','edge-dimmed');if(upE[i]){p.classList.add('edge-highlighted');p.setAttribute('marker-end','url(#arrow-hl)');}else if(downE[i]){p.classList.add('edge-highlighted-down');p.setAttribute('marker-end','url(#arrow-down)');}else p.classList.add('edge-dimmed');});
+}
+window.clearHighlight=function(){
+  selectedId=null;
+  if(!G.NODES)return;
+  G.NODES.forEach(function(n){G.nodeEls[n.id].classList.remove('highlighted','highlighted-down','dimmed','selected','search-match');});
+  G.LINKS.forEach(function(l,i){var p=G.edgeEls[i];p.classList.remove('edge-highlighted','edge-highlighted-down','edge-dimmed');p.setAttribute('marker-end','url(#'+(l.bidirectional?'arrow-bi':'arrow')+')');});
+};
+
+// Minimap
+var mmW=180,mmH=120;
+function updateMinimap(){
+  var mc=document.getElementById('minimap-canvas'),ctx=mc.getContext('2d'),mvp=document.getElementById('minimap-vp');
+  mc.width=mmW;mc.height=mmH;
+  if(!G.NODES||!G.NODES.length)return;
+  var b=computeBounds();if(b.w===0||b.h===0)return;
+  var pad=8,sx=(mmW-pad*2)/b.w,sy=(mmH-pad*2)/b.h,s=Math.min(sx,sy);
+  ctx.clearRect(0,0,mmW,mmH);
+  ctx.strokeStyle='rgba(100,120,160,0.3)';ctx.lineWidth=0.5;
+  G.LINKS.forEach(function(l){var sp=G.positions[l.source],tp=G.positions[l.target];if(!sp||!tp)return;ctx.beginPath();ctx.moveTo(pad+(sp.x+NODE_W/2-b.minX)*s,pad+(sp.y+NODE_H/2-b.minY)*s);ctx.lineTo(pad+(tp.x+NODE_W/2-b.minX)*s,pad+(tp.y+NODE_H/2-b.minY)*s);ctx.stroke();});
+  G.NODES.forEach(function(n){var p=G.positions[n.id],x=pad+(p.x-b.minX)*s,y=pad+(p.y-b.minY)*s;ctx.fillStyle=G.nodeEls[n.id].classList.contains('highlighted')?'#f59e0b':G.nodeEls[n.id].classList.contains('dimmed')?'rgba(100,120,160,0.2)':'#6366f1';ctx.fillRect(x,y,Math.max(NODE_W*s,2),Math.max(NODE_H*s,1));});
+  var cw=G.canvas.clientWidth,ch=G.canvas.clientHeight;
+  var vl=(-vp.x/vp.z-b.minX)*s+pad,vt=(-vp.y/vp.z-b.minY)*s+pad,vw=(cw/vp.z)*s,vh=(ch/vp.z)*s;
+  mvp.style.left=Math.max(0,vl)+'px';mvp.style.top=Math.max(0,vt)+'px';mvp.style.width=Math.min(vw,mmW)+'px';mvp.style.height=Math.min(vh,mmH)+'px';
+}
+
+function initInteractions(){
+  if(interactionsInit)return;interactionsInit=true;
+  var canvas=document.getElementById('canvas');
+  // Pan
+  canvas.addEventListener('pointerdown',function(e){if(e.target.closest('.node-card')||e.target.closest('#minimap'))return;panStart={mx:e.clientX,my:e.clientY,vx:vp.x,vy:vp.y};canvas.setPointerCapture(e.pointerId);});
+  canvas.addEventListener('pointermove',function(e){if(panStart){vp.x=panStart.vx+(e.clientX-panStart.mx);vp.y=panStart.vy+(e.clientY-panStart.my);applyTransform();}});
+  canvas.addEventListener('pointerup',function(){panStart=null;});
+  // Wheel zoom
+  canvas.addEventListener('wheel',function(e){e.preventDefault();var rect=canvas.getBoundingClientRect(),mx=e.clientX-rect.left,my=e.clientY-rect.top,f=e.deltaY<0?1.1:0.9,nz=Math.max(0.02,Math.min(5,vp.z*f));vp.x=mx-(mx-vp.x)*(nz/vp.z);vp.y=my-(my-vp.y)*(nz/vp.z);vp.z=nz;applyTransform();},{passive:false});
+  // Node click
+  G.container.addEventListener('click',function(e){var c=e.target.closest('.node-card');if(c)highlightLineage(c.dataset.id);});
+  canvas.addEventListener('click',function(e){if(!e.target.closest('.node-card')&&!e.target.closest('#minimap'))clearHighlight();});
+  // Tooltip
+  var tooltip=document.getElementById('tooltip'),mouseX=0,mouseY=0;
+  document.addEventListener('mousemove',function(e){mouseX=e.clientX;mouseY=e.clientY;});
+  function posT(){if(tooltip.style.display!=='block')return;var tw=tooltip.offsetWidth,th=tooltip.offsetHeight,x=mouseX+16,y=mouseY-10;if(x+tw>window.innerWidth-10)x=mouseX-tw-16;if(y+th>window.innerHeight-10)y=window.innerHeight-th-10;tooltip.style.left=x+'px';tooltip.style.top=y+'px';}
+  G.container.addEventListener('mouseover',function(e){
+    var card=e.target.closest('.node-card');if(!card)return;var n=G.nodeMap[card.dataset.id];if(!n)return;
+    var tl='';if(n.type==='kafka')tl='<div class="tt-type" style="color:var(--purple)">Kafka Topic</div>';if(n.type==='volume')tl='<div class="tt-type" style="color:var(--teal)">Volume File</div>';
+    tooltip.innerHTML='<div class="tt-name">'+n.name+'</div>'+tl+'<div class="tt-row"><span class="tt-label">Layer</span><span class="tt-value">'+G.layers[n.id]+'</span></div><div class="tt-row"><span class="tt-label">DML CRU/day</span><span class="tt-value">'+n.dml_cru.toFixed(3)+'</span></div><div class="tt-row"><span class="tt-label">DML Jobs/day</span><span class="tt-value">'+n.dml_job_cnt+'</span></div><div class="tt-sep"></div><div class="tt-row"><span class="tt-label tt-acc">Acc. CRU/day</span><span class="tt-value tt-acc">'+n.accumulated_cost.toFixed(3)+'</span></div><div style="font-size:10px;color:var(--text2)">own + all upstream daily costs</div><div class="tt-row" style="margin-top:4px"><span class="tt-label">Query CRU/day</span><span class="tt-value">'+n.query_cru.toFixed(3)+'</span></div><div class="tt-row"><span class="tt-label">Query Jobs/day</span><span class="tt-value">'+n.query_job_cnt+'</span></div>';
+    tooltip.style.display='block';posT();
+  });
+  G.container.addEventListener('mouseout',function(e){var c=e.target.closest('.node-card');if(c&&!c.contains(e.relatedTarget))tooltip.style.display='none';});
+  setInterval(posT,50);
+  // Search
+  var si=document.getElementById('search-input'),sc=document.getElementById('search-count');
+  si.addEventListener('input',function(){
+    var q=si.value.toLowerCase().trim();
+    if(!q){clearHighlight();sc.textContent='';return;}
+    var m=0;G.NODES.forEach(function(n){var el=G.nodeEls[n.id];el.classList.remove('search-match','dimmed','highlighted','selected');if(n.name.toLowerCase().indexOf(q)>=0||n.shortName.toLowerCase().indexOf(q)>=0){el.classList.add('search-match');m++;}});
+    sc.textContent=m+' found';
+  });
+  // Minimap nav
+  var mmDrag=null,mm=document.getElementById('minimap');
+  function mmNav(mx,my){var b=computeBounds();if(b.w===0||b.h===0)return;var pad=8,sx=(mmW-pad*2)/b.w,sy=(mmH-pad*2)/b.h,s=Math.min(sx,sy),cw=G.canvas.clientWidth,ch=G.canvas.clientHeight;var gx=(mx-pad)/s+b.minX,gy=(my-pad)/s+b.minY;vp.x=-gx*vp.z+cw/2;vp.y=-gy*vp.z+ch/2;applyTransform();}
+  mm.addEventListener('pointerdown',function(e){e.preventDefault();e.stopPropagation();mm.setPointerCapture(e.pointerId);mmDrag=true;var r=mm.getBoundingClientRect();mmNav(e.clientX-r.left,e.clientY-r.top);});
+  mm.addEventListener('pointermove',function(e){if(!mmDrag)return;var r=mm.getBoundingClientRect();mmNav(e.clientX-r.left,e.clientY-r.top);});
+  mm.addEventListener('pointerup',function(){mmDrag=null;});
+  // Keyboard
+  document.addEventListener('keydown',function(e){if(e.target===si)return;if(e.key==='f'||e.key==='F')zoomFit();if(e.key==='Escape'){clearHighlight();si.value='';sc.textContent='';}if(e.key==='/'||(e.key==='k'&&(e.metaKey||e.ctrlKey))){e.preventDefault();si.focus();}});
+}
+
+// --- File loading ---
+window.loadFiles=function(){
+  var relFile=document.getElementById('file-relation').files[0];
+  var costFile=document.getElementById('file-cost').files[0];
+  var errEl=document.getElementById('upload-err');
+  if(!relFile){errEl.textContent='Please select the relation CSV file.';return;}
+  errEl.textContent='';
+  var relText='',costText='';
+  var reader1=new FileReader();
+  reader1.onload=function(e){
+    relText=e.target.result;
+    if(costFile){
+      var reader2=new FileReader();
+      reader2.onload=function(e2){costText=e2.target.result;go();};
+      reader2.readAsText(costFile);
+    }else go();
+  };
+  reader1.readAsText(relFile);
+  function go(){
+    try{
+      var relRows=parseCSV(relText);
+      if(!relRows.length){errEl.textContent='Relation CSV is empty or invalid.';return;}
+      if(!relRows[0].table_name&&!relRows[0].upstream){errEl.textContent='Relation CSV must have table_name and upstream columns.';return;}
+      var costRows=costText?parseCSV(costText):[];
+      var graph=buildGraph(relRows,costRows);
+      if(!graph.nodes.length){errEl.textContent='No tables found in the data.';return;}
+      // Show graph UI
+      document.getElementById('upload-overlay').style.display='none';
+      document.getElementById('topbar').style.display='';
+      document.getElementById('canvas').style.display='';
+      document.getElementById('legend').style.display='';
+      document.getElementById('minimap').style.display='';
+      vp={x:0,y:0,z:1};selectedId=null;
+      renderGraph(graph.nodes,graph.links);
+    }catch(ex){errEl.textContent='Error: '+ex.message;}
+  }
+};
+window.showUpload=function(){
+  document.getElementById('upload-overlay').style.display='';
+};
+
+// Auto-load from window.LINEAGE_DATA if available, else show file picker
+(function(){
+  if(!window.LINEAGE_DATA)return;
+  try{
+    var d=window.LINEAGE_DATA;
+    var relRows=typeof d.relation==='string'?parseCSV(d.relation):d.relation||[];
+    var costRows=typeof d.cost==='string'?parseCSV(d.cost):d.cost||[];
+    if(!relRows.length)return;
+    var graph=buildGraph(relRows,costRows);
+    if(!graph.nodes.length)return;
+    document.getElementById('upload-overlay').style.display='none';
+    document.getElementById('topbar').style.display='';
+    document.getElementById('canvas').style.display='';
+    document.getElementById('legend').style.display='';
+    document.getElementById('minimap').style.display='';
+    vp={x:0,y:0,z:1};selectedId=null;
+    renderGraph(graph.nodes,graph.links);
+  }catch(e){}
+})();
+</script>
+</body>
+</html>
