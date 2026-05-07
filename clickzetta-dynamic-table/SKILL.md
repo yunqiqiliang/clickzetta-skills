@@ -19,7 +19,7 @@ description: |
 ```sql
 -- 1. 创建 Dynamic Table（自动调度刷新）
 CREATE DYNAMIC TABLE IF NOT EXISTS silver.orders_daily
-REFRESH INTERVAL 60 MINUTE vcluster default_ap
+REFRESH INTERVAL 60 MINUTE vcluster default
 AS
 SELECT DATE(created_at) AS order_date, region, SUM(amount) AS total_amount
 FROM bronze.raw_orders

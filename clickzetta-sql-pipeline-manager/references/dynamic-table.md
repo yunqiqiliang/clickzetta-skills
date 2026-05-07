@@ -1,7 +1,7 @@
 # Dynamic Table（动态表）SQL 参考
 
 > **⚠️ ClickZetta 特有语法**
-> - 刷新调度写法：`REFRESH interval 5 MINUTE VCLUSTER default_ap`（不是 `TARGET_LAG`）
+> - 刷新调度写法：`REFRESH interval 5 MINUTE VCLUSTER default`（不是 `TARGET_LAG`）
 > - 修改调度周期或计算集群必须用 `CREATE OR REPLACE`，`ALTER` 不支持
 > - `ALTER DYNAMIC TABLE` 只支持：SUSPEND / RESUME / SET COMMENT / RENAME COLUMN
 
@@ -32,7 +32,7 @@ AS
 -- 基础示例：每 5 分钟刷新一次订单汇总
 CREATE OR REPLACE DYNAMIC TABLE dw.order_summary
   REFRESH interval 5 MINUTE
-  VCLUSTER default_ap
+  VCLUSTER default
 AS
 SELECT
   date_trunc('hour', created_at) AS hour,
@@ -45,7 +45,7 @@ GROUP BY 1, 2;
 -- 修改调度周期（必须用 CREATE OR REPLACE）
 CREATE OR REPLACE DYNAMIC TABLE dw.order_summary
   REFRESH interval 10 MINUTE
-  VCLUSTER default_ap
+  VCLUSTER default
 AS
 SELECT
   date_trunc('hour', created_at) AS hour,
@@ -131,7 +131,7 @@ SHOW DYNAMIC TABLE REFRESH HISTORY <name> LIMIT 20;
 -- 创建参数化动态表
 CREATE OR REPLACE DYNAMIC TABLE dwd.orders_partitioned
   REFRESH interval 30 MINUTE
-  VCLUSTER default_ap
+  VCLUSTER default
 AS
 SELECT order_id, user_id, amount, dt
 FROM ods.orders

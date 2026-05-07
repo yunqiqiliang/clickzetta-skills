@@ -76,7 +76,7 @@ WHEN NOT MATCHED AND src.__change_type = 'INSERT' THEN INSERT (order_id, status,
 -- 配合 Dynamic Table 自动消费（推荐）
 CREATE OR REPLACE DYNAMIC TABLE dw.orders_processed
   REFRESH interval 1 MINUTE
-  VCLUSTER default_ap
+  VCLUSTER default
 AS
 SELECT order_id, status, amount, __change_type, __commit_timestamp
 FROM orders_stream

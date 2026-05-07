@@ -24,10 +24,10 @@ description: >
 
 | 功能 | ❌ 错误写法（Snowflake/标准SQL） | ✅ ClickZetta 正确写法 |
 |---|---|---|
-| 动态表计算集群 | `WAREHOUSE = compute_wh` | `VCLUSTER default_ap`（直接跟名称，不带等号） |
-| 动态表刷新调度 | `TARGET_LAG = '1 minutes'` | `REFRESH INTERVAL 1 MINUTE vcluster default_ap` |
+| 动态表计算集群 | `WAREHOUSE = compute_wh` | `VCLUSTER default`（直接跟名称，不带等号） |
+| 动态表刷新调度 | `TARGET_LAG = '1 minutes'` | `REFRESH INTERVAL 1 MINUTE vcluster default` |
 | Kafka 读取函数 | `KAFKA_SOURCE(...)` | `READ_KAFKA(KAFKA_BROKER => ..., KAFKA_DATA_FORMAT => 'json')` |
-| 物化视图定时刷新 | `REFRESH EVERY 1 HOUR` | `REFRESH INTERVAL 60 MINUTE vcluster default_ap`（与动态表语法相同） |
+| 物化视图定时刷新 | `REFRESH EVERY 1 HOUR` | `REFRESH INTERVAL 60 MINUTE vcluster default`（与动态表语法相同） |
 | 物化视图手动刷新 | `REFRESH MATERIALIZED VIEW` 放在 CREATE 里 | 单独执行 `REFRESH MATERIALIZED VIEW <name>;` |
 | 修改动态表 SQL | `ALTER DYNAMIC TABLE ... AS ...` | `CREATE OR REPLACE DYNAMIC TABLE ...`（ALTER 不支持修改 AS 子句） |
 
@@ -97,8 +97,8 @@ CREATE SCHEMA IF NOT EXISTS ecommerce_gold;
 - 已有表 + 仅 INSERT → Dynamic Table 直接 `FROM` 源表
 
 **刷新频率规则：**
-- 第一个转换层（Bronze→Silver 或 ODS→DWD）设置用户指定的刷新频率（如 `REFRESH interval 1 MINUTE VCLUSTER default_ap`）
-- 下游层根据业务需求设置各自的刷新频率（如 `REFRESH interval 5 MINUTE VCLUSTER default_ap`）
+- 第一个转换层（Bronze→Silver 或 ODS→DWD）设置用户指定的刷新频率（如 `REFRESH interval 1 MINUTE VCLUSTER default`）
+- 下游层根据业务需求设置各自的刷新频率（如 `REFRESH interval 5 MINUTE VCLUSTER default`）
 
 ---
 
@@ -151,7 +151,7 @@ CREATE SCHEMA IF NOT EXISTS ecommerce_gold;
 - Pipe（Kafka）：`KAFKA_BROKER`、`KAFKA_TOPIC`、`KAFKA_GROUP_ID`、目标表
 - Pipe（对象存储）：Volume 路径、文件格式、目标表
 
-若用户未提供 VCLUSTER，默认使用 `default_ap`。
+若用户未提供 VCLUSTER，默认使用 `default`。
 
 ## 步骤 3：验证
 
@@ -200,7 +200,7 @@ FROM TABLE(
 -- Step 2: 动态表做 DWD 层清洗（每分钟增量刷新）
 CREATE OR REPLACE DYNAMIC TABLE dwd.orders_clean
   REFRESH interval 1 MINUTE
-  VCLUSTER default_ap
+  VCLUSTER default
 AS
 SELECT
   order_id,
@@ -215,7 +215,7 @@ WHERE amount > 0;
 -- Step 3: 动态表做 DWS 层聚合（每 5 分钟刷新）
 CREATE OR REPLACE DYNAMIC TABLE dws.order_hourly
   REFRESH interval 5 MINUTE
-  VCLUSTER default_ap
+  VCLUSTER default
 AS
 SELECT
   DATE_TRUNC('hour', created_at) AS hour,
@@ -237,7 +237,7 @@ CREATE TABLE STREAM ods.orders_stream
 -- Step 2: 动态表消费 Stream，过滤出最新状态
 CREATE OR REPLACE DYNAMIC TABLE dwd.orders_latest
   REFRESH interval 2 MINUTE
-  VCLUSTER default_ap
+  VCLUSTER default
 AS
 SELECT order_id, user_id, amount, status, created_at
 FROM ods.orders_stream
@@ -250,7 +250,7 @@ WHERE __change_type IN ('INSERT', 'UPDATE_AFTER', 'DELETE');
 -- 创建每小时刷新的物化视图
 CREATE OR REPLACE MATERIALIZED VIEW dws.mv_daily_revenue
   COMMENT '每日收入汇总，供 BI 工具查询'
-  REFRESH INTERVAL 60 MINUTE vcluster default_ap
+  REFRESH INTERVAL 60 MINUTE vcluster default
 AS
 SELECT
   DATE(created_at) AS day,
@@ -291,7 +291,7 @@ ALTER PIPE kafka_orders_pipe SET PIPE_EXECUTION_PAUSED = false;
 -- 创建参数化动态表（使用 SESSION_CONFIGS 定义参数）
 CREATE OR REPLACE DYNAMIC TABLE dwd.orders_partitioned
   REFRESH interval 30 MINUTE
-  VCLUSTER default_ap
+  VCLUSTER default
 AS
 SELECT order_id, user_id, amount, status, created_at, DATE(created_at) AS dt
 FROM ods.orders

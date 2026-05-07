@@ -18,7 +18,7 @@ Gold（指标数据）
 ALTER TABLE bronze.raw_orders SET PROPERTIES ('change_tracking' = 'true');
 
 CREATE DYNAMIC TABLE IF NOT EXISTS silver.orders_cleaned
-REFRESH INTERVAL 15 MINUTE vcluster default_ap
+REFRESH INTERVAL 15 MINUTE vcluster default
 AS
 SELECT
   order_id,
@@ -34,7 +34,7 @@ WHERE order_id IS NOT NULL AND amount > 0;
 
 ```sql
 CREATE DYNAMIC TABLE IF NOT EXISTS gold.orders_daily_summary
-REFRESH INTERVAL 60 MINUTE vcluster default_ap
+REFRESH INTERVAL 60 MINUTE vcluster default
 AS
 SELECT
   DATE(created_at)              AS stat_date,
@@ -66,7 +66,7 @@ CREATE TABLE STREAM bronze.orders_stream
 -- 3. Dynamic Table 消费 Stream
 -- 注意：Stream 作为 DT 源时，每次刷新会消费 offset
 CREATE DYNAMIC TABLE IF NOT EXISTS silver.orders_incremental
-REFRESH INTERVAL 5 MINUTE vcluster default_ap
+REFRESH INTERVAL 5 MINUTE vcluster default
 AS
 SELECT order_id, customer_id, amount, status
 FROM bronze.orders_stream
@@ -110,7 +110,7 @@ WHEN NOT MATCHED AND s.op = 'UPSERT' THEN INSERT
 ```sql
 -- 每小时刷新销售汇总，供 BI 工具直接查询
 CREATE DYNAMIC TABLE IF NOT EXISTS rpt.sales_hourly
-REFRESH INTERVAL 60 MINUTE vcluster default_ap
+REFRESH INTERVAL 60 MINUTE vcluster default
 AS
 SELECT
   DATE_TRUNC('hour', order_time) AS hour_bucket,

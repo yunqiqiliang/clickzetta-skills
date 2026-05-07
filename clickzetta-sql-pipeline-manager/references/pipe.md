@@ -79,7 +79,7 @@ USING <csv | parquet | orc | json>
 ```sql
 -- 从 OSS Volume 持续导入 Parquet 文件（LIST_PURGE 模式）
 CREATE OR REPLACE PIPE oss_events_pipe
-  VIRTUAL_CLUSTER = default_ap
+  VIRTUAL_CLUSTER = default
   INGEST_MODE = LIST_PURGE
 AS
 COPY INTO ods.events
@@ -88,7 +88,7 @@ USING PARQUET;
 
 -- EVENT_NOTIFICATION 模式（仅阿里云 OSS + AWS S3）
 CREATE OR REPLACE PIPE oss_events_event_pipe
-  VIRTUAL_CLUSTER = default_ap
+  VIRTUAL_CLUSTER = default
   INGEST_MODE = EVENT_NOTIFICATION
   ALICLOUD_MNS_QUEUE = 'my-mns-queue-name'
 AS
