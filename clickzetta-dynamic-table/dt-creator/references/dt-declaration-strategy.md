@@ -18,8 +18,7 @@ SELECT id, amount, SESSION_CONFIGS()['dt.args.ds'] AS ds
 FROM orders
 WHERE ds = SESSION_CONFIGS()['dt.args.ds'];
 
--- 刷新时指定分区
--- set dt.args.ds=2025-01-01
+-- 刷新时指定分区（在 Studio 任务中执行，dt.args.ds 通过任务参数传入）
 REFRESH DYNAMIC TABLE order_daily PARTITION(ds = '2025-01-01');
 ```
 
@@ -107,21 +106,22 @@ REFRESH DYNAMIC TABLE order_summary;
 
 ### 刷新方式
 
+> ⚠️ **重要**：静态分区 DT 的 `dt.args.*` 参数**仅在 Studio 任务中可用**，不能在交互式 SQL 中使用 `SET dt.args.xxx`。
+> 必须通过 Studio 创建调度任务，在任务参数中配置 `dt.args.ds` 等值。
+
 ```sql
--- 每次刷新一个分区
--- set dt.args.ds=2025-01-15
+-- 在 Studio 任务中，参数通过任务配置传入，REFRESH 语句指定分区值：
 REFRESH DYNAMIC TABLE my_dt PARTITION(ds = '2025-01-15');
 
 -- 多级分区
--- set dt.args.pt=20250411
--- set dt.args.pt_hour=01
 REFRESH DYNAMIC TABLE my_dt PARTITION(pt = '20250411', pt_hour = '01');
 ```
 
 ### 注意事项
 
-- 回填时使用 `cz.optimizer.incremental.backfill.enabled=TRUE`，会自动走全量刷新
-- 分区参数通过 `set dt.args.xxx=value` 传入，REFRESH 语句中的 PARTITION 子句指定分区值
+- 回填时使用 `SET cz.optimizer.incremental.backfill.enabled = TRUE`（此配置在交互式 SQL 中可用）
+- `dt.args.*` 参数仅在 Studio 任务中可用，不能在交互式 SQL 中 SET
+- `cz.optimizer.*` 配置项在交互式 SQL 中可用
 
 ## 动态分区 DT 详解
 

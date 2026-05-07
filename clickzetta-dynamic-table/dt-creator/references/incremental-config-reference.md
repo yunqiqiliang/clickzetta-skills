@@ -352,9 +352,8 @@ SET cz.sql.mv.check.before.replacing.sql = true;
 - 回填通常配合 `INSERT OVERWRITE` 使用，覆盖目标分区的已有数据。
 
 ```sql
--- 回填指定历史分区（在 REFRESH 语句前执行）
+-- 在 Studio 任务中，参数通过任务配置传入：
 SET cz.optimizer.incremental.backfill.enabled = true;
-SET dt.args.ds = '2025-01-01';
 REFRESH DYNAMIC TABLE my_dt PARTITION(ds = '2025-01-01');
 SET cz.optimizer.incremental.backfill.enabled = false;
 

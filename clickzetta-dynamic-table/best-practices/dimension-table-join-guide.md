@@ -157,17 +157,18 @@ LEFT JOIN t3 ON t1.id = t3.id;
 -- set cz.optimizer.incremental.force.full.refresh=true
 REFRESH DYNAMIC TABLE my_dt;
 -- 刷新完成后记得关闭，否则后续每次都是全量
--- set cz.optimizer.incremental.force.full.refresh=false
+SET cz.optimizer.incremental.force.full.refresh = false;
 
--- 如果是分区表，也可以只全量刷新指定分区
--- set cz.optimizer.incremental.force.full.refresh=true
--- set dt.args.ds=2025-01-01
+-- 如果是分区表，也可以只全量刷新指定分区（在 Studio 任务中执行）
+SET cz.optimizer.incremental.force.full.refresh = true;
 REFRESH DYNAMIC TABLE my_dt PARTITION(ds = '2025-01-01');
--- set cz.optimizer.incremental.force.full.refresh=false
+SET cz.optimizer.incremental.force.full.refresh = false;
 ```
 
 配置说明：
 - `cz.optimizer.incremental.force.full.refresh`：默认 `false`。设为 `true` 后，下一次 REFRESH 会忽略增量逻辑，对所有源表做全量扫描重算
+- `SET cz.optimizer.*` 配置项在交互式 SQL 中可用
+- `dt.args.*` 参数仅在 Studio 任务中可用，不能在交互式 SQL 中 SET
 - 该配置是 session 级别的，刷新完成后需要手动设回 `false`，否则后续所有 REFRESH 都会走全量
 - backfill 模式（`cz.optimizer.incremental.backfill.enabled=TRUE`）也会自动开启全量刷新
 
