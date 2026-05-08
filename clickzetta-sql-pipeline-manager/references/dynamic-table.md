@@ -104,7 +104,7 @@ SHOW TABLES WHERE is_dynamic = true;
 SHOW TABLES IN <schema_name> WHERE is_dynamic = true;
 
 -- 查看动态表结构和调度配置
-DESC DYNAMIC TABLE <name>;
+DESC TABLE <name>;
 DESCRIBE DYNAMIC TABLE <name> EXTENDED;
 
 -- 查看完整建表语句

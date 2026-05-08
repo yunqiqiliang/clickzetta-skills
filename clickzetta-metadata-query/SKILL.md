@@ -207,7 +207,7 @@ DESC FUNCTION my_schema.my_function;
 DESC VIEW my_view;
 
 -- 动态表（返回字段 + 调度配置）
-DESC DYNAMIC TABLE my_dt;
+DESC TABLE my_dt;
 
 -- 索引
 DESC INDEX idx_name;

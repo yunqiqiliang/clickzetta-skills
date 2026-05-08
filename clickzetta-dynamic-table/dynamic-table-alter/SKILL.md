@@ -81,7 +81,7 @@ ALTER DYNAMIC TABLE dt_name UNSET PROPERTIES('key');
 - 兼容类型变更（如 INT → BIGINT）→ **增量刷新**
 
 ### 步骤 4：验证修改结果
-使用 `DESC DYNAMIC TABLE dt_name` 确认修改生效。
+使用 `DESC TABLE dt_name` 确认修改生效。
 
 ---
 
