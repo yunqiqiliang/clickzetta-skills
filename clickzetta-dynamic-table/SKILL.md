@@ -26,7 +26,7 @@ FROM bronze.raw_orders
 GROUP BY 1, 2;
 
 -- 2. 查看状态与刷新历史
-DESC DYNAMIC TABLE silver.orders_daily;
+DESC TABLE silver.orders_daily;
 SHOW DYNAMIC TABLE REFRESH HISTORY WHERE name = 'orders_daily' LIMIT 10;
 
 -- 3. 手动触发刷新
@@ -46,7 +46,7 @@ SHOW TABLES IN silver WHERE table_name = 'orders_daily';
 | 方式 | 语法 | 适用场景 |
 |---|---|---|
 | 自动调度 | `REFRESH INTERVAL 10 MINUTE vcluster <name>` | 系统按间隔自动刷新（推荐） |
-| 指定开始时间 | `REFRESH START WITH '2025-01-01 00:00:00' INTERVAL 1 HOUR vcluster <name>` | 从指定时间开始调度 |
+| 指定开始时间 | `REFRESH START WITH TIMESTAMP '2025-01-01 00:00:00' INTERVAL 1 HOUR vcluster <name>` | 从指定时间开始调度 |
 | 手动触发 | `REFRESH DYNAMIC TABLE my_dt;` | 外部调度器触发，适合静态分区 DT |
 
 INTERVAL 支持的单位：`SECOND`、`MINUTE`、`HOUR`、`DAY`，最小值为 1 分钟。
