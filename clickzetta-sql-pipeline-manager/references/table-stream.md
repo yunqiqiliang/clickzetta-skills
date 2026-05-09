@@ -51,10 +51,10 @@ CREATE TABLE STREAM orders_stream_from_ts
 
 ## 消费 Table Stream
 
-Table Stream 是一次性消费的：**每次 SELECT 后，已读取的数据会被标记为已消费**，下次 SELECT 只返回新增变更。
+Table Stream 的 offset 通过 DML 操作移动。**仅 SELECT 不会移动 offset**，可以反复查询预览。执行 DML（INSERT INTO / MERGE INTO / UPDATE / DELETE）消费数据后，offset 前进。
 
 ```sql
--- 查看当前未消费的变更数据
+-- 查看当前未消费的变更数据（不移动 offset）
 SELECT * FROM orders_stream;
 
 -- 变更数据包含的系统字段
@@ -62,21 +62,20 @@ SELECT * FROM orders_stream;
 -- __commit_version: 变更版本号
 -- __commit_timestamp: 变更发生时间
 
--- 典型用法：将变更数据 MERGE 到目标表（忽略 UPDATE_BEFORE）
+-- 典型用法：将变更数据 MERGE 到目标表（过滤掉 UPDATE_BEFORE）
 MERGE INTO dw.orders_dim AS target
 USING (
   SELECT * FROM orders_stream
-  WHERE __change_type IN ('INSERT', 'UPDATE_AFTER', 'DELETE')
+  WHERE __change_type != 'UPDATE_BEFORE'
 ) AS src
 ON target.order_id = src.order_id
 WHEN MATCHED AND src.__change_type = 'UPDATE_AFTER' THEN UPDATE SET target.status = src.status, target.amount = src.amount
 WHEN MATCHED AND src.__change_type = 'DELETE' THEN DELETE
-WHEN NOT MATCHED AND src.__change_type = 'INSERT' THEN INSERT (order_id, status, amount) VALUES (src.order_id, src.status, src.amount);
+WHEN NOT MATCHED AND src.__change_type IN ('INSERT', 'UPDATE_AFTER') THEN INSERT (order_id, status, amount) VALUES (src.order_id, src.status, src.amount);
 
 -- 配合 Dynamic Table 自动消费（推荐）
 CREATE OR REPLACE DYNAMIC TABLE dw.orders_processed
-  REFRESH interval 1 MINUTE
-  VCLUSTER default
+  REFRESH INTERVAL 1 MINUTE vcluster default
 AS
 SELECT order_id, status, amount, __change_type, __commit_timestamp
 FROM orders_stream
@@ -107,10 +106,13 @@ DESC TABLE STREAM <stream_name>;
 
 ## 注意事项
 
-- Stream 数据**只能消费一次**，SELECT 后即标记为已读
+- 仅 SELECT 不会移动 offset，可反复查询预览
+- DML 操作（INSERT INTO / MERGE INTO / UPDATE / DELETE）会移动 offset
+- ⚠️ 即使 DML 带 WHERE 条件过滤了部分行，**所有行的 offset 都会移动**
 - 若长时间不消费，超出源表的 `data_retention_days` 后数据会丢失
 - `STANDARD` 模式下 UPDATE 会产生两条记录：`UPDATE_BEFORE`（更新前）和 `UPDATE_AFTER`（更新后）
-- 消费时通常过滤 `__change_type IN ('INSERT', 'UPDATE_AFTER', 'DELETE')`，忽略 `UPDATE_BEFORE`
+- 消费时通常过滤 `__change_type != 'UPDATE_BEFORE'`，忽略旧值
+- 源表需先开启 `change_tracking`：`ALTER TABLE name SET PROPERTIES ('change_tracking' = 'true')`
 
 ## 参考文档
 
