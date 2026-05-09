@@ -24,12 +24,15 @@ description: >
 
 | 功能 | ❌ 错误写法（Snowflake/标准SQL） | ✅ ClickZetta 正确写法 |
 |---|---|---|
-| 动态表计算集群 | `WAREHOUSE = compute_wh` | `VCLUSTER default`（直接跟名称，不带等号） |
+| 动态表计算集群 | `WAREHOUSE = compute_wh` | `vcluster default`（直接跟名称，不带等号） |
 | 动态表刷新调度 | `TARGET_LAG = '1 minutes'` | `REFRESH INTERVAL 1 MINUTE vcluster default` |
-| Kafka 读取函数 | `KAFKA_SOURCE(...)` | `READ_KAFKA(KAFKA_BROKER => ..., KAFKA_DATA_FORMAT => 'json')` |
+| Kafka 读取函数 | `TABLE(READ_KAFKA(KAFKA_BROKER => ...))` | `read_kafka('broker', 'topic', '', 'group', '', '', '', '', 'raw', 'raw', 0, MAP(...))` — 位置参数 |
 | 物化视图定时刷新 | `REFRESH EVERY 1 HOUR` | `REFRESH INTERVAL 60 MINUTE vcluster default`（与动态表语法相同） |
 | 物化视图手动刷新 | `REFRESH MATERIALIZED VIEW` 放在 CREATE 里 | 单独执行 `REFRESH MATERIALIZED VIEW <name>;` |
 | 修改动态表 SQL | `ALTER DYNAMIC TABLE ... AS ...` | `CREATE OR REPLACE DYNAMIC TABLE ...`（ALTER 不支持修改 AS 子句） |
+| JSON 字段访问 | `$1:field::TYPE` 或 `data:key` | `parse_json(value::string)['field']::TYPE` 或 `data['key']` |
+| COPY INTO 导入格式 | `FILE_FORMAT = (TYPE = CSV)` | `USING CSV OPTIONS(...)` |
+| COPY INTO 导出格式 | `USING CSV` | `FILE_FORMAT = (TYPE = CSV)` |
 
 ---
 
@@ -91,14 +94,14 @@ CREATE SCHEMA IF NOT EXISTS ecommerce_gold;
 ```
 
 **来源 → 入口对象的选择规则：**
-- Kafka → `CREATE PIPE ... AS INSERT INTO ... FROM TABLE(READ_KAFKA(...))`
-- 对象存储（OSS/S3/COS）→ `CREATE PIPE ... VIRTUAL_CLUSTER = name INGEST_MODE = LIST_PURGE AS COPY INTO ... FROM VOLUME <volume_name> USING <format>`
+- Kafka → `CREATE PIPE ... AS COPY INTO ... FROM (SELECT ... FROM read_kafka('broker', 'topic', '', 'group', '', '', '', '', 'raw', 'raw', 0, MAP(...)))`
+- 对象存储（OSS/S3/COS）→ `CREATE PIPE ... VIRTUAL_CLUSTER = 'name' INGEST_MODE = 'LIST_PURGE' AS COPY INTO ... FROM VOLUME <volume_name> USING <format> purge=true`
 - 已有表 + 有 UPDATE/DELETE → `CREATE TABLE STREAM ... WITH PROPERTIES ('TABLE_STREAM_MODE' = 'STANDARD')`，中间层过滤 `__change_type IN ('INSERT', 'UPDATE_AFTER', 'DELETE')`
 - 已有表 + 仅 INSERT → Dynamic Table 直接 `FROM` 源表
 
 **刷新频率规则：**
-- 第一个转换层（Bronze→Silver 或 ODS→DWD）设置用户指定的刷新频率（如 `REFRESH interval 1 MINUTE VCLUSTER default`）
-- 下游层根据业务需求设置各自的刷新频率（如 `REFRESH interval 5 MINUTE VCLUSTER default`）
+- 第一个转换层（Bronze→Silver 或 ODS→DWD）设置用户指定的刷新频率（如 `REFRESH INTERVAL 1 MINUTE vcluster default`）
+- 下游层根据业务需求设置各自的刷新频率（如 `REFRESH INTERVAL 5 MINUTE vcluster default`）
 
 ---
 
@@ -146,12 +149,12 @@ CREATE SCHEMA IF NOT EXISTS ecommerce_gold;
 阅读对应参考文件后，根据用户提供的参数生成完整可运行 SQL。
 
 **必填参数检查：**
-- Dynamic Table：`REFRESH interval N MINUTE VCLUSTER name`、AS 查询
+- Dynamic Table：`REFRESH INTERVAL N MINUTE vcluster name`、AS 查询
 - Table Stream：源表名、MODE（STANDARD 或 APPEND_ONLY）
-- Pipe（Kafka）：`KAFKA_BROKER`、`KAFKA_TOPIC`、`KAFKA_GROUP_ID`、目标表
-- Pipe（对象存储）：Volume 路径、文件格式、目标表
+- Pipe（Kafka）：bootstrap_servers、topic、group_id、目标表（位置参数语法）
+- Pipe（对象存储）：Volume 路径、文件格式、目标表、`purge=true`（LIST_PURGE 模式）
 
-若用户未提供 VCLUSTER，默认使用 `default`。
+若用户未提供 VCLUSTER，默认使用 `default`（GP 型集群）。
 
 ## 步骤 3：验证
 
@@ -179,28 +182,34 @@ SHOW PIPES;
 
 ```sql
 -- Step 1: 创建 Pipe 持续摄入 Kafka 数据到 ODS 层
-CREATE OR REPLACE PIPE kafka_orders_pipe AS
-INSERT INTO ods.orders (order_id, user_id, amount, status, created_at)
-SELECT
-  $1:order_id::STRING,
-  $1:user_id::STRING,
-  $1:amount::DECIMAL(10,2),
-  $1:status::STRING,
-  $1:created_at::TIMESTAMP
-FROM TABLE(
-  READ_KAFKA(
-    KAFKA_BROKER => 'kafka.example.com:9092',
-    KAFKA_TOPIC  => 'orders',
-    KAFKA_GROUP_ID => 'lakehouse_ingest',
-    KAFKA_OFFSET => 'latest',
-    KAFKA_DATA_FORMAT => 'json'
+CREATE OR REPLACE PIPE kafka_orders_pipe
+  VIRTUAL_CLUSTER = 'default'
+  BATCH_INTERVAL_IN_SECONDS = '60'
+AS
+COPY INTO ods.orders FROM (
+  SELECT
+    j['order_id']::STRING,
+    j['user_id']::STRING,
+    j['amount']::DECIMAL(10,2),
+    j['status']::STRING,
+    j['created_at']::TIMESTAMP
+  FROM (
+    SELECT parse_json(value::string) AS j
+    FROM read_kafka(
+      'kafka.example.com:9092',  -- bootstrap_servers
+      'orders',                   -- topic
+      '',                         -- reserved
+      'lakehouse_ingest',         -- group_id
+      '', '', '', '',             -- 位置参数留空，由 Pipe 管理
+      'raw', 'raw', 0,
+      MAP('kafka.security.protocol', 'PLAINTEXT')
+    )
   )
 );
 
 -- Step 2: 动态表做 DWD 层清洗（每分钟增量刷新）
 CREATE OR REPLACE DYNAMIC TABLE dwd.orders_clean
-  REFRESH interval 1 MINUTE
-  VCLUSTER default
+  REFRESH INTERVAL 1 MINUTE vcluster default
 AS
 SELECT
   order_id,
@@ -214,8 +223,7 @@ WHERE amount > 0;
 
 -- Step 3: 动态表做 DWS 层聚合（每 5 分钟刷新）
 CREATE OR REPLACE DYNAMIC TABLE dws.order_hourly
-  REFRESH interval 5 MINUTE
-  VCLUSTER default
+  REFRESH INTERVAL 5 MINUTE vcluster default
 AS
 SELECT
   DATE_TRUNC('hour', created_at) AS hour,
@@ -236,12 +244,11 @@ CREATE TABLE STREAM ods.orders_stream
 
 -- Step 2: 动态表消费 Stream，过滤出最新状态
 CREATE OR REPLACE DYNAMIC TABLE dwd.orders_latest
-  REFRESH interval 2 MINUTE
-  VCLUSTER default
+  REFRESH INTERVAL 2 MINUTE vcluster default
 AS
 SELECT order_id, user_id, amount, status, created_at
 FROM ods.orders_stream
-WHERE __change_type IN ('INSERT', 'UPDATE_AFTER', 'DELETE');
+WHERE __change_type IN ('INSERT', 'UPDATE_AFTER');
 ```
 
 ### 场景 C：物化视图加速 BI 查询
@@ -290,8 +297,7 @@ ALTER PIPE kafka_orders_pipe SET PIPE_EXECUTION_PAUSED = false;
 ```sql
 -- 创建参数化动态表（使用 SESSION_CONFIGS 定义参数）
 CREATE OR REPLACE DYNAMIC TABLE dwd.orders_partitioned
-  REFRESH interval 30 MINUTE
-  VCLUSTER default
+  REFRESH INTERVAL 30 MINUTE vcluster default
 AS
 SELECT order_id, user_id, amount, status, created_at, DATE(created_at) AS dt
 FROM ods.orders

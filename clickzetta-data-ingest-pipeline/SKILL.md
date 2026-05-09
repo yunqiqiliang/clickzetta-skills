@@ -41,7 +41,7 @@ description: |
 
 | 数据源 | 实时性 | 同步范围 | 推荐方式 | 对应 Skill |
 |--------|--------|---------|---------|-----------|
-| Kafka | 实时/准实时 | 单 topic | PIPE 持续导入 | `clickzetta-kafka-ingest-pipeline` |
+| Kafka | 实时/准实时 | 单 topic | Kafka PIPE 持续导入（SQL） | `clickzetta-kafka-ingest-pipeline` |
 | Kafka | 实时 | 多 topic | Studio 实时同步 | `clickzetta-realtime-sync-pipeline` |
 | 对象存储 (OSS/S3/COS) | 准实时/批量 | 文件持续到达 | PIPE 持续导入 | `clickzetta-oss-ingest-pipeline` |
 | 对象存储 | 一次性 | 批量文件 | COPY INTO 命令 | `clickzetta-file-import-pipeline`（COPY INTO 部分） |
