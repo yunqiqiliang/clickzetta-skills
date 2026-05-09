@@ -101,17 +101,16 @@ CREATE EXTERNAL VOLUME IF NOT EXISTS pipe_volume
 -- 使用 LH_execute_query 执行
 COPY INTO my_schema.target_table
 FROM VOLUME pipe_volume
-USING CSV
+USING CSV PURGE=true
 OPTIONS (
   'header' = 'true',
   'delimiter' = ','
-)
-purge=true;
+);
 ```
 
 > **重要**：
 > - PIPE 中的 COPY 语句不支持 `files`、`regexp`、`subdirectory` 参数。确保此处验证时也不使用这些参数。
-> - `purge=true` 放在 OPTIONS 之后、语句末尾（分号之前），不在 OPTIONS 内部。
+> - `PURGE=true` 紧跟在 `USING <format>` 之后（如 `USING CSV PURGE=true`），OPTIONS 在其后。
 
 #### 步骤 4：创建 PIPE（LIST_PURGE 模式）
 
@@ -124,17 +123,17 @@ CREATE PIPE IF NOT EXISTS my_oss_pipe
 AS
 COPY INTO my_schema.target_table
 FROM VOLUME pipe_volume
-USING CSV
+USING CSV PURGE=true
 OPTIONS (
   'header' = 'true',
   'delimiter' = ','
-)
-purge=true;
+);
 ```
 
-> **⚠️ purge=true 语法关键点**：
-> - `purge=true` 放在 COPY 语句的**最后**，在 OPTIONS(...) 之后，不在 OPTIONS 内部
-> - **LIST_PURGE 模式必须设置** `purge=true`，加载成功后删除源文件（避免重复导入）
+> **⚠️ PURGE=true 语法关键点**：
+> - `PURGE=true` 紧跟在 `USING <format>` 之后，写在同一行：`USING CSV PURGE=true`
+> - 大写 `PURGE`，小写 `true`，中间用 `=` 连接，无空格
+> - **LIST_PURGE 模式必须设置** `PURGE=true`，加载成功后删除源文件（避免重复导入）
 > - 即使不想删除源文件，LIST_PURGE 模式也需要此参数，否则会重复导入同一文件
 > - `VIRTUAL_CLUSTER`：指定执行 PIPE 任务的虚拟集群
 >
@@ -142,7 +141,9 @@ purge=true;
 > ```sql
 > -- ❌ 不要把 purge 放在 OPTIONS 里
 > OPTIONS ('header' = 'true', 'purge' = 'true')
-> -- ❌ 不要用引号包裹
+> -- ❌ 不要放在语句末尾单独一行
+> purge=true;
+> -- ❌ 不要用小写或加引号
 > 'purge'='true'
 > ```
 
@@ -213,7 +214,7 @@ OPTIONS (
 > **参数说明**：
 > - `INGEST_MODE = 'EVENT_NOTIFICATION'`：通过消息通知触发加载
 > - `ALICLOUD_MNS_QUEUE`：阿里云 MNS 队列名称（AWS 使用 `AWS_SQS_QUEUE`）
-> - 此模式下不需要 `purge = true`，因为是事件驱动而非扫描
+> - 此模式下不需要 `PURGE=true`，因为是事件驱动而非扫描
 
 ---
 
@@ -409,8 +410,8 @@ DROP PIPE IF EXISTS my_oss_pipe;
 | 问题 | 排查方向 |
 |------|---------|
 | PIPE 创建后无数据加载 | 1. `DESC PIPE EXTENDED` 检查是否暂停 2. 确认 Volume 路径下有新文件 3. 检查 COPY INTO 是否能独立运行 |
-| LIST_PURGE 模式文件未被删除 | 确认 `purge=true` 已设置（在 COPY 语句末尾，不在 OPTIONS 内）；检查 Connection 的 AccessKey 是否有删除权限 |
-| `purge=true` 语法错误 | ❌ 不要放在 OPTIONS 内：`OPTIONS('purge'='true')`。✅ 正确位置：COPY 语句末尾 `...OPTIONS(...) purge=true;` |
+| LIST_PURGE 模式文件未被删除 | 确认 `PURGE=true` 已设置（紧跟 `USING <format>` 之后）；检查 Connection 的 AccessKey 是否有删除权限 |
+| `PURGE=true` 语法错误 | ❌ 不要放在 OPTIONS 内或语句末尾。✅ 正确：`USING CSV PURGE=true OPTIONS(...)` |
 | EVENT_NOTIFICATION 模式无触发 | 1. 检查 MNS/SQS 队列是否收到消息 2. 确认 OSS 事件通知规则配置正确 3. 检查 Role ARN 授权 |
 | 重复加载数据 | `load_history` 去重记录仅保留 7 天，超过 7 天的同名文件会被重新加载 |
 | COPY_JOB_HINT 修改后部分参数丢失 | `SET COPY_JOB_HINT` 会覆盖所有已有 hints，需在一次 ALTER 中设置全部参数 |

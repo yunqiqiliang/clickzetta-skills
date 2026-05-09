@@ -4,7 +4,7 @@
 > - Kafka 读取函数是 `read_kafka(...)`，使用**位置参数**（不是命名参数 `=>`）
 > - JSON 字段提取用 `parse_json(value::string)['field']::TYPE` 语法
 > - Pipe 创建后默认自动启动，无需手动 RESUME
-> - OSS Pipe 的 `purge=true` 放在 COPY 语句末尾（不在 OPTIONS 内）
+> - OSS Pipe 的 `PURGE=true` 紧跟在 `USING <format>` 之后（如 `USING CSV PURGE=true`）
 
 Pipe 是 ClickZetta Lakehouse 的持续数据导入对象，通过 SQL 定义从 Kafka 或对象存储（OSS/S3/COS）自动、持续地将数据导入目标表，无需外部调度。
 
@@ -116,29 +116,27 @@ CREATE [ OR REPLACE ] PIPE [ IF NOT EXISTS ] <pipe_name>
 AS
 COPY INTO <target_table>
 FROM VOLUME <volume_name>
-USING <csv | parquet | orc | json>
-[ OPTIONS ('<key>' = '<value>', ...) ]
-purge=true;
+USING <csv | parquet | orc | json> PURGE=true
+[ OPTIONS ('<key>' = '<value>', ...) ];
 ```
 
 **关键参数：**
 - `VIRTUAL_CLUSTER`：指定虚拟集群名称（OSS Pipe 必填）
-- `INGEST_MODE = 'LIST_PURGE'`：通用模式，定期扫描文件列表，必须设置 `purge=true`
-- `INGEST_MODE = 'EVENT_NOTIFICATION'`：事件通知模式，低延迟（仅阿里云 OSS + AWS S3），不需要 `purge=true`
-- `purge=true`：放在 COPY 语句末尾（OPTIONS 之后），不在 OPTIONS 内部
+- `INGEST_MODE = 'LIST_PURGE'`：通用模式，定期扫描文件列表，必须设置 `PURGE=true`
+- `INGEST_MODE = 'EVENT_NOTIFICATION'`：事件通知模式，低延迟（仅阿里云 OSS + AWS S3），不需要 `PURGE=true`
+- `PURGE=true`：紧跟在 `USING <format>` 之后（同一行），大写 PURGE，小写 true
 - PIPE 中的 COPY 语句不支持 `files`、`regexp`、`subdirectory` 参数
 
 **示例：**
 ```sql
--- LIST_PURGE 模式（purge=true 在末尾）
+-- LIST_PURGE 模式（PURGE=true 紧跟 USING 之后）
 CREATE OR REPLACE PIPE oss_events_pipe
   VIRTUAL_CLUSTER = 'default'
   INGEST_MODE = 'LIST_PURGE'
 AS
 COPY INTO ods.events
 FROM VOLUME my_oss_volume
-USING PARQUET
-purge=true;
+USING PARQUET PURGE=true;
 
 -- CSV 格式带 OPTIONS
 CREATE PIPE oss_csv_pipe
@@ -147,11 +145,10 @@ CREATE PIPE oss_csv_pipe
 AS
 COPY INTO ods.csv_data
 FROM VOLUME my_csv_volume
-USING CSV
-OPTIONS ('header' = 'true', 'sep' = ',')
-purge=true;
+USING CSV PURGE=true
+OPTIONS ('header' = 'true', 'sep' = ',');
 
--- EVENT_NOTIFICATION 模式（不需要 purge）
+-- EVENT_NOTIFICATION 模式（不需要 PURGE）
 CREATE PIPE oss_event_pipe
   VIRTUAL_CLUSTER = 'default'
   INGEST_MODE = 'EVENT_NOTIFICATION'

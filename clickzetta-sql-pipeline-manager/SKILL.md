@@ -95,7 +95,7 @@ CREATE SCHEMA IF NOT EXISTS ecommerce_gold;
 
 **来源 → 入口对象的选择规则：**
 - Kafka → `CREATE PIPE ... AS COPY INTO ... FROM (SELECT ... FROM read_kafka('broker', 'topic', '', 'group', '', '', '', '', 'raw', 'raw', 0, MAP(...)))`
-- 对象存储（OSS/S3/COS）→ `CREATE PIPE ... VIRTUAL_CLUSTER = 'name' INGEST_MODE = 'LIST_PURGE' AS COPY INTO ... FROM VOLUME <volume_name> USING <format> purge=true`
+- 对象存储（OSS/S3/COS）→ `CREATE PIPE ... VIRTUAL_CLUSTER = 'name' INGEST_MODE = 'LIST_PURGE' AS COPY INTO ... FROM VOLUME <volume_name> USING <format> PURGE=true`
 - 已有表 + 有 UPDATE/DELETE → `CREATE TABLE STREAM ... WITH PROPERTIES ('TABLE_STREAM_MODE' = 'STANDARD')`，中间层过滤 `__change_type IN ('INSERT', 'UPDATE_AFTER', 'DELETE')`
 - 已有表 + 仅 INSERT → Dynamic Table 直接 `FROM` 源表
 
@@ -152,7 +152,7 @@ CREATE SCHEMA IF NOT EXISTS ecommerce_gold;
 - Dynamic Table：`REFRESH INTERVAL N MINUTE vcluster name`、AS 查询
 - Table Stream：源表名、MODE（STANDARD 或 APPEND_ONLY）
 - Pipe（Kafka）：bootstrap_servers、topic、group_id、目标表（位置参数语法）
-- Pipe（对象存储）：Volume 路径、文件格式、目标表、`purge=true`（LIST_PURGE 模式）
+- Pipe（对象存储）：Volume 路径、文件格式、目标表、`PURGE=true`（LIST_PURGE 模式）
 
 若用户未提供 VCLUSTER，默认使用 `default`（GP 型集群）。
 
