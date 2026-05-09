@@ -28,7 +28,7 @@ description: |
 
 | 路径 | 适用场景 | 核心对象 |
 |------|---------|---------|
-| **READ_KAFKA Pipe**（推荐） | 通用场景，支持复杂 SQL 转换 | `CREATE PIPE ... AS INSERT INTO ... FROM TABLE(READ_KAFKA(...))` |
+| **READ_KAFKA Pipe**（推荐） | 通用场景，支持复杂 SQL 转换 | `CREATE PIPE ... AS COPY INTO ... FROM (SELECT ... FROM read_kafka(...))` |
 | **Kafka 外部表 + Table Stream Pipe** | 需要先落原始数据再增量消费 | Kafka 外部表 → Table Stream → Pipe COPY INTO |
 
 **选择建议**：大多数场景用 READ_KAFKA Pipe 即可，更简洁高效。Kafka 外部表路径适合需要保留原始消息、多个下游消费同一 Topic 的场景。
@@ -56,93 +56,118 @@ description: |
 
 先用 `READ_KAFKA` 函数验证网络连通性和消息格式：
 
+> ⚠️ **READ_KAFKA 使用位置参数（positional parameters）**，不支持 `=>` 命名参数语法。参数顺序固定，不可省略。
+
 ```sql
--- 无认证 Kafka
+-- 无认证 Kafka（位置参数语法）
 SELECT *
-FROM TABLE(
-  READ_KAFKA(
-    KAFKA_BROKER => 'kafka.example.com:9092',
-    KAFKA_TOPIC  => 'orders',
-    KAFKA_GROUP_ID => 'test_explore',
-    KAFKA_OFFSET => 'earliest',
-    KAFKA_DATA_FORMAT => 'json'
+FROM read_kafka(
+  'kafka.example.com:9092',  -- bootstrap_servers（必填）
+  'orders',                   -- topic（必填）
+  '',                         -- topic_pattern（保留，填空字符串）
+  'test_explore',             -- group_id（必填）
+  '',                         -- starting_offsets（探查时可填 'earliest'，或留空用默认 latest）
+  '',                         -- ending_offsets（留空）
+  '',                         -- starting_timestamp（留空）
+  '',                         -- ending_timestamp（留空）
+  'raw',                      -- key_format（目前只支持 raw）
+  'raw',                      -- value_format（目前只支持 raw）
+  0,                          -- max_errors
+  MAP(
+    'kafka.security.protocol', 'PLAINTEXT',
+    'kafka.auto.offset.reset', 'earliest'
   )
 )
 LIMIT 10;
 
 -- SASL_PLAINTEXT 认证
 SELECT *
-FROM TABLE(
-  READ_KAFKA(
-    KAFKA_BROKER => 'kafka.example.com:9092',
-    KAFKA_TOPIC  => 'orders',
-    KAFKA_GROUP_ID => 'test_explore',
-    KAFKA_OFFSET => 'earliest',
-    KAFKA_DATA_FORMAT => 'json',
-    KAFKA_SASL_USERNAME => 'my_user',
-    KAFKA_SASL_PASSWORD => 'my_password'
+FROM read_kafka(
+  'kafka.example.com:9092',
+  'orders',
+  '',
+  'test_explore',
+  '', '', '', '',
+  'raw',
+  'raw',
+  0,
+  MAP(
+    'kafka.security.protocol', 'SASL_PLAINTEXT',
+    'kafka.sasl.mechanism', 'PLAIN',
+    'kafka.sasl.username', 'my_user',
+    'kafka.sasl.password', 'my_password',
+    'kafka.auto.offset.reset', 'earliest'
   )
 )
 LIMIT 10;
 ```
 
-> 探查用的 `KAFKA_GROUP_ID` 建议用临时名称（如 `test_explore`），避免影响正式消费组。
+> **参数说明**：
+> - 探查用的 `group_id` 建议用临时名称（如 `test_explore`），避免影响正式消费组
+> - `kafka.auto.offset.reset` 在 MAP 中设置为 `'earliest'` 可读取历史数据
+> - key 和 value 都是 binary 类型，需要 CAST 转换后使用
 
 ### 步骤 2：探查 JSON 结构并确定目标表 Schema
 
-Kafka 的 key 和 value 都是 binary 类型。用 `$1` 引用整行 JSON，用 `$1:field::TYPE` 提取字段：
+Kafka 的 key 和 value 都是 binary 类型。用 `value::string` 转换后查看内容，用 `parse_json()` 解析 JSON：
 
 ```sql
 -- 将 value 转为字符串查看原始内容
-SELECT CAST(value AS STRING) AS raw_value
-FROM TABLE(
-  READ_KAFKA(
-    KAFKA_BROKER => 'kafka.example.com:9092',
-    KAFKA_TOPIC  => 'orders',
-    KAFKA_GROUP_ID => 'test_schema',
-    KAFKA_OFFSET => 'earliest',
-    KAFKA_DATA_FORMAT => 'json'
-  )
+SELECT key::string, value::string
+FROM read_kafka(
+  'kafka.example.com:9092',
+  'orders',
+  '',
+  'test_schema',
+  '', '', '', '',
+  'raw', 'raw', 0,
+  MAP('kafka.security.protocol', 'PLAINTEXT', 'kafka.auto.offset.reset', 'earliest')
 )
 LIMIT 5;
 
--- 提取 JSON 字段（单层）
+-- 解析 JSON 字段（使用 parse_json）
 SELECT
-  $1:order_id::STRING AS order_id,
-  $1:user_id::STRING AS user_id,
-  $1:amount::DECIMAL(10,2) AS amount,
-  $1:status::STRING AS status,
-  $1:created_at::TIMESTAMP AS created_at
-FROM TABLE(
-  READ_KAFKA(
-    KAFKA_BROKER => 'kafka.example.com:9092',
-    KAFKA_TOPIC  => 'orders',
-    KAFKA_GROUP_ID => 'test_schema',
-    KAFKA_OFFSET => 'earliest',
-    KAFKA_DATA_FORMAT => 'json'
+  j['order_id']::STRING AS order_id,
+  j['user_id']::STRING AS user_id,
+  j['amount']::DECIMAL(10,2) AS amount,
+  j['status']::STRING AS status,
+  timestamp_millis(j['created_at']::BIGINT) AS created_at
+FROM (
+  SELECT parse_json(value::string) AS j
+  FROM read_kafka(
+    'kafka.example.com:9092',
+    'orders',
+    '',
+    'test_schema',
+    '', '', '', '',
+    'raw', 'raw', 0,
+    MAP('kafka.security.protocol', 'PLAINTEXT', 'kafka.auto.offset.reset', 'earliest')
   )
-)
-LIMIT 5;
+  LIMIT 5
+);
 
--- 多层嵌套 JSON 解析（使用 PARSE_JSON 逐层展开）
+-- 多层嵌套 JSON 解析（逐层 parse_json 展开）
 SELECT
-  $1:id::STRING AS id,
-  $1:type::STRING AS event_type,
-  PARSE_JSON($1:event::STRING):action::STRING AS action,
-  PARSE_JSON(PARSE_JSON($1:event::STRING):payload::STRING):ref::STRING AS ref
-FROM TABLE(
-  READ_KAFKA(
-    KAFKA_BROKER => 'kafka.example.com:9092',
-    KAFKA_TOPIC  => 'events',
-    KAFKA_GROUP_ID => 'test_nested',
-    KAFKA_OFFSET => 'earliest',
-    KAFKA_DATA_FORMAT => 'json'
+  j['id']::STRING AS id,
+  j['type']::STRING AS event_type,
+  parse_json(j['event']::STRING)['action']::STRING AS action,
+  parse_json(parse_json(j['event']::STRING)['payload']::STRING)['ref']::STRING AS ref
+FROM (
+  SELECT parse_json(value::string) AS j
+  FROM read_kafka(
+    'kafka.example.com:9092',
+    'events',
+    '',
+    'test_nested',
+    '', '', '', '',
+    'raw', 'raw', 0,
+    MAP('kafka.security.protocol', 'PLAINTEXT', 'kafka.auto.offset.reset', 'earliest')
   )
-)
-LIMIT 5;
+  LIMIT 5
+);
 ```
 
-> **最佳实践**：在 SELECT 中将所有嵌套 JSON 字符串都 `PARSE_JSON` 展开后再落表，避免下游查询重复计算。
+> **最佳实践**：在 SELECT 中将所有嵌套 JSON 字符串都 `parse_json` 展开后再落表，避免下游查询重复计算。
 
 ### 步骤 3：创建目标表
 
@@ -177,27 +202,39 @@ CREATE VCLUSTER IF NOT EXISTS pipe_kafka_vc
 
 ```sql
 CREATE OR REPLACE PIPE kafka_orders_pipe
-  VIRTUAL_CLUSTER = pipe_kafka_vc
-  BATCH_INTERVAL_IN_SECONDS = 60
-  BATCH_SIZE_PER_KAFKA_PARTITION = 500000
+  VIRTUAL_CLUSTER = 'pipe_kafka_vc'
+  BATCH_INTERVAL_IN_SECONDS = '60'
+  BATCH_SIZE_PER_KAFKA_PARTITION = '500000'
 AS
-INSERT INTO ods.kafka_orders (order_id, user_id, amount, status, created_at, __kafka_timestamp__)
-SELECT
-  $1:order_id::STRING,
-  $1:user_id::STRING,
-  $1:amount::DECIMAL(10,2),
-  $1:status::STRING,
-  $1:created_at::TIMESTAMP,
-  CAST(timestamp AS TIMESTAMP)
-FROM TABLE(
-  READ_KAFKA(
-    KAFKA_BROKER => 'kafka.example.com:9092',
-    KAFKA_TOPIC  => 'orders',
-    KAFKA_GROUP_ID => 'lakehouse_orders',
-    KAFKA_DATA_FORMAT => 'json'
+COPY INTO ods.kafka_orders FROM (
+  SELECT
+    j['order_id']::STRING,
+    j['user_id']::STRING,
+    j['amount']::DECIMAL(10,2),
+    j['status']::STRING,
+    j['created_at']::TIMESTAMP,
+    CAST(`timestamp` AS TIMESTAMP) AS __kafka_timestamp__
+  FROM (
+    SELECT `timestamp`, parse_json(value::string) AS j
+    FROM read_kafka(
+      'kafka.example.com:9092',  -- bootstrap_servers
+      'orders',                   -- topic
+      '',                         -- reserved
+      'lakehouse_orders',         -- group_id（正式消费组名）
+      '', '', '', '',             -- 位置参数留空，由 Pipe 自动管理
+      'raw',                      -- key_format
+      'raw',                      -- value_format
+      0,                          -- max_errors
+      MAP('kafka.security.protocol', 'PLAINTEXT')
+    )
   )
 );
 ```
+
+> ⚠️ **Pipe 中 READ_KAFKA 的关键区别**：
+> - 位置参数（starting_offsets 等）**必须留空**，由 Pipe 自动管理消费位点
+> - 不要设置 `kafka.auto.offset.reset`（由 Pipe 的 `RESET_KAFKA_GROUP_OFFSETS` 参数控制）
+> - group_id 使用正式名称（如 `lakehouse_orders`），Pipe 会持久化消费位点
 
 **关键参数说明：**
 
@@ -220,7 +257,7 @@ FROM TABLE(
 | `'latest'` | 重置到最新位点（仅消费新数据） |
 | `'1737789688000'` | 重置到指定毫秒时间戳对应的位点 |
 
-> **注意**：Pipe 中的 READ_KAFKA 不要设置 `KAFKA_OFFSET` 参数（由 Pipe 自动管理消费位点），与独立使用 READ_KAFKA 探查时不同。
+> **注意**：Pipe 中的 read_kafka 位置参数（starting_offsets 等）必须留空，由 Pipe 自动管理消费位点。与独立使用 read_kafka 探查时不同。
 
 ### 步骤 6：验证 Pipe 运行状态
 
@@ -366,28 +403,33 @@ DROP PIPE kafka_orders_pipe;
 
 -- 2. 重建 Pipe（不要设置 RESET_KAFKA_GROUP_OFFSETS，保持从上次位点继续）
 CREATE PIPE kafka_orders_pipe
-  VIRTUAL_CLUSTER = pipe_kafka_vc
-  BATCH_INTERVAL_IN_SECONDS = 60
+  VIRTUAL_CLUSTER = 'pipe_kafka_vc'
+  BATCH_INTERVAL_IN_SECONDS = '60'
 AS
-INSERT INTO ods.kafka_orders (order_id, user_id, amount, status, created_at, __kafka_timestamp__)
-SELECT
-  $1:order_id::STRING,
-  $1:user_id::STRING,
-  $1:amount::DECIMAL(10,2),
-  UPPER($1:status::STRING),  -- 修改了转换逻辑
-  $1:created_at::TIMESTAMP,
-  CAST(timestamp AS TIMESTAMP)
-FROM TABLE(
-  READ_KAFKA(
-    KAFKA_BROKER => 'kafka.example.com:9092',
-    KAFKA_TOPIC  => 'orders',
-    KAFKA_GROUP_ID => 'lakehouse_orders',  -- 保持相同 group_id
-    KAFKA_DATA_FORMAT => 'json'
+COPY INTO ods.kafka_orders FROM (
+  SELECT
+    j['order_id']::STRING,
+    j['user_id']::STRING,
+    j['amount']::DECIMAL(10,2),
+    UPPER(j['status']::STRING),  -- 修改了转换逻辑
+    j['created_at']::TIMESTAMP,
+    CAST(`timestamp` AS TIMESTAMP) AS __kafka_timestamp__
+  FROM (
+    SELECT `timestamp`, parse_json(value::string) AS j
+    FROM read_kafka(
+      'kafka.example.com:9092',
+      'orders',
+      '',
+      'lakehouse_orders',  -- 保持相同 group_id
+      '', '', '', '',
+      'raw', 'raw', 0,
+      MAP('kafka.security.protocol', 'PLAINTEXT')
+    )
   )
 );
 ```
 
-> **关键**：重建时保持相同的 `KAFKA_GROUP_ID`，且不设置 `RESET_KAFKA_GROUP_OFFSETS`，Pipe 会从上次消费位点继续。
+> **关键**：重建时保持相同的 `group_id`，且不设置 `RESET_KAFKA_GROUP_OFFSETS`，Pipe 会从上次消费位点继续。
 
 ---
 
@@ -431,40 +473,60 @@ FROM TABLE(
 
 ```sql
 -- 1. 探查
-SELECT $1:id::STRING, $1:name::STRING, $1:value::DOUBLE
-FROM TABLE(READ_KAFKA(
-  KAFKA_BROKER => 'kafka:9092', KAFKA_TOPIC => 'metrics',
-  KAFKA_GROUP_ID => 'test', KAFKA_OFFSET => 'earliest', KAFKA_DATA_FORMAT => 'json'
-)) LIMIT 5;
+SELECT parse_json(value::string)['id']::STRING, parse_json(value::string)['name']::STRING
+FROM read_kafka(
+  'kafka:9092', 'metrics', '', 'test',
+  '', '', '', '', 'raw', 'raw', 0,
+  MAP('kafka.security.protocol', 'PLAINTEXT', 'kafka.auto.offset.reset', 'earliest')
+) LIMIT 5;
 
 -- 2. 建表
 CREATE TABLE ods.metrics (id STRING, name STRING, value DOUBLE, kafka_ts TIMESTAMP);
 
 -- 3. 建 Pipe
-CREATE PIPE metrics_pipe VIRTUAL_CLUSTER = pipe_vc AS
-INSERT INTO ods.metrics
-SELECT $1:id::STRING, $1:name::STRING, $1:value::DOUBLE, CAST(timestamp AS TIMESTAMP)
-FROM TABLE(READ_KAFKA(
-  KAFKA_BROKER => 'kafka:9092', KAFKA_TOPIC => 'metrics',
-  KAFKA_GROUP_ID => 'cz_metrics', KAFKA_DATA_FORMAT => 'json'
-));
+CREATE PIPE metrics_pipe
+  VIRTUAL_CLUSTER = 'pipe_vc'
+  BATCH_INTERVAL_IN_SECONDS = '60'
+AS
+COPY INTO ods.metrics FROM (
+  SELECT
+    j['id']::STRING, j['name']::STRING, j['value']::DOUBLE,
+    CAST(`timestamp` AS TIMESTAMP)
+  FROM (
+    SELECT `timestamp`, parse_json(value::string) AS j
+    FROM read_kafka(
+      'kafka:9092', 'metrics', '', 'cz_metrics',
+      '', '', '', '', 'raw', 'raw', 0,
+      MAP('kafka.security.protocol', 'PLAINTEXT')
+    )
+  )
+);
 ```
 
 ### 场景 B：Kafka → ODS → DWD 实时 ETL
 
 ```sql
 -- 1. Pipe 接入 ODS 层
-CREATE PIPE kafka_events_pipe VIRTUAL_CLUSTER = pipe_vc AS
-INSERT INTO ods.events (event_id, user_id, action, ts)
-SELECT $1:event_id::STRING, $1:user_id::STRING, $1:action::STRING, $1:ts::TIMESTAMP
-FROM TABLE(READ_KAFKA(
-  KAFKA_BROKER => 'kafka:9092', KAFKA_TOPIC => 'user_events',
-  KAFKA_GROUP_ID => 'cz_events', KAFKA_DATA_FORMAT => 'json'
-));
+CREATE PIPE kafka_events_pipe
+  VIRTUAL_CLUSTER = 'pipe_vc'
+  BATCH_INTERVAL_IN_SECONDS = '60'
+AS
+COPY INTO ods.events FROM (
+  SELECT
+    j['event_id']::STRING, j['user_id']::STRING, j['action']::STRING, j['ts']::TIMESTAMP
+  FROM (
+    SELECT parse_json(value::string) AS j
+    FROM read_kafka(
+      'kafka:9092', 'user_events', '', 'cz_events',
+      '', '', '', '', 'raw', 'raw', 0,
+      MAP('kafka.security.protocol', 'PLAINTEXT')
+    )
+  )
+);
 
 -- 2. Dynamic Table 清洗到 DWD 层
 CREATE OR REPLACE DYNAMIC TABLE dwd.events_clean
-  REFRESH interval 1 MINUTE VCLUSTER default_ap
+  REFRESH INTERVAL 1 MINUTE vcluster default
 AS
 SELECT event_id, user_id, UPPER(action) AS action, ts, DATE(ts) AS dt
 FROM ods.events
@@ -472,7 +534,7 @@ WHERE event_id IS NOT NULL AND action IS NOT NULL;
 
 -- 3. Dynamic Table 聚合到 DWS 层
 CREATE OR REPLACE DYNAMIC TABLE dws.events_hourly
-  REFRESH interval 5 MINUTE VCLUSTER default_ap
+  REFRESH INTERVAL 5 MINUTE vcluster default
 AS
 SELECT DATE_TRUNC('hour', ts) AS hour, action, COUNT(*) AS cnt, COUNT(DISTINCT user_id) AS uv
 FROM dwd.events_clean
@@ -483,20 +545,31 @@ GROUP BY 1, 2;
 
 ```sql
 CREATE PIPE kafka_auth_pipe
-  VIRTUAL_CLUSTER = pipe_vc
-  BATCH_INTERVAL_IN_SECONDS = 60
+  VIRTUAL_CLUSTER = 'pipe_vc'
+  BATCH_INTERVAL_IN_SECONDS = '60'
   RESET_KAFKA_GROUP_OFFSETS = '1737789688000'
 AS
-INSERT INTO ods.secure_events (event_id, payload, kafka_ts)
-SELECT $1:id::STRING, $1:payload::STRING, CAST(timestamp AS TIMESTAMP)
-FROM TABLE(
-  READ_KAFKA(
-    KAFKA_BROKER => 'kafka.example.com:9092',
-    KAFKA_TOPIC  => 'secure_events',
-    KAFKA_GROUP_ID => 'cz_secure',
-    KAFKA_DATA_FORMAT => 'json',
-    KAFKA_SASL_USERNAME => 'my_user',
-    KAFKA_SASL_PASSWORD => 'my_password'
+COPY INTO ods.secure_events FROM (
+  SELECT
+    j['id']::STRING AS event_id,
+    j['payload']::STRING AS payload,
+    CAST(`timestamp` AS TIMESTAMP) AS kafka_ts
+  FROM (
+    SELECT `timestamp`, parse_json(value::string) AS j
+    FROM read_kafka(
+      'kafka.example.com:9092',
+      'secure_events',
+      '',
+      'cz_secure',
+      '', '', '', '',
+      'raw', 'raw', 0,
+      MAP(
+        'kafka.security.protocol', 'SASL_PLAINTEXT',
+        'kafka.sasl.mechanism', 'PLAIN',
+        'kafka.sasl.username', 'my_user',
+        'kafka.sasl.password', 'my_password'
+      )
+    )
   )
 );
 ```
@@ -507,12 +580,14 @@ FROM TABLE(
 
 | 问题 | 排查方向 |
 |------|---------|
-| READ_KAFKA 探查无数据 | 检查 broker 地址/端口、topic 名称、网络连通性；尝试 `KAFKA_OFFSET => 'earliest'` |
+| READ_KAFKA 语法报错 `Syntax error at or near '('` | ❌ 不要用 `TABLE(READ_KAFKA(...))` 或 `=>` 命名参数。✅ 正确：`FROM read_kafka('broker', 'topic', '', 'group', '', '', '', '', 'raw', 'raw', 0, MAP(...))` |
+| READ_KAFKA 报错 `cannot resolve column` | 使用了 `=` 赋值语法（如 `KAFKA_BROKER = 'xxx'`）。READ_KAFKA 只支持位置参数 |
+| READ_KAFKA 探查无数据 | 检查 broker 地址/端口、topic 名称、网络连通性；在 MAP 中设置 `'kafka.auto.offset.reset', 'earliest'` |
 | Pipe 创建后无数据加载 | `DESC PIPE EXTENDED` 检查是否暂停；确认 group_id 的消费位点（默认 latest，新数据才会消费） |
-| JSON 解析报错 | 检查 `$1:field::TYPE` 语法；嵌套 JSON 需先 `PARSE_JSON()` 展开 |
-| SASL 认证失败 | 确认安全协议为 SASL_PLAINTEXT（不支持 SSL）；检查用户名密码 |
+| JSON 解析报错 | 使用 `parse_json(value::string)['field']::TYPE` 语法；嵌套 JSON 需逐层 `parse_json()` 展开 |
+| SASL 认证失败 | 确认安全协议为 SASL_PLAINTEXT（不支持 SSL）；在 MAP 中设置 `kafka.sasl.mechanism`、`kafka.sasl.username`、`kafka.sasl.password` |
 | 消费延迟持续增大 | 增大 `BATCH_SIZE_PER_KAFKA_PARTITION`；增大 VCluster 规格；使用 `COPY_JOB_HINT` 切分 task |
-| 重建 Pipe 后数据重复 | 保持相同 `KAFKA_GROUP_ID` 且不设置 `RESET_KAFKA_GROUP_OFFSETS` |
+| 重建 Pipe 后数据重复 | 保持相同 group_id 且不设置 `RESET_KAFKA_GROUP_OFFSETS` |
 | 重建 Pipe 后数据丢失 | 检查 group_id 的位点是否过期；如需回溯用 `RESET_KAFKA_GROUP_OFFSETS` 指定时间戳 |
 | `COPY_JOB_HINT` 修改后参数丢失 | `SET COPY_JOB_HINT` 会覆盖所有已有 hints，需一次性设置全部参数 |
 | Pipe 作业 Failover | 查看作业详情；通常为 Kafka 连接中断或 Lakehouse 服务升级，会自动恢复 |

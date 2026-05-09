@@ -56,9 +56,14 @@ description: |
 ## 前置依赖
 
 - ClickZetta Lakehouse Studio 账户，具备创建同步任务权限
-- 源端数据源已在 Studio 中配置，且账号具备 CDC 所需权限
+- 源端数据源已在 Studio 中配置（通过 Studio UI 添加数据源，不是 SQL Storage Connection），且账号具备 CDC 所需权限
 - Sync VCluster 可用（多表实时同步任务 task_type=281 必须使用 Sync VCluster）
 - clickzetta-studio-mcp 工具可用（`create_task`、`save_cdc_realtime_task`、`publish_task`、`list_data_sources`、`LH_show_object_list` 等）
+
+> ⚠️ **重要区分**：CDC 多表同步使用 **Studio 数据源**（通过 Studio UI 或 API 配置），不是 SQL 的 `CREATE STORAGE CONNECTION`。
+> - `CREATE STORAGE CONNECTION` 仅支持对象存储类型（OSS/COS/S3）和 Kafka
+> - MySQL / PostgreSQL 等关系数据库的连接通过 **Studio 数据源管理** 配置
+> - 使用 `list_data_sources` API 查看已配置的数据源
 
 ## 源端数据库准备
 
@@ -359,8 +364,9 @@ PostgreSQL 权限要求（建议用管理员账号执行）：
 
 | 问题 | 排查方向 |
 |------|---------|
+| `CREATE STORAGE CONNECTION TYPE MYSQL` 报错 | ❌ ClickZetta 不支持 MySQL/PostgreSQL 类型的 Storage Connection。CDC 数据源通过 **Studio UI 数据源管理** 配置，不是 SQL 命令 |
 | 任务创建失败 | 检查是否有可用 Sync VCluster |
-| 源端连接失败 | 检查数据源配置、网络可达性、账号权限 |
+| 源端连接失败 | 检查 Studio 中数据源配置、网络可达性、账号权限 |
 | Binlog 读取失败 | 确认 MySQL `log_bin=ON`、`binlog_format=ROW`、`binlog_row_image=FULL` |
 | WAL 读取失败 | 确认 PostgreSQL `wal_level=logical`，slot 未被其他任务占用 |
 | Slot 启动冲突 | 不同任务不要复用同一个 slot，检查是否有其他运行中任务占用 |
@@ -442,6 +448,7 @@ PostgreSQL 权限要求（建议用管理员账号执行）：
 
 ## 已知局限
 
+- **不支持 SQL 创建 MySQL/PostgreSQL Connection**：`CREATE STORAGE CONNECTION TYPE MYSQL/POSTGRESQL` 会报错 `no connection info factory for connection kind 'STORAGE', type 'mysql'`。CDC 数据源必须通过 Studio UI 数据源管理配置
 - Schema Evolution 暂不支持变更字段类型、不支持自动新增表
 - 仅支持带主键（PK）字段的表，非 PK 表不支持同步
 - 源端不同库表中若存在主键相同的数据，同步结果会异常
