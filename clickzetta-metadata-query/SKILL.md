@@ -52,7 +52,7 @@ SELECT current_workspace(), current_schema(), current_user(), current_vcluster()
 SHOW SCHEMAS;
 SHOW SCHEMAS EXTENDED;          -- 含 type 字段（managed/external）
 SHOW SCHEMAS LIKE 'ods%';
--- ⚠️ SHOW SCHEMAS 不支持 WHERE，需用 EXTENDED 后应用层过滤
+-- SHOW SCHEMAS 支持 WHERE（如 WHERE schema_name LIKE '%xxx%'）
 
 -- 表（含视图/物化视图/动态表/外部表）
 SHOW TABLES;
