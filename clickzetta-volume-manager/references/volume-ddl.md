@@ -14,7 +14,7 @@
 ## CREATE EXTERNAL VOLUME
 
 ```sql
--- OSS
+-- OSS（推荐使用 ACCESS_KEY/SECRET_KEY 大写形式）
 CREATE EXTERNAL VOLUME my_oss_volume
   LOCATION 'oss://<bucket>/<path>'
   USING CONNECTION my_oss_conn
@@ -41,6 +41,8 @@ CREATE EXTERNAL VOLUME my_s3_volume
 - `USING CONNECTION`：已创建的 STORAGE CONNECTION 名称
 - `DIRECTORY`：目录功能配置，`ENABLE=TRUE` 开启目录索引，`AUTO_REFRESH=TRUE` 自动刷新
 - `RECURSIVE`：是否递归扫描子目录
+
+> ⚠️ 上传新文件后如果 `SHOW VOLUME DIRECTORY` 未显示，执行 `ALTER VOLUME name REFRESH` 手动刷新。
 
 ---
 
@@ -191,4 +193,7 @@ FROM TABLE my_table
 FILE_FORMAT = (TYPE = CSV);
 ```
 
-> ⚠️ 导出用 `FILE_FORMAT = (TYPE = ...)` 指定格式，不是 `USING`。`USING` 仅用于 `SELECT FROM VOLUME`。
+> ⚠️ **关键区分**：
+> - **导入**（COPY INTO TABLE / SELECT FROM VOLUME）：用 `USING CSV/PARQUET/JSON` + `OPTIONS(...)`
+> - **导出**（COPY INTO VOLUME）：用 `FILE_FORMAT = (TYPE = CSV/PARQUET/JSON)`
+> - 两者语法不可混用！

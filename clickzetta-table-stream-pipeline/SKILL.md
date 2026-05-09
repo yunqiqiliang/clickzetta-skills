@@ -36,17 +36,19 @@ CREATE [ OR REPLACE ] TABLE STREAM <stream_name>
   );
 ```
 关键参数选择：
-- **STANDARD 模式**：捕获 INSERT/UPDATE/DELETE，反映表当前状态 → 适用于数据同步、增量 ETL
+- **STANDARD 模式**：捕获 INSERT/UPDATE/DELETE，反映表当前状态（delta 变化） → 适用于数据同步、增量 ETL
+  - delta 变化指两个事务时间点之间的净变化。例如：先 INSERT 再 DELETE 同一行 → delta 为空；先 INSERT 再 UPDATE → delta 为一条新行（最终状态）
 - **APPEND_ONLY 模式**：仅捕获 INSERT，保留所有历史插入记录 → 适用于审计、历史记录保留
+  - 即使后续 DELETE 了某行，APPEND_ONLY 模式仍保留该行的 INSERT 记录
 - **SHOW_INITIAL_ROWS = TRUE**：首次消费返回建 Stream 时表中已有行
 - **SHOW_INITIAL_ROWS = FALSE**（默认）：首次消费仅返回建 Stream 后的新变更
 - 可选：指定起始时间点
 ```sql
--- ⚠️ TIMESTAMP AS OF 功能在 ClickZetta 中不稳定，建议仅在必要时使用
--- 如需使用，时间戳必须用 CAST() 形式
+-- TIMESTAMP AS OF 用于指定 Stream 的起始读取位点
+-- 注意：此功能在某些场景下可能不稳定，建议优先使用默认行为（从创建时刻开始）
 CREATE TABLE STREAM <stream_name>
   ON TABLE <source_table>
-  TIMESTAMP AS OF CAST('<timestamp>' AS TIMESTAMP)
+  TIMESTAMP AS OF '<timestamp>'
   WITH PROPERTIES ('TABLE_STREAM_MODE' = 'STANDARD');
 ```
 
@@ -63,7 +65,10 @@ FROM <stream_name>;
 ```
 - 仅 SELECT 不会移动 offset
 - 元数据字段：`__change_type`（值：`INSERT` / `UPDATE_BEFORE` / `UPDATE_AFTER` / `DELETE`）、`__commit_version`、`__commit_timestamp`
-- UPDATE 产生两条记录：`UPDATE_BEFORE`（更新前旧值）和 `UPDATE_AFTER`（更新后新值），消费时通常忽略 `UPDATE_BEFORE`
+- **UPDATE 处理要点**：UPDATE 操作产生两条记录：
+  - `UPDATE_BEFORE`：更新前的旧值（通常在消费时忽略）
+  - `UPDATE_AFTER`：更新后的新值（用于写入目标表）
+  - 消费时务必过滤 `__change_type`，避免将 `UPDATE_BEFORE` 旧值误写入目标表
 
 ### 步骤 5：消费 Stream 数据（移动 offset）
 使用 `write_query` 执行 DML 操作消费数据：
@@ -77,15 +82,16 @@ SELECT <columns> FROM <stream_name>;
 #### 方式 B：幂等消费（MERGE，推荐）
 ```sql
 MERGE INTO <target_table> t
-USING <stream_name> s
+USING (SELECT * FROM <stream_name> WHERE __change_type != 'UPDATE_BEFORE') s
 ON t.<pk_column> = s.<pk_column>
 WHEN MATCHED AND s.__change_type = 'UPDATE_AFTER' THEN UPDATE SET t.col1 = s.col1, t.col2 = s.col2
 WHEN MATCHED AND s.__change_type = 'DELETE' THEN DELETE
-WHEN NOT MATCHED AND s.__change_type = 'INSERT' THEN INSERT (<columns>) VALUES (s.<columns>);
+WHEN NOT MATCHED AND s.__change_type IN ('INSERT', 'UPDATE_AFTER') THEN INSERT (<columns>) VALUES (s.<columns>);
 ```
 - DML 操作（INSERT/UPDATE/MERGE）会移动 offset
-- 即使使用 WHERE 条件过滤，所有数据的 offset 仍会移动
+- ⚠️ 即使使用 WHERE 条件过滤，**所有数据的 offset 仍会移动**（不仅是匹配的行）
 - 推荐使用 MERGE 实现幂等性，避免重复消费导致数据重复
+- 在 USING 子查询中过滤掉 `UPDATE_BEFORE`，避免旧值干扰 MERGE 逻辑
 
 ### 步骤 6：验证消费状态
 使用 `read_query` 确认消费完成：
@@ -94,6 +100,19 @@ SELECT COUNT(*) FROM <stream_name>;
 ```
 - 消费成功后 COUNT 应为 0 或仅包含新变更
 - 记录最后消费的 `__commit_version` 用于故障恢复
+
+## Offset 移动规则
+
+| 操作 | 是否移动 offset | 说明 |
+|------|----------------|------|
+| `SELECT * FROM stream` | ❌ 不移动 | 仅预览，可反复查询 |
+| `INSERT INTO target SELECT ... FROM stream` | ✅ 移动 | 消费数据 |
+| `MERGE INTO target USING stream ...` | ✅ 移动 | 消费数据（推荐） |
+| `UPDATE target SET ... FROM stream` | ✅ 移动 | 消费数据 |
+| `DELETE FROM target USING stream` | ✅ 移动 | 消费数据 |
+| 带 WHERE 的 DML | ✅ 全部移动 | 即使 WHERE 过滤了部分行，所有行的 offset 都会移动 |
+
+> ⚠️ **关键注意**：offset 移动是全量的。一旦执行 DML 消费 Stream，所有变更记录的 offset 都会前进，无法部分消费。如果 DML 执行失败（如目标表不存在），offset 不会移动。
 
 ## 模式选择速查
 
