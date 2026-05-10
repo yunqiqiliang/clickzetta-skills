@@ -465,7 +465,7 @@ COPY INTO ods.kafka_orders FROM (
 
 | 问题 | 调优方向 | 操作 |
 |------|---------|------|
-| 每批读取不完一个周期的数据 | 增大 `BATCH_SIZE_PER_KAFKA_PARTITION` | `ALTER PIPE ... SET BATCH_SIZE_PER_KAFKA_PARTITION = 1000000` |
+| 每批读取不完一个周期的数据 | 增大 `BATCH_SIZE_PER_KAFKA_PARTITION` | 删除重建 Pipe 时设置更大的值（如 `BATCH_SIZE_PER_KAFKA_PARTITION = '1000000'`） |
 | 作业需要多轮才能完成 | 增大 VCluster 规格（使 core 数 ≥ partition 数） | `ALTER VCLUSTER ... SET VCLUSTER_SIZE = 16` |
 | partition 少但数据量大 | 按条数切分 task | `ALTER PIPE ... SET COPY_JOB_HINT = '{"cz.sql.split.kafka.strategy":"size","cz.mapper.kafka.message.size":"200000"}'` |
 
