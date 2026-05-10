@@ -106,6 +106,9 @@ LIMIT 10;
 > - 探查用的 `group_id` 建议用临时名称（如 `test_explore`），避免影响正式消费组
 > - `kafka.auto.offset.reset` 在 MAP 中设置为 `'earliest'` 可读取历史数据
 > - key 和 value 都是 binary 类型，需要 CAST 转换后使用
+> - **多 Broker 地址格式**：用逗号分隔多个 broker，Pipe 会自动故障转移
+>   - ✅ 推荐：`'broker1:9092,broker2:9092,broker3:9092'`（高可用）
+>   - ⚠️ 单 broker：`'broker1:9092'`（无故障转移，不推荐生产使用）
 
 ### 步骤 2：探查 JSON 结构并确定目标表 Schema
 
@@ -613,7 +616,7 @@ COPY INTO ods.secure_events FROM (
 | READ_KAFKA 探查无数据 | 检查 broker 地址/端口、topic 名称、网络连通性；在 MAP 中设置 `'kafka.auto.offset.reset', 'earliest'` |
 | Pipe 创建后无数据加载 | `DESC PIPE EXTENDED` 检查是否暂停；确认 group_id 的消费位点（默认 latest，新数据才会消费） |
 | Table Stream Pipe 语法报错 `Syntax error at or near 'SELECT'` | ❌ 不要用 `COPY INTO ... SELECT`。✅ 正确：`INSERT INTO ... SELECT FROM stream` |
-| `CREATE OR REPLACE PIPE` 语法报错 | ❌ ClickZetta 不支持 `CREATE OR REPLACE PIPE`。✅ 正确：用 `CREATE PIPE` 或先 `DROP` 再 `CREATE` |
+| `CREATE OR REPLACE PIPE` 报错 AlreadyExist | ❌ ClickZetta 不支持 `CREATE OR REPLACE PIPE`。Pipe 不存在时 `CREATE OR REPLACE` 会创建成功，但 Pipe 已存在时报 AlreadyExist 错误。✅ 正确：用 `DROP PIPE` + `CREATE PIPE` 重建（与 Dynamic Table 不同，DT 支持 `CREATE OR REPLACE`） |
 | JSON 解析报错 | 使用 `parse_json(value::string)['field']::TYPE` 语法；嵌套 JSON 需逐层 `parse_json()` 展开 |
 | SASL 认证失败 | 确认安全协议为 SASL_PLAINTEXT（不支持 SSL）；在 MAP 中设置 `kafka.sasl.mechanism`、`kafka.sasl.username`、`kafka.sasl.password` |
 | 消费延迟持续增大 | 增大 `BATCH_SIZE_PER_KAFKA_PARTITION`；增大 VCluster 规格；使用 `COPY_JOB_HINT` 切分 task |
