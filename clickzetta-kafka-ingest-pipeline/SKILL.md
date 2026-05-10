@@ -29,7 +29,7 @@ description: |
 | 路径 | 适用场景 | 核心对象 |
 |------|---------|---------|
 | **READ_KAFKA Pipe**（推荐） | 通用场景，支持复杂 SQL 转换 | `CREATE PIPE ... AS COPY INTO ... FROM (SELECT ... FROM read_kafka(...))` |
-| **Kafka 外部表 + Table Stream Pipe** | 需要先落原始数据再增量消费 | Kafka 外部表 → Table Stream → Pipe COPY INTO |
+| **Kafka 外部表 + Table Stream Pipe** | 需要先落原始数据再增量消费 | Kafka 外部表 → Table Stream → Pipe `INSERT INTO ... SELECT` |
 
 **选择建议**：大多数场景用 READ_KAFKA Pipe 即可，更简洁高效。Kafka 外部表路径适合需要保留原始消息、多个下游消费同一 Topic 的场景。
 
@@ -201,7 +201,8 @@ CREATE VCLUSTER IF NOT EXISTS pipe_kafka_vc
 ### 步骤 5：创建 Kafka Pipe
 
 ```sql
-CREATE OR REPLACE PIPE kafka_orders_pipe
+-- ⚠️ 注意：ClickZetta 不支持 CREATE OR REPLACE PIPE，需用 CREATE PIPE 或先 DROP 再 CREATE
+CREATE PIPE kafka_orders_pipe
   VIRTUAL_CLUSTER = 'pipe_kafka_vc'
   BATCH_INTERVAL_IN_SECONDS = '60'
   BATCH_SIZE_PER_KAFKA_PARTITION = '500000'
@@ -292,6 +293,9 @@ CREATE STORAGE CONNECTION IF NOT EXISTS kafka_conn
   TYPE KAFKA
   BOOTSTRAP_SERVERS = ['kafka.example.com:9092']
   SECURITY_PROTOCOL = 'PLAINTEXT';
+
+-- 删除 Connection（⚠️ 注意：用 DROP CONNECTION，不是 DROP STORAGE CONNECTION）
+DROP CONNECTION IF EXISTS kafka_conn;
 ```
 
 ### 步骤 2：创建 Kafka 外部表
@@ -321,7 +325,8 @@ CONNECTION kafka_conn;
 > **注意**：
 > - 列定义是**必须的**，不指定会报错 `failed to detect columns`
 > - `offset` 和 `timestamp` 是保留字，定义和查询时都需要反引号转义
-> - 删除外部表用 `DROP TABLE`（不是 `DROP EXTERNAL TABLE`，后者会报语法错误）
+> - 删除外部表用 `DROP TABLE`（❌ `DROP EXTERNAL TABLE` 会报语法错误）
+> - 删除 Connection 用 `DROP CONNECTION`（❌ `DROP STORAGE CONNECTION` 会报语法错误）
 
 ### 步骤 3：创建 Table Stream
 
@@ -343,11 +348,12 @@ CREATE TABLE IF NOT EXISTS ods.kafka_orders_from_ext (
 );
 
 -- Pipe（从 Table Stream 消费）
+-- ⚠️ 注意：Table Stream Pipe 使用 INSERT INTO ... SELECT 语法，不是 COPY INTO
 CREATE PIPE kafka_ext_orders_pipe
   VIRTUAL_CLUSTER = 'pipe_kafka_vc'
   BATCH_INTERVAL_IN_SECONDS = '60'
 AS
-COPY INTO ods.kafka_orders_from_ext
+INSERT INTO ods.kafka_orders_from_ext
 SELECT
   GET_JSON_OBJECT(CAST(value AS STRING), '$.order_id') AS order_id,
   GET_JSON_OBJECT(CAST(value AS STRING), '$.user_id') AS user_id,
@@ -422,6 +428,7 @@ ALTER PIPE kafka_orders_pipe SET COPY_JOB_HINT = '{"cz.sql.split.kafka.strategy"
 DROP PIPE kafka_orders_pipe;
 
 -- 2. 重建 Pipe（不要设置 RESET_KAFKA_GROUP_OFFSETS，保持从上次位点继续）
+-- ⚠️ 注意：ClickZetta 不支持 CREATE OR REPLACE PIPE，使用 CREATE PIPE
 CREATE PIPE kafka_orders_pipe
   VIRTUAL_CLUSTER = 'pipe_kafka_vc'
   BATCH_INTERVAL_IN_SECONDS = '60'
@@ -545,6 +552,7 @@ COPY INTO ods.events FROM (
 );
 
 -- 2. Dynamic Table 清洗到 DWD 层
+-- ⚠️ 注意：Dynamic Table 支持 CREATE OR REPLACE，与 Pipe 不同
 CREATE OR REPLACE DYNAMIC TABLE dwd.events_clean
   REFRESH INTERVAL 1 MINUTE vcluster default
 AS
@@ -604,6 +612,8 @@ COPY INTO ods.secure_events FROM (
 | READ_KAFKA 报错 `cannot resolve column` | 使用了 `=` 赋值语法（如 `KAFKA_BROKER = 'xxx'`）。READ_KAFKA 只支持位置参数 |
 | READ_KAFKA 探查无数据 | 检查 broker 地址/端口、topic 名称、网络连通性；在 MAP 中设置 `'kafka.auto.offset.reset', 'earliest'` |
 | Pipe 创建后无数据加载 | `DESC PIPE EXTENDED` 检查是否暂停；确认 group_id 的消费位点（默认 latest，新数据才会消费） |
+| Table Stream Pipe 语法报错 `Syntax error at or near 'SELECT'` | ❌ 不要用 `COPY INTO ... SELECT`。✅ 正确：`INSERT INTO ... SELECT FROM stream` |
+| `CREATE OR REPLACE PIPE` 语法报错 | ❌ ClickZetta 不支持 `CREATE OR REPLACE PIPE`。✅ 正确：用 `CREATE PIPE` 或先 `DROP` 再 `CREATE` |
 | JSON 解析报错 | 使用 `parse_json(value::string)['field']::TYPE` 语法；嵌套 JSON 需逐层 `parse_json()` 展开 |
 | SASL 认证失败 | 确认安全协议为 SASL_PLAINTEXT（不支持 SSL）；在 MAP 中设置 `kafka.sasl.mechanism`、`kafka.sasl.username`、`kafka.sasl.password` |
 | 消费延迟持续增大 | 增大 `BATCH_SIZE_PER_KAFKA_PARTITION`；增大 VCluster 规格；使用 `COPY_JOB_HINT` 切分 task |

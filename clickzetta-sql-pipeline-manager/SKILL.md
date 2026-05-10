@@ -182,7 +182,8 @@ SHOW PIPES;
 
 ```sql
 -- Step 1: 创建 Pipe 持续摄入 Kafka 数据到 ODS 层
-CREATE OR REPLACE PIPE kafka_orders_pipe
+-- ⚠️ 注意：ClickZetta 不支持 CREATE OR REPLACE PIPE，需用 CREATE PIPE 或先 DROP 再 CREATE
+CREATE PIPE kafka_orders_pipe
   VIRTUAL_CLUSTER = 'default'
   BATCH_INTERVAL_IN_SECONDS = '60'
 AS
@@ -255,7 +256,10 @@ WHERE __change_type IN ('INSERT', 'UPDATE_AFTER');
 
 ```sql
 -- 创建每小时刷新的物化视图
-CREATE OR REPLACE MATERIALIZED VIEW dws.mv_daily_revenue
+-- ⚠️ 注意：ClickZetta 不支持 CREATE OR REPLACE MATERIALIZED VIEW
+-- 方法 1: 先 DROP 再 CREATE（推荐）
+DROP MATERIALIZED VIEW IF EXISTS dws.mv_daily_revenue;
+CREATE MATERIALIZED VIEW dws.mv_daily_revenue
   COMMENT '每日收入汇总，供 BI 工具查询'
   REFRESH INTERVAL 60 MINUTE vcluster default
 AS
@@ -267,8 +271,14 @@ SELECT
 FROM dwd.orders_clean
 GROUP BY 1, 2;
 
+-- 方法 2: 使用 BUILD DEFERRED + DISABLE QUERY REWRITE（复杂，不推荐）
+-- CREATE OR REPLACE MATERIALIZED VIEW ... BUILD DEFERRED DISABLE QUERY REWRITE AS ...
+
 -- 手动触发刷新
 REFRESH MATERIALIZED VIEW dws.mv_daily_revenue;
+
+-- 删除物化视图（⚠️ 注意：必须用 DROP MATERIALIZED VIEW，不能用 DROP TABLE）
+DROP MATERIALIZED VIEW dws.mv_daily_revenue;
 ```
 
 ### 场景 D：运维操作
@@ -312,25 +322,32 @@ REFRESH DYNAMIC TABLE dwd.orders_partitioned
 
 ### 场景 F：动态表 DML 操作（手动修正数据）
 
-动态表默认不支持 DML，需先通过 SET 命令开启，**且每次执行 DML 前都需要重新 SET**：
+⚠️ **重要**：ClickZetta 动态表**不支持 DML 操作**（INSERT/UPDATE/DELETE）。如需修正数据，有以下方案：
 
+**方案 1：重建动态表（推荐）**
 ```sql
--- ⚠️ 必须在同一会话/批次中先执行 SET，再执行 DML
-SET cz.sql.dt.allow.dml = true;
-
--- 手动插入补数据
-INSERT INTO dwd.orders_clean VALUES (999, 'manual_user', 100.00, 'COMPLETED', DATE('2024-06-15'), '2024-06-15');
-
--- 手动删除错误数据
-SET cz.sql.dt.allow.dml = true;
-DELETE FROM dwd.orders_clean WHERE order_id = 999;
+-- 1. 在源表中修正数据
+-- 2. 等待动态表自动刷新（下一次 REFRESH INTERVAL 会全量刷新）
 ```
 
-> ⚠️ **注意**：
-> - `SET cz.sql.dt.allow.dml = true` 必须与 DML 语句在同一执行批次中，不能分开执行
-> - 对动态表执行 DML 后，下一次自动刷新会触发**全量刷新**（而非增量），可能耗时较长
-> - **UPDATE 操作有限制**：动态表 UPDATE 可能因内部隐藏列（`MV__KEY`）报错，建议改用 DELETE + INSERT 或 MERGE INTO 替代
-> - 仅在数据修正等特殊场景使用 DML
+**方案 2：使用普通表替代动态表**
+```sql
+-- 对于需要频繁手动修正的场景，建议使用普通表 + 定时调度任务
+-- 而不是动态表
+CREATE TABLE dwd.orders_manual (
+  order_id STRING,
+  user_id STRING,
+  amount DECIMAL(10,2),
+  status STRING,
+  created_at TIMESTAMP,
+  dt DATE
+);
+```
+
+> ⚠️ **动态表限制**：
+> - 动态表是只读的，不支持 INSERT/UPDATE/DELETE
+> - 数据修正应在源表进行，动态表会自动刷新
+> - 如需手动控制数据，使用普通表 + Studio 调度任务
 
 ---
 
@@ -339,12 +356,15 @@ DELETE FROM dwd.orders_clean WHERE order_id = 999;
 | 错误 | 原因 | 解决方案 |
 |---|---|---|
 | `VCluster not available` | 计算集群未启动或名称错误 | 确认 VCLUSTER 名称，检查集群状态 |
-| 动态表刷新失败 | SQL 查询报错或源表结构变更 | `SHOW DYNAMIC TABLE REFRESH HISTORY` 查看错误详情 |
+| 动态表刷新失败 | SQL 查询报错或源表结构变更 | `SHOW DYNAMIC TABLE REFRESH HISTORY WHERE name = 'xxx'` 查看错误详情 |
 | Stream 数据为空 | 已被消费或超出保留周期 | 检查源表 `data_retention_days`，确认是否已消费 |
-| Pipe 停止摄入 | Kafka offset 问题或连接断开 | `DESC PIPE` 查看状态，检查 Kafka 连接 |
+| Pipe 停止摄入 | Kafka offset 问题或连接断开 | `DESC PIPE EXTENDED` 查看状态，检查 Kafka 连接 |
 | `Cannot ALTER AS clause` | 尝试用 ALTER 修改动态表 SQL | 改用 `CREATE OR REPLACE DYNAMIC TABLE` |
-| 动态表 UPDATE 报错 `Not support hidden column :MV__KEY` | 动态表内部实现限制 | 改用 `DELETE + INSERT` 或 `MERGE INTO` 替代 UPDATE |
-| 动态表 DML 报错 `not allowed` | 未设置 DML 开关 | 在同一批次先执行 `SET cz.sql.dt.allow.dml = true;` |
+| `CREATE OR REPLACE PIPE` 语法报错 | ClickZetta 不支持该语法 | 用 `CREATE PIPE` 或先 `DROP PIPE` 再 `CREATE` |
+| `CREATE OR REPLACE MATERIALIZED VIEW` 语法报错 | 仅支持 `REWRITE DISABLED + BUILD DEFER` 模式 | 推荐用 `DROP MATERIALIZED VIEW` + `CREATE MATERIALIZED VIEW` |
+| `DROP TABLE` 删除物化视图报错 | 对象类型不匹配 | 用 `DROP MATERIALIZED VIEW`（不是 `DROP TABLE`） |
+| 动态表 DML 报错 `not allowed` | 动态表不支持 DML | 在源表修正数据，或使用普通表 + 调度任务 |
+| `SET cz.sql.dt.allow.dml` 报错 | 不支持 session statement | 动态表不支持 DML 操作，改用其他方案 |
 
 ---
 
