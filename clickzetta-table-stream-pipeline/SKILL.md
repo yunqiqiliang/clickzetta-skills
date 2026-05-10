@@ -84,14 +84,15 @@ SELECT <columns> FROM <stream_name>;
 MERGE INTO <target_table> t
 USING (SELECT * FROM <stream_name> WHERE __change_type != 'UPDATE_BEFORE') s
 ON t.<pk_column> = s.<pk_column>
-WHEN MATCHED AND s.__change_type = 'UPDATE_AFTER' THEN UPDATE SET t.col1 = s.col1, t.col2 = s.col2
 WHEN MATCHED AND s.__change_type = 'DELETE' THEN DELETE
-WHEN NOT MATCHED AND s.__change_type IN ('INSERT', 'UPDATE_AFTER') THEN INSERT (<columns>) VALUES (s.<columns>);
+WHEN MATCHED AND s.__change_type IN ('INSERT', 'UPDATE_AFTER') THEN UPDATE SET t.col1 = s.col1, t.col2 = s.col2
+WHEN NOT MATCHED AND s.__change_type = 'INSERT' THEN INSERT (<columns>) VALUES (s.<columns>);
 ```
 - DML 操作（INSERT/UPDATE/MERGE）会移动 offset
 - ⚠️ 即使使用 WHERE 条件过滤，**所有数据的 offset 仍会移动**（不仅是匹配的行）
 - 推荐使用 MERGE 实现幂等性，避免重复消费导致数据重复
 - 在 USING 子查询中过滤掉 `UPDATE_BEFORE`，避免旧值干扰 MERGE 逻辑
+- ⚠️ **MERGE 语法顺序要求**：多个 `WHEN MATCHED` 子句时，**DELETE 必须在 UPDATE 之前**，否则报错
 
 ### 步骤 6：验证消费状态
 使用 `read_query` 确认消费完成：
