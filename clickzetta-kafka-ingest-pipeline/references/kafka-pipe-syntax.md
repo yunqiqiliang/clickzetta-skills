@@ -277,7 +277,7 @@ DESC PIPE EXTENDED <pipe_name>;
 SHOW PIPES;
 
 -- 查看加载历史
-SELECT * FROM TABLE(load_history('<schema>.<table>'))
+SELECT * FROM load_history('<schema>.<table>')
 ORDER BY last_load_time DESC LIMIT 20;
 
 -- 通过 query_tag 查看 Pipe 作业

@@ -33,24 +33,18 @@ description: |
 
 > ⚠️ **跨云限制**：Storage Connection 必须与 Lakehouse 实例在同一云厂商。阿里云实例不能创建 COS/S3 Connection，腾讯云实例不能创建 OSS Connection。
 
-> ⚠️ **阿里云 OSS 参数名对照**：
-> - `ACCESS_KEY` / `access_id`：对应阿里云控制台的 **AccessKey ID**
-> - `SECRET_KEY` / `access_key`：对应阿里云控制台的 **AccessKey Secret**
-> - 大写和小写两种写法均可使用，系统不区分
+> ⚠️ **阿里云 OSS 参数名**：
+> - 必须使用小写 `access_id` / `access_key`
+> - `access_id`：对应阿里云控制台的 **AccessKey ID**
+> - `access_key`：对应阿里云控制台的 **AccessKey Secret**
+> - ⚠️ 大写 `ACCESS_KEY` / `SECRET_KEY` 会报错
 
 ```sql
--- 阿里云 OSS（大写形式）
+-- 阿里云 OSS
 CREATE STORAGE CONNECTION IF NOT EXISTS my_oss_conn
   TYPE OSS
-  ACCESS_KEY = 'LTAIxxxxxxxxxxxx'       -- 对应 AccessKey ID
-  SECRET_KEY = 'T8Gexxxxxxmtxxxxxx'    -- 对应 AccessKey Secret
-  ENDPOINT = 'oss-cn-hangzhou-internal.aliyuncs.com';
-
--- 阿里云 OSS（小写形式，等价）
-CREATE STORAGE CONNECTION IF NOT EXISTS my_oss_conn
-  TYPE OSS
-  access_id = 'LTAIxxxxxxxxxxxx'       -- 对应 AccessKey ID
-  access_key = 'T8Gexxxxxxmtxxxxxx'    -- 对应 AccessKey Secret
+  access_id = 'LTAIxxxxxxxxxxxx'
+  access_key = 'T8Gexxxxxxmtxxxxxx'
   ENDPOINT = 'oss-cn-hangzhou-internal.aliyuncs.com';
 
 -- 腾讯云 COS

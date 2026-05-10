@@ -65,15 +65,14 @@ description: |
 CREATE STORAGE CONNECTION IF NOT EXISTS my_oss_connection
   TYPE OSS
   ENDPOINT = 'oss-cn-hangzhou.aliyuncs.com'
-  ACCESS_KEY = '<your_access_key_id>'
-  SECRET_KEY = '<your_access_key_secret>'
-  COMMENT = 'OSS connection for data pipeline';
+  access_id = '<your_access_key_id>'
+  access_key = '<your_access_key_secret>';
 ```
 
 > **参数说明**：
-> - `ACCESS_KEY`：对应阿里云控制台的 **AccessKey ID**
-> - `SECRET_KEY`：对应阿里云控制台的 **AccessKey Secret**
-> - 也可使用 `access_id` / `access_key` 小写形式（见模式 C 批量导入示例）
+> - `access_id`：对应阿里云控制台的 **AccessKey ID**
+> - `access_key`：对应阿里云控制台的 **AccessKey Secret**
+> - ⚠️ 必须使用小写 `access_id` / `access_key`，大写 `ACCESS_KEY` / `SECRET_KEY` 会报错
 >
 > **提示**：如果使用 Role ARN 方式（EVENT_NOTIFICATION 模式必须），参见下方"模式 B"中的 Connection 创建语法。
 
@@ -85,13 +84,13 @@ CREATE EXTERNAL VOLUME IF NOT EXISTS pipe_volume
   LOCATION 'oss://my-bucket/data-path/'
   USING CONNECTION my_oss_connection
   DIRECTORY = (enable = true, auto_refresh = true)
-  RECURSIVE = true
-  COMMENT = 'Volume for OSS PIPE ingestion';
+  RECURSIVE = true;
 ```
 
 > **关键参数**：
 > - `RECURSIVE = true`：递归扫描子目录
 > - `DIRECTORY = (enable = true, auto_refresh = true)`：自动刷新目录元数据
+> - ⚠️ Volume 不支持 COMMENT 子句
 
 #### 步骤 3：验证 COPY INTO 可独立运行
 
@@ -101,16 +100,13 @@ CREATE EXTERNAL VOLUME IF NOT EXISTS pipe_volume
 -- 使用 LH_execute_query 执行
 COPY INTO my_schema.target_table
 FROM VOLUME pipe_volume
-USING CSV PURGE=true
-OPTIONS (
-  'header' = 'true',
-  'delimiter' = ','
-);
+USING CSV PURGE=true;
 ```
 
 > **重要**：
 > - PIPE 中的 COPY 语句不支持 `files`、`regexp`、`subdirectory` 参数。确保此处验证时也不使用这些参数。
-> - `PURGE=true` 紧跟在 `USING <format>` 之后（如 `USING CSV PURGE=true`），OPTIONS 在其后。
+> - ⚠️ PIPE 场景下的 COPY 语句**不支持 OPTIONS 子句**，只能用 `USING <format> PURGE=true`。
+> - 如需指定 CSV 选项（如 header、delimiter），只能在非 PIPE 的独立 COPY INTO 中使用。
 
 #### 步骤 4：创建 PIPE（LIST_PURGE 模式）
 
@@ -119,20 +115,17 @@ OPTIONS (
 CREATE PIPE IF NOT EXISTS my_oss_pipe
   INGEST_MODE = 'LIST_PURGE'
   VIRTUAL_CLUSTER = 'my_vc'
-  COMMENT = 'OSS data pipeline - scan mode'
 AS
 COPY INTO my_schema.target_table
 FROM VOLUME pipe_volume
-USING CSV PURGE=true
-OPTIONS (
-  'header' = 'true',
-  'delimiter' = ','
-);
+USING CSV PURGE=true;
 ```
 
 > **⚠️ PURGE=true 语法关键点**：
 > - `PURGE=true` 紧跟在 `USING <format>` 之后，写在同一行：`USING CSV PURGE=true`
 > - 大写 `PURGE`，小写 `true`，中间用 `=` 连接，无空格
+> - ⚠️ PIPE 不支持 COMMENT 子句
+> - ⚠️ PIPE 中的 COPY 语句不支持 OPTIONS 子句
 > - **LIST_PURGE 模式必须设置** `PURGE=true`，加载成功后删除源文件（避免重复导入）
 > - 即使不想删除源文件，LIST_PURGE 模式也需要此参数，否则会重复导入同一文件
 > - `VIRTUAL_CLUSTER`：指定执行 PIPE 任务的虚拟集群
@@ -177,8 +170,7 @@ CREATE STORAGE CONNECTION IF NOT EXISTS my_oss_role_connection
   TYPE OSS
   ENDPOINT = 'oss-cn-hangzhou.aliyuncs.com'
   ROLE_ARN = 'acs:ram::1234567890:role/clickzetta-oss-role'
-  REGION = 'cn-hangzhou'
-  COMMENT = 'OSS connection via Role ARN for event notification mode';
+  REGION = 'cn-hangzhou';
 ```
 
 #### 步骤 2：创建外部 Volume
@@ -200,21 +192,17 @@ CREATE PIPE IF NOT EXISTS my_oss_event_pipe
   INGEST_MODE = 'EVENT_NOTIFICATION'
   VIRTUAL_CLUSTER = 'my_vc'
   ALICLOUD_MNS_QUEUE = 'my-mns-queue-name'
-  COMMENT = 'OSS data pipeline - event notification mode'
 AS
 COPY INTO my_schema.target_table
 FROM VOLUME pipe_event_volume
-USING CSV
-OPTIONS (
-  'header' = 'true',
-  'delimiter' = ','
-);
+USING CSV;
 ```
 
 > **参数说明**：
 > - `INGEST_MODE = 'EVENT_NOTIFICATION'`：通过消息通知触发加载
 > - `ALICLOUD_MNS_QUEUE`：阿里云 MNS 队列名称（AWS 使用 `AWS_SQS_QUEUE`）
 > - 此模式下不需要 `PURGE=true`，因为是事件驱动而非扫描
+> - ⚠️ PIPE 不支持 COMMENT 子句和 OPTIONS 子句
 
 ---
 
@@ -249,19 +237,14 @@ CREATE STORAGE CONNECTION IF NOT EXISTS my_batch_conn
   TYPE OSS
   ENDPOINT = 'oss-cn-shanghai-internal.aliyuncs.com'
   access_id = '<your_access_key_id>'
-  access_key = '<your_access_key_secret>'
-  COMMENTS = 'OSS batch import connection';
+  access_key = '<your_access_key_secret>';
 ```
 
-> **Connection 参数命名对照**：
->
-> | 写法 | 参数 1（AccessKey ID） | 参数 2（AccessKey Secret） | 说明 |
-> |---|---|---|---|
-> | 大写形式 | `ACCESS_KEY` | `SECRET_KEY` | PIPE 模式文档常用 |
-> | 小写形式 | `access_id` | `access_key` | 批量导入文档常用 |
->
-> 两种写法均有效，系统不区分大小写。`ACCESS_KEY` 对应阿里云的 AccessKey ID（不是 Secret），`SECRET_KEY` 对应 AccessKey Secret。
-> 使用 `access_id`/`access_key` 时，`access_id` = AccessKey ID，`access_key` = AccessKey Secret。
+> **Connection 参数命名**：
+> - ⚠️ 必须使用小写 `access_id` / `access_key`，大写形式会报错
+> - `access_id`：对应阿里云控制台的 AccessKey ID
+> - `access_key`：对应阿里云控制台的 AccessKey Secret
+> - Connection 不支持 COMMENT 子句
 
 #### 步骤 3：创建外部 Volume（启用目录自动刷新）
 
@@ -353,7 +336,7 @@ DESC PIPE EXTENDED my_oss_pipe;
 
 ```sql
 -- 使用 LH_execute_query 执行
-SELECT * FROM TABLE(load_history('my_schema.target_table'))
+SELECT * FROM load_history('my_schema.target_table')
 ORDER BY last_load_time DESC
 LIMIT 20;
 ```
@@ -411,7 +394,7 @@ DROP PIPE IF EXISTS my_oss_pipe;
 |------|---------|
 | PIPE 创建后无数据加载 | 1. `DESC PIPE EXTENDED` 检查是否暂停 2. 确认 Volume 路径下有新文件 3. 检查 COPY INTO 是否能独立运行 |
 | LIST_PURGE 模式文件未被删除 | 确认 `PURGE=true` 已设置（紧跟 `USING <format>` 之后）；检查 Connection 的 AccessKey 是否有删除权限 |
-| `PURGE=true` 语法错误 | ❌ 不要放在 OPTIONS 内或语句末尾。✅ 正确：`USING CSV PURGE=true OPTIONS(...)` |
+| `PURGE=true` 语法错误 | ❌ 不要放在 OPTIONS 内或语句末尾。✅ 正确：`USING CSV PURGE=true`（无 OPTIONS） |
 | EVENT_NOTIFICATION 模式无触发 | 1. 检查 MNS/SQS 队列是否收到消息 2. 确认 OSS 事件通知规则配置正确 3. 检查 Role ARN 授权 |
 | 重复加载数据 | `load_history` 去重记录仅保留 7 天，超过 7 天的同名文件会被重新加载 |
 | COPY_JOB_HINT 修改后部分参数丢失 | `SET COPY_JOB_HINT` 会覆盖所有已有 hints，需在一次 ALTER 中设置全部参数 |
@@ -436,7 +419,7 @@ DROP PIPE IF EXISTS my_oss_pipe;
 - 同地域建议使用内网 Endpoint 以提升传输速度和稳定性
 - 推荐使用 GENERAL PURPOSE 类型虚拟集群执行批量加载任务
 - INSERT INTO 方式支持 `FILES()` 和 `WHERE` 参数，COPY INTO 不支持
-- Connection 参数 `access_id`/`access_key` 和 `ACCESS_KEY`/`SECRET_KEY` 两种写法均可使用
+- Connection 参数必须使用小写 `access_id`/`access_key`（大写 `ACCESS_KEY`/`SECRET_KEY` 会报错）
 - ⚠️ `INSERT INTO ... FROM VOLUME` 不会记录到 `load_history`，只有 `COPY INTO` 会记录
 - ⚠️ Volume 中有多种格式文件时，不指定 `FILES()` 的 COPY INTO 会尝试读取所有文件，可能因格式不匹配而失败。建议使用 `FILES('xxx.json')` 指定文件或 `SUBDIRECTORY` 指定子目录
 - 上传文件到 OSS 后，`SHOW VOLUME DIRECTORY` 可能需要先执行 `ALTER VOLUME name REFRESH` 刷新目录元数据

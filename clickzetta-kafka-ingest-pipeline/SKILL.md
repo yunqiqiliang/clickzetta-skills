@@ -271,7 +271,7 @@ SELECT COUNT(*) FROM ods.kafka_orders;
 SELECT * FROM ods.kafka_orders LIMIT 10;
 
 -- 查看加载历史（保留 7 天）
-SELECT * FROM TABLE(load_history('ods.kafka_orders'))
+SELECT * FROM load_history('ods.kafka_orders')
 ORDER BY last_load_time DESC
 LIMIT 20;
 

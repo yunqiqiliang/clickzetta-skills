@@ -116,8 +116,7 @@ CREATE [ OR REPLACE ] PIPE [ IF NOT EXISTS ] <pipe_name>
 AS
 COPY INTO <target_table>
 FROM VOLUME <volume_name>
-USING <csv | parquet | orc | json> PURGE=true
-[ OPTIONS ('<key>' = '<value>', ...) ];
+USING <csv | parquet | orc | json> PURGE=true;
 ```
 
 **关键参数：**
@@ -125,7 +124,8 @@ USING <csv | parquet | orc | json> PURGE=true
 - `INGEST_MODE = 'LIST_PURGE'`：通用模式，定期扫描文件列表，必须设置 `PURGE=true`
 - `INGEST_MODE = 'EVENT_NOTIFICATION'`：事件通知模式，低延迟（仅阿里云 OSS + AWS S3），不需要 `PURGE=true`
 - `PURGE=true`：紧跟在 `USING <format>` 之后（同一行），大写 PURGE，小写 true
-- PIPE 中的 COPY 语句不支持 `files`、`regexp`、`subdirectory` 参数
+- ⚠️ PIPE 不支持 COMMENT 子句
+- ⚠️ PIPE 中的 COPY 语句不支持 OPTIONS 子句、`files`、`regexp`、`subdirectory` 参数
 
 **示例：**
 ```sql
@@ -138,15 +138,14 @@ COPY INTO ods.events
 FROM VOLUME my_oss_volume
 USING PARQUET PURGE=true;
 
--- CSV 格式带 OPTIONS
+-- CSV 格式（PIPE 中不支持 OPTIONS）
 CREATE PIPE oss_csv_pipe
   VIRTUAL_CLUSTER = 'default'
   INGEST_MODE = 'LIST_PURGE'
 AS
 COPY INTO ods.csv_data
 FROM VOLUME my_csv_volume
-USING CSV PURGE=true
-OPTIONS ('header' = 'true', 'sep' = ',');
+USING CSV PURGE=true;
 
 -- EVENT_NOTIFICATION 模式（不需要 PURGE）
 CREATE PIPE oss_event_pipe

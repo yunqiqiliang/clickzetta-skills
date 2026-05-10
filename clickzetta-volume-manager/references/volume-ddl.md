@@ -14,7 +14,7 @@
 ## CREATE EXTERNAL VOLUME
 
 ```sql
--- OSS（推荐使用 ACCESS_KEY/SECRET_KEY 大写形式）
+-- OSS（Connection 必须使用小写 access_id/access_key）
 CREATE EXTERNAL VOLUME my_oss_volume
   LOCATION 'oss://<bucket>/<path>'
   USING CONNECTION my_oss_conn
