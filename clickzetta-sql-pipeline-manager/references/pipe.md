@@ -112,40 +112,42 @@ LIMIT 10;
 CREATE [ OR REPLACE ] PIPE [ IF NOT EXISTS ] <pipe_name>
   VIRTUAL_CLUSTER = '<virtual_cluster_name>'
   INGEST_MODE = 'LIST_PURGE' | 'EVENT_NOTIFICATION'
+  [ COMMENT '<comment>' ]
   [ COPY_JOB_HINT = '<hint>' ]
 AS
 COPY INTO <target_table>
 FROM VOLUME <volume_name>
-USING <csv | parquet | orc | json> PURGE=true;
+USING <csv | parquet | orc | json> [OPTIONS ('<key>' = '<value>', ...)] PURGE=true;
 ```
 
 **关键参数：**
 - `VIRTUAL_CLUSTER`：指定虚拟集群名称（OSS Pipe 必填）
 - `INGEST_MODE = 'LIST_PURGE'`：通用模式，定期扫描文件列表，必须设置 `PURGE=true`
 - `INGEST_MODE = 'EVENT_NOTIFICATION'`：事件通知模式，低延迟（仅阿里云 OSS + AWS S3），不需要 `PURGE=true`
-- `PURGE=true`：紧跟在 `USING <format>` 之后（同一行），大写 PURGE，小写 true
-- ⚠️ PIPE 不支持 COMMENT 子句
-- ⚠️ PIPE 中的 COPY 语句不支持 OPTIONS 子句、`files`、`regexp`、`subdirectory` 参数
+- `COMMENT 'text'`：不带等号（`COMMENT = 'text'` 会报错）
+- `PURGE=true`：放在最后，OPTIONS 在其之前：`USING CSV OPTIONS (...) PURGE=true`
+- PIPE 中的 COPY 语句不支持 `files`、`regexp`、`subdirectory` 参数
 
 **示例：**
 ```sql
--- LIST_PURGE 模式（PURGE=true 紧跟 USING 之后）
+-- LIST_PURGE 模式（带 OPTIONS）
 CREATE OR REPLACE PIPE oss_events_pipe
   VIRTUAL_CLUSTER = 'default'
   INGEST_MODE = 'LIST_PURGE'
+  COMMENT 'OSS events pipeline'
 AS
 COPY INTO ods.events
 FROM VOLUME my_oss_volume
 USING PARQUET PURGE=true;
 
--- CSV 格式（PIPE 中不支持 OPTIONS）
+-- CSV 格式带 OPTIONS（OPTIONS 在 PURGE 之前）
 CREATE PIPE oss_csv_pipe
   VIRTUAL_CLUSTER = 'default'
   INGEST_MODE = 'LIST_PURGE'
 AS
 COPY INTO ods.csv_data
 FROM VOLUME my_csv_volume
-USING CSV PURGE=true;
+USING CSV OPTIONS ('header' = 'true', 'sep' = ',') PURGE=true;
 
 -- EVENT_NOTIFICATION 模式（不需要 PURGE）
 CREATE PIPE oss_event_pipe

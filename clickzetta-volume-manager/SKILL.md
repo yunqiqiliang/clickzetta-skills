@@ -34,10 +34,9 @@ description: |
 > ⚠️ **跨云限制**：Storage Connection 必须与 Lakehouse 实例在同一云厂商。阿里云实例不能创建 COS/S3 Connection，腾讯云实例不能创建 OSS Connection。
 
 > ⚠️ **阿里云 OSS 参数名**：
-> - 必须使用小写 `access_id` / `access_key`
-> - `access_id`：对应阿里云控制台的 **AccessKey ID**
-> - `access_key`：对应阿里云控制台的 **AccessKey Secret**
-> - ⚠️ 大写 `ACCESS_KEY` / `SECRET_KEY` 会报错
+> - 小写形式：`access_id` / `access_key`（推荐）
+> - 大写形式：`ACCESS_KEY_ID` / `ACCESS_KEY_SECRET`（也可以）
+> - ⚠️ `ACCESS_KEY` / `SECRET_KEY` 会报错（缺少 `_ID` / `_SECRET` 后缀）
 
 ```sql
 -- 阿里云 OSS
