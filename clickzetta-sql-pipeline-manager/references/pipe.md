@@ -175,13 +175,18 @@ ALTER PIPE <pipe_name> SET PIPE_EXECUTION_PAUSED = false;
 ```sql
 -- 每次只能修改一个属性
 ALTER PIPE <pipe_name> SET VIRTUAL_CLUSTER = 'new_vc';
-ALTER PIPE <pipe_name> SET BATCH_INTERVAL_IN_SECONDS = '120';
-ALTER PIPE <pipe_name> SET BATCH_SIZE_PER_KAFKA_PARTITION = '1000000';
 ALTER PIPE <pipe_name> SET COPY_JOB_HINT = '{"cz.sql.split.kafka.strategy":"size","cz.mapper.kafka.message.size":"200000"}';
 ```
 
-> ⚠️ 不支持修改 COPY/INSERT 语句逻辑，需删除 Pipe 后重建。
-> ⚠️ `COPY_JOB_HINT` 修改会覆盖所有已有 hints，需一次性设置全部参数。
+> ⚠️ **ALTER PIPE 支持的属性**：
+> - ✅ `PIPE_EXECUTION_PAUSED`
+> - ✅ `VIRTUAL_CLUSTER`
+> - ✅ `COPY_JOB_HINT`
+> - ❌ `BATCH_INTERVAL_IN_SECONDS`（不支持修改，需删除重建）
+> - ❌ `BATCH_SIZE_PER_KAFKA_PARTITION`（不支持修改，需删除重建）
+>
+> 不支持修改 COPY/INSERT 语句逻辑，需删除 Pipe 后重建。
+> `COPY_JOB_HINT` 修改会覆盖所有已有 hints，需一次性设置全部参数。
 
 ## DROP PIPE
 

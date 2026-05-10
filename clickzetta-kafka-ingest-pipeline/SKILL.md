@@ -297,17 +297,31 @@ CREATE STORAGE CONNECTION IF NOT EXISTS kafka_conn
 ### 步骤 2：创建 Kafka 外部表
 
 ```sql
-CREATE EXTERNAL TABLE kafka_orders_ext
-  USING KAFKA
-  OPTIONS (
-    'group_id' = 'lakehouse_ext_orders',
-    'topics' = 'orders',
-    'starting_offset' = 'earliest'
-  )
-  CONNECTION kafka_conn;
+-- ⚠️ 必须显式指定列定义，不能省略
+-- ⚠️ offset 是保留字，必须用反引号转义
+CREATE EXTERNAL TABLE kafka_orders_ext (
+  topic STRING,
+  partition INT,
+  `offset` BIGINT,
+  `timestamp` TIMESTAMP,
+  timestamp_type STRING,
+  headers STRING,
+  key BINARY,
+  value BINARY
+)
+USING KAFKA
+OPTIONS (
+  'group_id' = 'lakehouse_ext_orders',
+  'topics' = 'orders',
+  'starting_offset' = 'earliest'
+)
+CONNECTION kafka_conn;
 ```
 
-外部表固定字段：`topic`、`partition`、`offset`、`timestamp`、`timestamp_type`、`headers`、`key`（BINARY）、`value`（BINARY）
+> **注意**：
+> - 列定义是**必须的**，不指定会报错 `failed to detect columns`
+> - `offset` 和 `timestamp` 是保留字，定义和查询时都需要反引号转义
+> - 删除外部表用 `DROP TABLE`（不是 `DROP EXTERNAL TABLE`，后者会报语法错误）
 
 ### 步骤 3：创建 Table Stream
 
@@ -330,17 +344,19 @@ CREATE TABLE IF NOT EXISTS ods.kafka_orders_from_ext (
 
 -- Pipe（从 Table Stream 消费）
 CREATE PIPE kafka_ext_orders_pipe
-  VIRTUAL_CLUSTER = pipe_kafka_vc
-  BATCH_INTERVAL_IN_SECONDS = 60
+  VIRTUAL_CLUSTER = 'pipe_kafka_vc'
+  BATCH_INTERVAL_IN_SECONDS = '60'
 AS
 COPY INTO ods.kafka_orders_from_ext
 SELECT
   GET_JSON_OBJECT(CAST(value AS STRING), '$.order_id') AS order_id,
   GET_JSON_OBJECT(CAST(value AS STRING), '$.user_id') AS user_id,
   CAST(GET_JSON_OBJECT(CAST(value AS STRING), '$.amount') AS DECIMAL(10,2)) AS amount,
-  CAST(timestamp AS TIMESTAMP) AS kafka_ts
+  CAST(`timestamp` AS TIMESTAMP) AS kafka_ts
 FROM kafka_orders_stream;
 ```
+
+> **清理外部表**：使用 `DROP TABLE kafka_orders_ext`（不是 `DROP EXTERNAL TABLE`）
 
 ---
 
@@ -383,16 +399,20 @@ ALTER PIPE kafka_orders_pipe SET PIPE_EXECUTION_PAUSED = false;
 ### 修改 Pipe 属性
 
 ```sql
--- 修改批处理间隔
-ALTER PIPE kafka_orders_pipe SET BATCH_INTERVAL_IN_SECONDS = 120;
-
--- 修改每分区批大小
-ALTER PIPE kafka_orders_pipe SET BATCH_SIZE_PER_KAFKA_PARTITION = 1000000;
-
 -- 修改 VCluster
 ALTER PIPE kafka_orders_pipe SET VIRTUAL_CLUSTER = 'new_vc';
+
+-- 修改 COPY_JOB_HINT
+ALTER PIPE kafka_orders_pipe SET COPY_JOB_HINT = '{"cz.sql.split.kafka.strategy":"size","cz.mapper.kafka.message.size":"200000"}';
 ```
 
+> ⚠️ **ALTER PIPE 支持的属性**（经验证）：
+> - ✅ `PIPE_EXECUTION_PAUSED`
+> - ✅ `VIRTUAL_CLUSTER`
+> - ✅ `COPY_JOB_HINT`
+> - ❌ `BATCH_INTERVAL_IN_SECONDS`（不支持修改，需删除重建 Pipe）
+> - ❌ `BATCH_SIZE_PER_KAFKA_PARTITION`（不支持修改，需删除重建 Pipe）
+>
 > 每次 ALTER 只能修改一个属性。不支持修改 COPY/INSERT 语句逻辑，需删除重建。
 
 ### 修改 Pipe SQL 逻辑（需删除重建）

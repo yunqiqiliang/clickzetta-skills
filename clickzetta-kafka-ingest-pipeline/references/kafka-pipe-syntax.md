@@ -212,17 +212,31 @@ CREATE STORAGE CONNECTION IF NOT EXISTS <conn_name>
 ### 步骤 2：创建 Kafka 外部表
 
 ```sql
-CREATE EXTERNAL TABLE <ext_table_name>
-  USING KAFKA
-  OPTIONS (
-    'group_id' = '<consumer_group>',
-    'topics' = '<topic_name>',
-    'starting_offset' = '<earliest | latest>'
-  )
-  CONNECTION <conn_name>;
+-- ⚠️ 必须显式指定列定义（不能省略）
+-- ⚠️ offset 是保留字，必须用反引号转义
+CREATE EXTERNAL TABLE <ext_table_name> (
+  topic STRING,
+  partition INT,
+  `offset` BIGINT,
+  `timestamp` TIMESTAMP,
+  timestamp_type STRING,
+  headers STRING,
+  key BINARY,
+  value BINARY
+)
+USING KAFKA
+OPTIONS (
+  'group_id' = '<consumer_group>',
+  'topics' = '<topic_name>',
+  'starting_offset' = '<earliest | latest>'
+)
+CONNECTION <conn_name>;
 ```
 
-固定字段：`topic`, `partition`, `offset`, `timestamp`, `timestamp_type`, `headers`, `key`(BINARY), `value`(BINARY)
+> **注意**：
+> - 列定义是**必须的**，省略会报错 `failed to detect columns`
+> - `offset` 和 `timestamp` 是保留字，需要反引号转义
+> - 删除外部表用 `DROP TABLE`（不是 `DROP EXTERNAL TABLE`）
 
 ### 步骤 3：创建 Table Stream
 
@@ -255,13 +269,20 @@ ALTER PIPE <pipe_name> SET PIPE_EXECUTION_PAUSED = true;
 -- 恢复
 ALTER PIPE <pipe_name> SET PIPE_EXECUTION_PAUSED = false;
 
--- 修改属性（每次只能改一个）
-ALTER PIPE <pipe_name> SET BATCH_INTERVAL_IN_SECONDS = '120';
-ALTER PIPE <pipe_name> SET BATCH_SIZE_PER_KAFKA_PARTITION = '1000000';
+-- 修改 VCluster
 ALTER PIPE <pipe_name> SET VIRTUAL_CLUSTER = 'new_vc';
+
+-- 修改 COPY_JOB_HINT
 ALTER PIPE <pipe_name> SET COPY_JOB_HINT = '{"cz.sql.split.kafka.strategy":"size","cz.mapper.kafka.message.size":"200000"}';
 ```
 
+> ⚠️ **ALTER PIPE 支持的属性**：
+> - ✅ `PIPE_EXECUTION_PAUSED`
+> - ✅ `VIRTUAL_CLUSTER`
+> - ✅ `COPY_JOB_HINT`
+> - ❌ `BATCH_INTERVAL_IN_SECONDS`（不支持，需删除重建）
+> - ❌ `BATCH_SIZE_PER_KAFKA_PARTITION`（不支持，需删除重建）
+>
 > 不支持修改 COPY/INSERT 语句逻辑，需删除 Pipe 后重建。
 > 修改 `COPY_JOB_HINT` 会覆盖所有已有 hints，需一次性设置全部参数。
 
