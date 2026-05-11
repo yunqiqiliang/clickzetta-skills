@@ -1,14 +1,16 @@
 ---
 name: clickzetta-dba-guide
 description: |
-  ClickZetta Lakehouse DBA 日常运维操作手册。集中覆盖 DBA 最常用的 8 类操作：
-  用户与权限管理、计算集群运维、作业监控与诊断、数据恢复与保护、
-  存储优化与维护、网络策略与安全、Schema 与对象管理、成本与资源分析。
+  ClickZetta Lakehouse DBA 日常运维操作手册。集中覆盖 DBA 最常用的 6 类操作：
+  计算集群运维、作业监控与诊断、数据恢复与保护、
+  存储优化与维护、Schema 与对象管理、成本与资源分析。
   每个操作提供可直接执行的 SQL，并标注 ClickZetta 特有限制。
-  当用户说"创建用户"、"授权"、"撤销权限"、"启停集群"、"调整集群规格"、
+  当用户说"启停集群"、"调整集群规格"、
   "取消作业"、"慢查询"、"恢复误删表"、"UNDROP"、"RESTORE"、
-  "小文件合并"、"OPTIMIZE"、"ANALYZE TABLE"、"网络策略"、"IP 白名单"、
-  "动态脱敏"、"成本分析"、"存储用量"、"DBA 操作"时触发。
+  "小文件合并"、"OPTIMIZE"、"ANALYZE TABLE"、
+  "成本分析"、"存储用量"、"DBA 操作"、
+  "创建 Schema"、"删除 Schema"、"重命名表"、"对象管理"、"Schema 管理"时触发。
+  用户与权限管理、网络策略、数据脱敏等安全治理操作请使用 clickzetta-access-control skill。
   Keywords: DBA, operations, monitoring, troubleshooting, cluster management, cost
 ---
 

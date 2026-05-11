@@ -16,6 +16,9 @@ description: |
   "云器是什么"、"Singdata 是什么"、"ClickZetta 和云器什么关系"、
   "国际版地址"、"Singdata 地址"、"API 地址"、"控制台地址"、
   "service 参数填什么"、"JDBC 地址"、"连接地址"时触发。
+  注意：Studio 的任务调度、DAG 编排、数据目录、数据质量、运维监控等具体功能操作，
+  请使用 clickzetta-studio-overview skill，本 skill 仅覆盖 Studio 的概念定位和与其他产品的差异对比。
+  当用户问"ClickZetta 有哪些功能"时，若涉及 Studio 具体操作步骤，请转向 clickzetta-studio-overview。
   Keywords: concepts, architecture, workspace, schema, instance, VCluster, object model
 ---
 
