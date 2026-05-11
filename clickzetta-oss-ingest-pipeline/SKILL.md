@@ -26,7 +26,29 @@ description: |
 
 - ClickZetta Lakehouse 账户，具备创建 PIPE、表、存储连接、Volume 等权限
 - 对象存储桶可达（Endpoint、AccessKey 或 Role ARN）
-- clickzetta-studio-mcp 工具可用（`LH_execute_query`、`LH_show_object_list` 等）
+- **执行环境（满足其一即可，优先使用 cz-cli）**：
+  - **cz-cli 路径**：已安装 cz-cli（`pip install cz-cli`），并完成 `cz-cli configure` 配置
+  - **MCP 路径**：clickzetta-mcp-server 工具可用（`LH_execute_query`、`LH_show_object_list` 等）
+
+## 环境探测（执行前必读）
+
+在开始任何操作前，先判断当前执行环境：
+
+**第一步：检测 cz-cli 是否可用**
+```bash
+cz-cli --version
+```
+- 若命令存在 → **走 cz-cli 路径**（见本文档末尾"cz-cli 替代路径"章节）
+- 若命令不存在 → 继续检测 MCP
+
+**第二步：检测 MCP 是否可用（仅在 cz-cli 不可用时）**
+
+尝试调用 `LH_execute_query` 工具执行一条简单 SQL（如 `SELECT 1`）。
+- 若工具存在于 tool list → **走 MCP 路径**（本文档默认路径）
+- 若工具不存在 → 停止执行，提示用户：
+  > "当前环境既无 cz-cli 也无 MCP 工具，请安装其中之一后重试。
+  > cz-cli 安装：`pip install cz-cli`，然后运行 `cz-cli configure`
+  > MCP 安装：参考 clickzetta-mcp-server 配置文档"
 
 ## 核心概念
 
@@ -425,3 +447,91 @@ DROP PIPE IF EXISTS my_oss_pipe;
 - ⚠️ `INSERT INTO ... FROM VOLUME` 不会记录到 `load_history`，只有 `COPY INTO` 会记录
 - ⚠️ Volume 中有多种格式文件时，不指定 `FILES()` 的 COPY INTO 会尝试读取所有文件，可能因格式不匹配而失败。建议使用 `FILES('xxx.json')` 指定文件或 `SUBDIRECTORY` 指定子目录
 - 上传文件到 OSS 后，`SHOW VOLUME DIRECTORY` 可能需要先执行 `ALTER VOLUME name REFRESH` 刷新目录元数据
+
+---
+
+## cz-cli 替代路径
+
+> 仅在 cz-cli 可用且 MCP 不可用时使用本节。步骤编号与上方 MCP 路径对应。
+> 所有操作通过 `cz-cli agent run` 委托给内置 agent 完成，agent 内置完整的 MCP 工具访问能力。
+
+### 模式 A：LIST_PURGE 扫描模式（cz-cli 版）
+
+```bash
+# 步骤 1：创建存储连接
+cz-cli agent run "创建 OSS Storage Connection，名称 <my_oss_connection>，endpoint <oss-cn-hangzhou.aliyuncs.com>，access_key <key>，secret_key <secret>" \
+  --format a2a --dangerously-skip-permissions
+
+# 步骤 2：创建外部 Volume
+cz-cli agent run "创建外部 Volume，名称 <pipe_volume>，使用 Connection <my_oss_connection>，路径 oss://<bucket>/<data-path>/" \
+  --format a2a --dangerously-skip-permissions
+
+# 步骤 3：验证 COPY INTO 可独立运行
+cz-cli agent run "用 COPY INTO 从 Volume <pipe_volume> 加载数据到表 <schema>.<table>，文件格式 CSV，有 header，验证数据能正常加载" \
+  --format a2a --dangerously-skip-permissions
+
+# 步骤 4：创建 LIST_PURGE 模式 PIPE
+cz-cli agent run "创建 PIPE <my_oss_pipe>，INGEST_MODE 为 LIST_PURGE，使用 VCluster <my_vc>，从 Volume <pipe_volume> 以 CSV 格式（有 header，purge=true）持续导入数据到表 <schema>.<table>" \
+  --format a2a --dangerously-skip-permissions
+
+# 步骤 5：验证 PIPE 状态
+cz-cli agent run "查看 PIPE <my_oss_pipe> 的详细状态，确认 pipe_execution_paused 为 false" \
+  --format a2a --dangerously-skip-permissions
+```
+
+---
+
+### 模式 B：EVENT_NOTIFICATION 消息通知模式（cz-cli 版）
+
+```bash
+# 步骤 1：创建 Role ARN 方式的存储连接
+cz-cli agent run "创建 OSS Storage Connection，名称 <my_oss_role_connection>，endpoint <oss-cn-hangzhou.aliyuncs.com>，使用 Role ARN <acs:ram::xxx:role/clickzetta-oss-role>，region cn-hangzhou" \
+  --format a2a --dangerously-skip-permissions
+
+# 步骤 2：创建外部 Volume
+cz-cli agent run "创建外部 Volume，名称 <pipe_event_volume>，使用 Connection <my_oss_role_connection>，路径 oss://<bucket>/<data-path>/" \
+  --format a2a --dangerously-skip-permissions
+
+# 步骤 3：创建 EVENT_NOTIFICATION 模式 PIPE
+cz-cli agent run "创建 PIPE <my_oss_event_pipe>，INGEST_MODE 为 EVENT_NOTIFICATION，使用 VCluster <my_vc>，ALICLOUD_MNS_QUEUE 为 <my-mns-queue-name>，从 Volume <pipe_event_volume> 以 CSV 格式持续导入数据到表 <schema>.<table>" \
+  --format a2a --dangerously-skip-permissions
+```
+
+---
+
+### 模式 C：批量导入（cz-cli 版）
+
+```bash
+# 步骤 1：创建目标表
+cz-cli agent run "在 schema <my_schema> 下创建表 <target_table>，字段：id STRING, name STRING, amount DECIMAL(10,2), created_date STRING" \
+  --format a2a --dangerously-skip-permissions
+
+# 步骤 2-3：创建存储连接和 Volume
+cz-cli agent run "创建 OSS Storage Connection <my_batch_conn>，endpoint <oss-cn-shanghai-internal.aliyuncs.com>，access_id <id>，access_key <key>；然后创建外部 Volume <my_batch_volume>，路径 oss://<bucket>/<data-path>/，启用目录自动刷新" \
+  --format a2a --dangerously-skip-permissions
+
+# 步骤 4：从 Volume 导入数据
+cz-cli agent run "从 Volume <my_batch_volume> 以 CSV 格式（有 header）将数据导入表 <my_schema>.<target_table>" \
+  --format a2a --dangerously-skip-permissions
+
+# 步骤 5：验证导入结果
+cz-cli agent run "查询表 <my_schema>.<target_table> 的总行数和前 10 条数据，验证导入结果" \
+  --format a2a --dangerously-skip-permissions
+```
+
+---
+
+### 监控与运维（cz-cli 版）
+
+```bash
+# 查看 PIPE 状态
+cz-cli agent run "查看 PIPE <my_oss_pipe> 的详细状态和加载历史" \
+  --format a2a --dangerously-skip-permissions
+
+# 暂停/恢复 PIPE
+cz-cli agent run "暂停 PIPE <my_oss_pipe>" \
+  --format a2a --dangerously-skip-permissions
+
+cz-cli agent run "恢复 PIPE <my_oss_pipe>" \
+  --format a2a --dangerously-skip-permissions
+```

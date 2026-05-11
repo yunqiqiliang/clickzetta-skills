@@ -39,6 +39,29 @@ description: |
 - Kafka 集群网络可达（确认 bootstrap 地址和端口）
 - 已知 Kafka Topic 名称和消息格式
 - 认证信息（如需要）：SASL 用户名/密码
+- **执行环境（满足其一即可，优先使用 cz-cli）**：
+  - **cz-cli 路径**：已安装 cz-cli（`pip install cz-cli`），并完成 `cz-cli configure` 配置
+  - **MCP 路径**：clickzetta-mcp-server 工具可用（`LH_execute_query`、`LH_show_object_list` 等）
+
+## 环境探测（执行前必读）
+
+在开始任何操作前，先判断当前执行环境：
+
+**第一步：检测 cz-cli 是否可用**
+```bash
+cz-cli --version
+```
+- 若命令存在 → **走 cz-cli 路径**（见本文档末尾"cz-cli 替代路径"章节）
+- 若命令不存在 → 继续检测 MCP
+
+**第二步：检测 MCP 是否可用（仅在 cz-cli 不可用时）**
+
+尝试调用 `LH_execute_query` 工具执行一条简单 SQL（如 `SELECT 1`）。
+- 若工具存在于 tool list → **走 MCP 路径**（本文档默认路径）
+- 若工具不存在 → 停止执行，提示用户：
+  > "当前环境既无 cz-cli 也无 MCP 工具，请安装其中之一后重试。
+  > cz-cli 安装：`pip install cz-cli`，然后运行 `cz-cli configure`
+  > MCP 安装：参考 clickzetta-mcp-server 配置文档"
 
 ## ⚠️ 关键注意事项
 
@@ -637,3 +660,92 @@ COPY INTO ods.secure_events FROM (
 - [Kafka 外部表](https://www.yunqi.tech/documents/kafka-external-table)
 - [Kafka Storage Connection](https://www.yunqi.tech/documents/Kafka_connection)
 - [PIPE 导入语法](https://www.yunqi.tech/documents/pipe-syntax)
+
+---
+
+## cz-cli 替代路径
+
+> 仅在 cz-cli 可用且 MCP 不可用时使用本节。步骤编号与上方 MCP 路径对应。
+> 所有操作通过 `cz-cli agent run` 委托给内置 agent 完成，agent 内置完整的 MCP 工具访问能力。
+
+### 路径一：READ_KAFKA Pipe（cz-cli 版）
+
+#### 步骤 1-2：验证 Kafka 连接和探查数据结构
+
+```bash
+cz-cli agent run "验证 Kafka 连接并探查数据结构：broker 地址 <kafka-host:9092>，topic <topic-name>，消费组 test_explore，从 earliest 开始读取 10 条消息，展示原始 JSON 内容和字段结构" \
+  --format a2a --dangerously-skip-permissions
+```
+
+#### 步骤 3：创建目标表
+
+```bash
+cz-cli agent run "在 schema <my_schema> 下创建目标表 <table_name>，字段包括：<field1> <type1>, <field2> <type2>，以及 __kafka_timestamp__ TIMESTAMP 字段用于延迟监控" \
+  --format a2a --dangerously-skip-permissions
+```
+
+#### 步骤 4：创建专用 VCluster（可选）
+
+```bash
+cz-cli agent run "创建名为 pipe_kafka_vc 的 GENERAL 类型 VCluster，大小 4，AUTO_SUSPEND_IN_SECOND 设为 0（常驻运行），用于 Kafka Pipe 专用" \
+  --format a2a --dangerously-skip-permissions
+```
+
+#### 步骤 5：创建 Kafka Pipe
+
+```bash
+cz-cli agent run "创建 Kafka Pipe，名称 <pipe_name>，使用 VCluster pipe_kafka_vc，BATCH_INTERVAL_IN_SECONDS=60，从 Kafka broker <host:port> 的 topic <topic> 消费数据（消费组 <group_id>，JSON 格式），将字段 <field1>, <field2> 写入目标表 <schema>.<table>" \
+  --format a2a --dangerously-skip-permissions
+```
+
+#### 步骤 6：验证 Pipe 运行状态
+
+```bash
+cz-cli agent run "查看 Pipe <pipe_name> 的详细状态，包括是否暂停、延迟信息，以及目标表 <schema>.<table> 的数据量和最近加载历史" \
+  --format a2a --dangerously-skip-permissions
+```
+
+---
+
+### 路径二：Kafka 外部表 + Table Stream Pipe（cz-cli 版）
+
+#### 步骤 1-4：完整创建流程
+
+```bash
+# 步骤 1：创建 Kafka Storage Connection
+cz-cli agent run "创建 Kafka Storage Connection，名称 kafka_conn，bootstrap servers 为 <kafka-host:9092>，安全协议 PLAINTEXT" \
+  --format a2a --dangerously-skip-permissions
+
+# 步骤 2：创建 Kafka 外部表
+cz-cli agent run "创建 Kafka 外部表 kafka_<topic>_ext，使用 Connection kafka_conn，消费组 lakehouse_ext_<topic>，topic 为 <topic>，从 earliest 开始" \
+  --format a2a --dangerously-skip-permissions
+
+# 步骤 3：创建 Table Stream
+cz-cli agent run "在 Kafka 外部表 kafka_<topic>_ext 上创建 APPEND_ONLY 模式的 Table Stream，名称 kafka_<topic>_stream" \
+  --format a2a --dangerously-skip-permissions
+
+# 步骤 4：创建目标表和 Pipe
+cz-cli agent run "创建目标表 <schema>.<target_table>，然后创建 Pipe kafka_ext_<topic>_pipe，使用 VCluster pipe_kafka_vc，BATCH_INTERVAL_IN_SECONDS=60，从 Table Stream kafka_<topic>_stream 消费数据，解析 JSON value 字段写入目标表" \
+  --format a2a --dangerously-skip-permissions
+```
+
+---
+
+### 监控与运维（cz-cli 版）
+
+```bash
+# 查看 Pipe 延迟状态
+cz-cli agent run "查看 Pipe <pipe_name> 的延迟信息，包括 timeLag 和 offsetLag，判断是否有积压" \
+  --format a2a --dangerously-skip-permissions
+
+# 暂停/恢复 Pipe
+cz-cli agent run "暂停 Pipe <pipe_name>" \
+  --format a2a --dangerously-skip-permissions
+
+cz-cli agent run "恢复 Pipe <pipe_name>" \
+  --format a2a --dangerously-skip-permissions
+
+# 修改 Pipe 属性
+cz-cli agent run "修改 Pipe <pipe_name> 的 BATCH_INTERVAL_IN_SECONDS 为 120" \
+  --format a2a --dangerously-skip-permissions
+```

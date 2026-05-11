@@ -26,7 +26,29 @@ description: |
 - ClickZetta Lakehouse Studio 账户，具备创建同步任务、目标表的权限
 - 源端数据源已在 Studio 中配置（具备 SELECT 权限）
 - 目标端 Lakehouse 数据源可用（具备 CREATE、INSERT 权限）
-- clickzetta-studio-mcp 工具可用（`create_task`、`save_integration_task`、`save_task_configuration`、`publish_task`、`list_data_sources` 等）
+- **执行环境（满足其一即可，优先使用 cz-cli）**：
+  - **cz-cli 路径**：已安装 cz-cli（`pip install cz-cli`），并完成 `cz-cli configure` 配置；cz-cli 内置 Studio MCP 工具，可完全替代 MCP 路径
+  - **MCP 路径**：clickzetta-studio-mcp 工具可用（`create_task`、`save_integration_task`、`save_task_configuration`、`publish_task`、`list_data_sources` 等）
+
+## 环境探测（执行前必读）
+
+在开始任何操作前，先判断当前执行环境：
+
+**第一步：检测 cz-cli 是否可用**
+```bash
+cz-cli --version
+```
+- 若命令存在 → **走 cz-cli 路径**（见本文档末尾"cz-cli 替代路径"章节）
+- 若命令不存在 → 继续检测 MCP
+
+**第二步：检测 MCP 是否可用（仅在 cz-cli 不可用时）**
+
+尝试调用 `list_data_sources` 工具。
+- 若工具存在于 tool list → **走 MCP 路径**（本文档默认路径）
+- 若工具不存在 → 停止执行，提示用户：
+  > "当前环境既无 cz-cli 也无 MCP 工具，请安装其中之一后重试。
+  > cz-cli 安装：`pip install cz-cli`，然后运行 `cz-cli configure`
+  > MCP 安装：参考 clickzetta-studio-mcp 配置文档"
 
 ## 模式选择指引
 
@@ -291,3 +313,74 @@ Studio UI 中可查看：
 - 离线同步任务（task_type=10 和 291）必须使用 Sync VCluster
 - 创建/调度任务前需确认有可用的 Sync VCluster
 - 可通过 `LH_show_object_list`（object_type='VCLUSTERS'）查看，筛选 vcluster_type 包含 SYNC 的集群
+
+---
+
+## cz-cli 替代路径
+
+> 仅在 cz-cli 可用且 MCP 不可用时使用本节。步骤编号与上方 MCP 路径对应。
+> cz-cli 内置完整的 Studio MCP 工具，通过 `cz-cli agent run` 可完成所有 Studio 任务操作。
+
+### 模式 A：单表离线同步（cz-cli 版）
+
+```bash
+# 步骤 1-5 合并：让 agent 完成完整的单表离线同步任务创建
+cz-cli agent run "创建离线同步任务，将 MySQL 数据源 <source_ds_name> 中 <schema>.<table> 表同步到 Lakehouse public schema，任务名 sync_<table>，每天凌晨 2 点执行，任务放在默认文件夹下，创建完成后发布" \
+  --format a2a --dangerously-skip-permissions
+```
+
+对于需要精细控制的场景，可拆分步骤：
+
+```bash
+# 步骤 1：查找数据源
+cz-cli agent run "列出所有已配置的数据源，包括 MySQL 类型（ds_type=5）的" \
+  --format a2a --dangerously-skip-permissions
+
+# 步骤 2：创建任务
+cz-cli agent run "创建离线同步任务（task_type=10），任务名 sync_<table>，放在默认文件夹下" \
+  --format a2a --dangerously-skip-permissions
+
+# 步骤 3：配置同步内容
+cz-cli agent run "配置刚创建的离线同步任务：源端数据源 <source_ds_name>，schema <db>，表 <table>，目标 Lakehouse public.<table>" \
+  --format a2a --dangerously-skip-permissions
+
+# 步骤 4：配置调度并发布
+cz-cli agent run "给任务 sync_<table> 配置每天凌晨 2 点执行的调度（cron: 0 0 2 * * ? *），然后发布任务" \
+  --format a2a --dangerously-skip-permissions
+```
+
+---
+
+### 模式 B：多表离线同步（cz-cli 版）
+
+> 多表离线同步（task_type=291）的详细配置需要在 Studio UI 中完成。cz-cli agent 可完成任务创建和调度配置，详细映射配置需通过 studio_url 在 UI 中操作。
+
+```bash
+# 步骤 1：创建多表离线同步任务
+cz-cli agent run "创建多表离线同步任务（task_type=291），任务名 sync_<database>_db，放在默认文件夹下，返回 studio_url" \
+  --format a2a --dangerously-skip-permissions
+
+# 步骤 4（UI 配置完成后）：配置调度
+cz-cli agent run "给任务 sync_<database>_db 配置每天凌晨 1 点执行的调度（cron: 0 0 1 * * ? *）" \
+  --format a2a --dangerously-skip-permissions
+
+# 步骤 5：发布任务
+cz-cli agent run "发布任务 sync_<database>_db" \
+  --format a2a --dangerously-skip-permissions
+```
+
+> **注意**：多表离线同步的来源数据选择、目标设置、字段映射等详细配置需要在 Studio UI 中完成（通过 studio_url 打开）。
+
+---
+
+### 任务运维（cz-cli 版）
+
+```bash
+# 查看任务状态
+cz-cli agent run "查看离线同步任务 sync_<table> 的详情和最近执行记录" \
+  --format a2a --dangerously-skip-permissions
+
+# 查看执行日志（失败时）
+cz-cli agent run "查看任务 sync_<table> 最近一次失败的执行日志，找出失败原因" \
+  --format a2a --dangerously-skip-permissions
+```

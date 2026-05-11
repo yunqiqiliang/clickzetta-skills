@@ -39,7 +39,29 @@ description: |
 - 源端数据源已在 Studio 中配置（Kafka / MySQL / PostgreSQL / SQL Server 等）
 - 目标端 Lakehouse 数据源可用
 - Sync VCluster 可用（实时同步任务 task_type=28 需要 Sync VCluster）
-- clickzetta-studio-mcp 工具可用（`create_task`、`save_integration_task`、`publish_task`、`list_data_sources`、`LH_show_object_list` 等）
+- **执行环境（满足其一即可，优先使用 cz-cli）**：
+  - **cz-cli 路径**：已安装 cz-cli（`pip install cz-cli`），并完成 `cz-cli configure` 配置
+  - **MCP 路径**：clickzetta-studio-mcp 工具可用（`create_task`、`save_integration_task`、`publish_task`、`list_data_sources`、`LH_show_object_list` 等）
+
+## 环境探测（执行前必读）
+
+在开始任何操作前，先判断当前执行环境：
+
+**第一步：检测 cz-cli 是否可用**
+```bash
+cz-cli --version
+```
+- 若命令存在 → **走 cz-cli 路径**（见本文档末尾"cz-cli 替代路径"章节）
+- 若命令不存在 → 继续检测 MCP
+
+**第二步：检测 MCP 是否可用（仅在 cz-cli 不可用时）**
+
+尝试调用 `list_data_sources` 工具查询数据源列表。
+- 若工具存在于 tool list → **走 MCP 路径**（本文档默认路径）
+- 若工具不存在 → 停止执行，提示用户：
+  > "当前环境既无 cz-cli 也无 MCP 工具，请安装其中之一后重试。
+  > cz-cli 安装：`pip install cz-cli`，然后运行 `cz-cli configure`
+  > MCP 安装：参考 clickzetta-studio-mcp 配置文档"
 
 ## 工作流
 
@@ -195,3 +217,60 @@ Studio UI 中可进行：
 - 单表实时同步（本 Skill）：适合单张表/Topic 的精细化同步
 - 多表实时同步（`clickzetta-cdc-sync-pipeline`）：适合整库 CDC、多表批量实时同步
 - 如需同步整个数据库的所有表，建议使用多表实时同步
+
+---
+
+## cz-cli 替代路径
+
+> 仅在 cz-cli 可用且 MCP 不可用时使用本节。步骤编号与上方 MCP 路径对应。
+> 所有操作通过 `cz-cli agent run` 委托给内置 agent 完成，agent 内置完整的 Studio MCP 工具访问能力。
+
+### 单表实时同步（cz-cli 版）
+
+cz-cli agent 内置 Studio MCP 工具，可直接处理实时同步任务创建和配置：
+
+```bash
+# 步骤 1-7 合并：让 agent 完成完整的实时同步任务创建
+cz-cli agent run "创建实时同步任务（task_type=28），将数据源 <source_ds_name> 中 <schema>.<table>（或 Kafka topic <topic>）实时同步到 Lakehouse public schema，使用 Sync VCluster，任务名 rt_sync_<table>，放在 <folder_name> 文件夹下" \
+  --format a2a --dangerously-skip-permissions
+```
+
+对于需要精细控制的场景，可拆分步骤：
+
+```bash
+# 步骤 1：确认 Sync VCluster 可用
+cz-cli agent run "列出所有可用的 VCluster，筛选 vcluster_type 包含 SYNC 的集群，确认有可用的 Sync VCluster" \
+  --format a2a --dangerously-skip-permissions
+
+# 步骤 2：查找数据源
+cz-cli agent run "列出所有已配置的数据源，按类型过滤（Kafka: ds_type=2, MySQL: ds_type=5, PostgreSQL: ds_type=7, SQL Server: ds_type=8），记录源端和目标端 Lakehouse 数据源名称" \
+  --format a2a --dangerously-skip-permissions
+
+# 步骤 3（可选）：探查源端数据结构
+cz-cli agent run "查看数据源 <source_ds_name> 的命名空间列表，以及 <schema> 下的表/Topic 列表和字段结构" \
+  --format a2a --dangerously-skip-permissions
+
+# 步骤 4-5：创建并配置实时同步任务
+cz-cli agent run "创建实时同步任务（task_type=28），源端 datasource=<source_ds_name>，schema=<schema>，table=<table>（source_ds_type=<type>），目标 Lakehouse public.<table>，任务名 rt_sync_<table>" \
+  --format a2a --dangerously-skip-permissions
+
+# 步骤 7：提交部署
+cz-cli agent run "提交实时同步任务 rt_sync_<table>，使其开始持续运行" \
+  --format a2a --dangerously-skip-permissions
+```
+
+> **注意**：实时同步任务不需要配置调度策略，提交即开始持续运行。Kafka JSON 消息的计算列配置需在 Studio UI 中完成。
+
+---
+
+### 运维监控（cz-cli 版）
+
+```bash
+# 查看任务状态
+cz-cli agent run "查看实时同步任务 <task_name> 的运行状态和详细信息" \
+  --format a2a --dangerously-skip-permissions
+
+# 查看运行记录
+cz-cli agent run "查看实时同步任务 <task_name> 的最近运行记录" \
+  --format a2a --dangerously-skip-permissions
+```
