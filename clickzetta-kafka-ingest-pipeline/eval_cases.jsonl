@@ -1,0 +1,5 @@
+{"case_id":"001","type":"should_call","user_input":"怎么用 READ_KAFKA Pipe 把 Kafka topic 数据持续导入 Lakehouse？","expected_skill":"clickzetta-kafka-ingest-pipeline","expected_output_contains":["READ_KAFKA","PIPE"]}
+{"case_id":"002","type":"should_call","user_input":"Kafka 消息是多层嵌套 JSON，怎么解析导入？","expected_skill":"clickzetta-kafka-ingest-pipeline","expected_output_contains":["JSON","READ_KAFKA"]}
+{"case_id":"003","type":"should_call","user_input":"Kafka Pipe 延迟很高怎么排查？怎么监控 offsetLag？","expected_skill":"clickzetta-kafka-ingest-pipeline","expected_output_contains":["pipe_latency","offsetLag"]}
+{"case_id":"004","type":"should_call","user_input":"Kafka 需要 SASL 认证，Pipe 怎么配置？","expected_skill":"clickzetta-kafka-ingest-pipeline","expected_output_contains":["SASL"]}
+{"case_id":"005","type":"should_call","user_input":"Kafka 外部表和 READ_KAFKA Pipe 有什么区别？该选哪个？","expected_skill":"clickzetta-kafka-ingest-pipeline","expected_output_contains":["外部表","READ_KAFKA","Table Stream"]}

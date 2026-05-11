@@ -1,0 +1,5 @@
+{"case_id":"001","type":"should_call","user_input":"我想把数据导入 Lakehouse，但不确定用哪种方式","expected_skill":"clickzetta-data-ingest-pipeline","expected_output_contains":["数据源","实时","批量"]}
+{"case_id":"002","type":"should_call","user_input":"数据入仓有哪些方案？怎么选择？","expected_skill":"clickzetta-data-ingest-pipeline","expected_output_contains":["Kafka","对象存储","MySQL"]}
+{"case_id":"003","type":"should_call","user_input":"我有 MySQL 和 Kafka 两个数据源要导入 Lakehouse，分别用什么方式？","expected_skill":"clickzetta-data-ingest-pipeline","expected_output_contains":["CDC"]}
+{"case_id":"004","type":"should_call","user_input":"数据导入方案怎么选？实时和离线有什么区别？","expected_skill":"clickzetta-data-ingest-pipeline","expected_output_contains":["实时","离线","延迟"]}
+{"case_id":"005","type":"should_call","user_input":"ingest data into ClickZetta Lakehouse, what options do I have?","expected_skill":"clickzetta-data-ingest-pipeline","expected_output_contains":["Kafka","OSS","SDK"]}
