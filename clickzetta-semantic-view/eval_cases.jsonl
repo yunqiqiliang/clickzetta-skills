@@ -1,0 +1,12 @@
+{"case_id":"001","type":"should_call","user_input":"怎么创建语义视图","expected_skill":"clickzetta-semantic-view","expected_output_contains":["CREATE SEMANTIC VIEW"]}
+{"case_id":"002","type":"should_call","user_input":"semantic_view() 函数怎么查询","expected_skill":"clickzetta-semantic-view","expected_output_contains":["semantic_view"]}
+{"case_id":"003","type":"should_call","user_input":"语义视图里怎么定义维度和指标","expected_skill":"clickzetta-semantic-view","expected_output_contains":["DIMENSIONS","METRICS"]}
+{"case_id":"004","type":"should_call","user_input":"怎么用语义层统一指标口径","expected_skill":"clickzetta-semantic-view","expected_output_contains":["语义"]}
+{"case_id":"005","type":"should_call","user_input":"SHOW SEMANTIC VIEWS 怎么用","expected_skill":"clickzetta-semantic-view","expected_output_contains":["SHOW SEMANTIC VIEWS"]}
+{"case_id":"006","type":"should_call","user_input":"语义视图的 FILTERS 怎么定义","expected_skill":"clickzetta-semantic-view","expected_output_contains":["FILTERS"]}
+{"case_id":"007","type":"should_call","user_input":"DROP SEMANTIC VIEW 怎么删除","expected_skill":"clickzetta-semantic-view","expected_output_contains":["DROP SEMANTIC VIEW"]}
+{"case_id":"008","type":"should_not_call","user_input":"怎么创建普通视图","forbidden_skill":"clickzetta-semantic-view"}
+{"case_id":"009","type":"should_not_call","user_input":"帮我写一个数据看板","forbidden_skill":"clickzetta-semantic-view"}
+{"case_id":"010","type":"should_not_call","user_input":"怎么做数据建模","forbidden_skill":"clickzetta-semantic-view"}
+{"case_id":"011","type":"should_not_call","user_input":"Superset 怎么连接","forbidden_skill":"clickzetta-semantic-view"}
+{"case_id":"012","type":"should_not_call","user_input":"怎么创建物化视图","forbidden_skill":"clickzetta-semantic-view"}

@@ -1,0 +1,5 @@
+{"case_id":"001","type":"should_call","user_input":"怎么用 Spark DataFrame 写入 ClickZetta Lakehouse？","expected_skill":"clickzetta-spark-flink-connector","expected_output_contains":["format(\"clickzetta\")","write"]}
+{"case_id":"002","type":"should_call","user_input":"Flink CDC 写入 ClickZetta 支持 UPDATE 和 DELETE 吗？","expected_skill":"clickzetta-spark-flink-connector","expected_output_contains":["igs-dynamic-table","CDC"]}
+{"case_id":"003","type":"should_call","user_input":"Spark Connector 支持写入主键表吗？","expected_skill":"clickzetta-spark-flink-connector","expected_output_contains":["不支持","Flink"]}
+{"case_id":"004","type":"should_call","user_input":"Flink 写入 ClickZetta 需要什么版本？","expected_skill":"clickzetta-spark-flink-connector","expected_output_contains":["1.15"]}
+{"case_id":"005","type":"should_call","user_input":"Flink 写入主键表的 sink.parallelism 有什么限制？","expected_skill":"clickzetta-spark-flink-connector","expected_output_contains":["1"]}

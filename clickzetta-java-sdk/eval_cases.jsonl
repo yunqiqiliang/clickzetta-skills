@@ -1,0 +1,12 @@
+{"case_id":"001","type":"should_call","user_input":"用 Java SDK BulkloadStream 批量写入数据到 Lakehouse","expected_skill":"clickzetta-java-sdk","expected_output_contains":["BulkloadStream"]}
+{"case_id":"002","type":"should_call","user_input":"Java 怎么消费 Kafka 实时写入 Lakehouse","expected_skill":"clickzetta-java-sdk","expected_output_contains":["RealtimeStream"]}
+{"case_id":"003","type":"should_call","user_input":"clickzetta-java 的 Maven 依赖怎么配","expected_skill":"clickzetta-java-sdk","expected_output_contains":["groupId","clickzetta-java"]}
+{"case_id":"004","type":"should_call","user_input":"BulkloadStream 和 RealtimeStream 有什么区别","expected_skill":"clickzetta-java-sdk","expected_output_contains":["BulkloadStream","RealtimeStream"]}
+{"case_id":"005","type":"should_call","user_input":"Java SDK 连接 URL 格式是什么","expected_skill":"clickzetta-java-sdk","expected_output_contains":["URL"]}
+{"case_id":"006","type":"should_call","user_input":"Java 批量上传本地文件到 Lakehouse","expected_skill":"clickzetta-java-sdk","expected_output_contains":["BulkloadStream"]}
+{"case_id":"007","type":"should_call","user_input":"RealtimeStream 的 setValue 怎么用","expected_skill":"clickzetta-java-sdk","expected_output_contains":["setValue"]}
+{"case_id":"008","type":"should_not_call","user_input":"Python SDK 怎么连接 Lakehouse","forbidden_skill":"clickzetta-java-sdk"}
+{"case_id":"009","type":"should_not_call","user_input":"帮我写一个 Spring Boot 应用","forbidden_skill":"clickzetta-java-sdk"}
+{"case_id":"010","type":"should_not_call","user_input":"Flink 怎么写入 Lakehouse","forbidden_skill":"clickzetta-java-sdk"}
+{"case_id":"011","type":"should_not_call","user_input":"怎么创建 VCluster","forbidden_skill":"clickzetta-java-sdk"}
+{"case_id":"012","type":"should_not_call","user_input":"MySQL JDBC 连接怎么配置","forbidden_skill":"clickzetta-java-sdk"}

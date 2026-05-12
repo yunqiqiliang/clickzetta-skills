@@ -1,0 +1,12 @@
+{"case_id":"001","type":"should_call","user_input":"用 ZettaPark 读取 orders 表并过滤 amount > 100","expected_skill":"clickzetta-zettapark","expected_output_contains":["session.table","filter"]}
+{"case_id":"002","type":"should_call","user_input":"ZettaPark 怎么安装？需要什么 Python 版本？","expected_skill":"clickzetta-zettapark","expected_output_contains":["pip install","3.12"]}
+{"case_id":"003","type":"should_call","user_input":"怎么用 DataFrame API 做 group by 聚合","expected_skill":"clickzetta-zettapark","expected_output_contains":["group_by","agg"]}
+{"case_id":"004","type":"should_call","user_input":"save_as_table 怎么用？支持哪些写入模式？","expected_skill":"clickzetta-zettapark","expected_output_contains":["save_as_table","overwrite","append"]}
+{"case_id":"005","type":"should_call","user_input":"ZettaPark 怎么把结果转成 pandas DataFrame","expected_skill":"clickzetta-zettapark","expected_output_contains":["to_pandas"]}
+{"case_id":"006","type":"should_call","user_input":"用 session.sql 执行一段 SQL 查询","expected_skill":"clickzetta-zettapark","expected_output_contains":["session.sql"]}
+{"case_id":"007","type":"should_call","user_input":"ZettaPark 怎么 join 两张表","expected_skill":"clickzetta-zettapark","expected_output_contains":["join"]}
+{"case_id":"008","type":"should_not_call","user_input":"帮我写一个 Flask Web 应用","forbidden_skill":"clickzetta-zettapark"}
+{"case_id":"009","type":"should_not_call","user_input":"pandas 怎么读取 CSV 文件","forbidden_skill":"clickzetta-zettapark"}
+{"case_id":"010","type":"should_not_call","user_input":"怎么用 JDBC 连接 Lakehouse","forbidden_skill":"clickzetta-zettapark"}
+{"case_id":"011","type":"should_not_call","user_input":"帮我创建一个 VCluster","forbidden_skill":"clickzetta-zettapark"}
+{"case_id":"012","type":"should_not_call","user_input":"Spark DataFrame 怎么用","forbidden_skill":"clickzetta-zettapark"}

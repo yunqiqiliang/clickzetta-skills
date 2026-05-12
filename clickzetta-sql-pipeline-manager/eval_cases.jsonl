@@ -1,0 +1,12 @@
+{"case_id":"001","type":"should_call","user_input":"帮我创建一个动态表，每 5 分钟从 raw_events 聚合数据","expected_skill":"clickzetta-sql-pipeline-manager","expected_output_contains":["CREATE DYNAMIC TABLE","REFRESH INTERVAL"]}
+{"case_id":"002","type":"should_call","user_input":"怎么创建物化视图？","expected_skill":"clickzetta-sql-pipeline-manager","expected_output_contains":["CREATE MATERIALIZED VIEW"]}
+{"case_id":"003","type":"should_call","user_input":"创建一个 Table Stream 捕获 orders 表的变更","expected_skill":"clickzetta-sql-pipeline-manager","expected_output_contains":["CREATE TABLE STREAM"]}
+{"case_id":"004","type":"should_call","user_input":"怎么暂停动态表的刷新","expected_skill":"clickzetta-sql-pipeline-manager","expected_output_contains":["ALTER","SUSPEND"]}
+{"case_id":"005","type":"should_call","user_input":"怎么查看动态表的刷新历史","expected_skill":"clickzetta-sql-pipeline-manager","expected_output_contains":["SHOW DYNAMIC TABLE REFRESH HISTORY"]}
+{"case_id":"006","type":"should_call","user_input":"帮我设计一个 Medallion 架构的数据管道","expected_skill":"clickzetta-sql-pipeline-manager","expected_output_contains":["Bronze","Silver","Gold"]}
+{"case_id":"007","type":"should_call","user_input":"从 Kafka 持续导入数据到 Lakehouse 用什么方式","expected_skill":"clickzetta-sql-pipeline-manager","expected_output_contains":["Pipe","read_kafka"]}
+{"case_id":"008","type":"should_not_call","user_input":"帮我写一个 Node.js 后端","forbidden_skill":"clickzetta-sql-pipeline-manager"}
+{"case_id":"009","type":"should_not_call","user_input":"怎么创建用户和授权","forbidden_skill":"clickzetta-sql-pipeline-manager"}
+{"case_id":"010","type":"should_not_call","user_input":"Kubernetes 怎么部署","forbidden_skill":"clickzetta-sql-pipeline-manager"}
+{"case_id":"011","type":"should_not_call","user_input":"怎么连接 Superset","forbidden_skill":"clickzetta-sql-pipeline-manager"}
+{"case_id":"012","type":"should_not_call","user_input":"帮我优化一个慢查询","forbidden_skill":"clickzetta-sql-pipeline-manager"}

@@ -1,0 +1,3 @@
+{"case_id":"001","type":"should_call","user_input":"Snowflake 的 IFF、ARRAY_SIZE、LISTAGG 在 ClickZetta 怎么写？","expected_skill":"clickzetta-sql-syntax-guide","expected_output_contains":["IF(","SIZE("]}
+{"case_id":"002","type":"should_call","user_input":"Databricks 的 APPLY CHANGES INTO 在 ClickZetta 怎么替代？","expected_skill":"clickzetta-sql-syntax-guide","expected_output_contains":["MERGE INTO"]}
+{"case_id":"003","type":"should_call","user_input":"ClickZetta 的隐式类型转换规则是什么？","expected_skill":"clickzetta-sql-syntax-guide","expected_output_contains":["隐式","转换"]}

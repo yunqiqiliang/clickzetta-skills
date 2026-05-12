@@ -1,0 +1,12 @@
+{"case_id":"001","type":"should_call","user_input":"clickzetta-connector-python 怎么执行 SQL 查询","expected_skill":"clickzetta-app-python-sdk","expected_output_contains":["cursor","execute"]}
+{"case_id":"002","type":"should_call","user_input":"Python 怎么批量上传数据到 Lakehouse","expected_skill":"clickzetta-app-python-sdk","expected_output_contains":["ingestion","BulkLoad"]}
+{"case_id":"003","type":"should_call","user_input":"executemany 批量插入怎么用","expected_skill":"clickzetta-app-python-sdk","expected_output_contains":["executemany"]}
+{"case_id":"004","type":"should_call","user_input":"Python SDK 怎么做参数绑定","expected_skill":"clickzetta-app-python-sdk","expected_output_contains":["参数绑定"]}
+{"case_id":"005","type":"should_call","user_input":"execute_async 异步执行怎么用","expected_skill":"clickzetta-app-python-sdk","expected_output_contains":["async"]}
+{"case_id":"006","type":"should_call","user_input":"clickzetta-ingestion-python-v2 IGS 实时写入怎么用","expected_skill":"clickzetta-app-python-sdk","expected_output_contains":["IGS","实时"]}
+{"case_id":"007","type":"should_call","user_input":"Python SDK 支持主键表 UPSERT 吗","expected_skill":"clickzetta-app-python-sdk","expected_output_contains":["UPSERT","主键"]}
+{"case_id":"008","type":"should_not_call","user_input":"Java SDK 怎么写入数据","forbidden_skill":"clickzetta-app-python-sdk"}
+{"case_id":"009","type":"should_not_call","user_input":"帮我写一个 Django 应用","forbidden_skill":"clickzetta-app-python-sdk"}
+{"case_id":"010","type":"should_not_call","user_input":"ZettaPark DataFrame 怎么用","forbidden_skill":"clickzetta-app-python-sdk"}
+{"case_id":"011","type":"should_not_call","user_input":"怎么创建 VCluster","forbidden_skill":"clickzetta-app-python-sdk"}
+{"case_id":"012","type":"should_not_call","user_input":"pip install numpy 报错","forbidden_skill":"clickzetta-app-python-sdk"}
