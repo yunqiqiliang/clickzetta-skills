@@ -83,7 +83,9 @@ description: |
 | WHERE 中可以 | 不适用 | `WHERE dt = '2024-01-01'` ✅ WHERE 中字符串可隐式比较 |
 | 索引语法关键字 | `USING BLOOM_FILTER` | `BLOOMFILTER`（无 USING）；向量/倒排建表内联时用 `USING VECTOR` / `USING INVERTED` |
 | DROP INDEX | `DROP INDEX idx ON table` | `DROP INDEX idx`（无 ON table） |
-| TRUNCATE IF EXISTS | `TRUNCATE TABLE IF EXISTS t` | `TRUNCATE TABLE IF EXISTS t` ✅ ClickZetta 也支持！ |
+| TRUNCATE IF EXISTS | `TRUNCATE TABLE IF EXISTS t` | ❌ 不支持 `IF EXISTS`，直接用 `TRUNCATE TABLE t`（表不存在会报错） |
+| DESC TABLE 扩展 | `DESC TABLE t EXTENDED` / `DESC TABLE t HISTORY` | ❌ 不支持 EXTENDED/HISTORY 参数，用 `DESC TABLE t` 或 `SHOW CREATE TABLE t` |
+| TABLESAMPLE | `SELECT * FROM t TABLESAMPLE (50 PERCENT)` | ❌ 不支持 PERCENT 语法，用 `ORDER BY RAND() LIMIT n` 替代 |
 | MERGE 多 MATCHED 顺序 | DELETE 可在 UPDATE 前 | UPDATE 必须在 DELETE 之前 |
 | 同义词 | `CREATE SYNONYM s FOR t` (Oracle) | `CREATE SYNONYM s FOR TABLE t` ✅ 支持 TABLE/VOLUME/FUNCTION 三种对象 |
 
@@ -170,3 +172,79 @@ CREATE TABLE docs (id INT, vec VECTOR(FLOAT, 1024),
 SELECT id, cosine_distance(vec, CAST('[0.1,0.2,...]' AS VECTOR(1024))) AS dist
 FROM docs ORDER BY dist LIMIT 10;
 ```
+
+---
+
+## ❌ 明确不支持的功能
+
+以下功能在 Snowflake/Databricks/Spark 中存在，但 ClickZetta **不支持**。使用时会报错，需要用替代方案。
+
+### 字符串函数
+
+| 不支持的函数 | 替代方案 |
+|---|---|
+| `INITCAP(s)` | `CONCAT(UPPER(SUBSTR(s, 1, 1)), LOWER(SUBSTR(s, 2)))` |
+| `SOUNDEX(s)` | 无替代方案 |
+| `CHARINDEX(sub, s)` | `INSTR(s, sub)`（注意参数顺序相反） |
+
+### JSON 函数
+
+| 不支持的函数 | 替代方案 |
+|---|---|
+| `JSON_ARRAY_LENGTH(json)` | `SIZE(CAST(json_str AS ARRAY<STRING>))` |
+| `JSON_OBJECT_KEYS(json)` | 无直接替代，需手动解析 |
+
+### 集合/数组/MAP 函数
+
+| 不支持的函数 | 替代方案 |
+|---|---|
+| `MAP_FROM_ZIP(keys, values)` | `MAP_FROM_ARRAYS(keys, values)` |
+| `TO_ARRAY(expr)` | `ARRAY(expr)` 或 `CAST(expr AS ARRAY<T>)` |
+| `ARRAY_SIZE(arr)` (Snowflake) | `SIZE(arr)` |
+
+### 正则函数
+
+| 不支持的函数 | 替代方案 |
+|---|---|
+| `REGEXP_SUBSTR(s, pattern)` | `REGEXP_EXTRACT(s, '(pattern)')` |
+
+### 表函数/生成器
+
+| 不支持的函数 | 替代方案 |
+|---|---|
+| `GENERATE(start, end)` | 无直接替代，用 CTE + UNION ALL 或应用层生成 |
+| `RANGE(n)` | 无直接替代 |
+| `TABLESAMPLE (n PERCENT)` | `ORDER BY RAND() LIMIT n` |
+
+### 地理空间/网络
+
+| 不支持的函数 | 替代方案 |
+|---|---|
+| `ST_GeomFromWKT(wkt)` | 不支持地理空间函数 |
+| `TO_IPV4(ip_string)` | 不支持 IP 地址函数 |
+
+### 近似计算
+
+| 不支持的函数 | 替代方案 |
+|---|---|
+| `HLL_APPROX(col)` | `APPROX_COUNT_DISTINCT(col)` |
+
+### 位运算
+
+| 不支持的函数 | 替代方案 |
+|---|---|
+| `BITAND(a, b)` | `a & b`（位运算符） |
+| `BITOR(a, b)` | `a \| b` |
+| `BITXOR(a, b)` | `a ^ b` |
+
+### DDL/DML 限制
+
+| 不支持的语法 | 替代方案 |
+|---|---|
+| `TRUNCATE TABLE IF EXISTS t` | 先检查表是否存在，再 `TRUNCATE TABLE t` |
+| `DESC TABLE t EXTENDED` | `DESC TABLE t` 或 `SHOW CREATE TABLE t` |
+| `DESC TABLE t HISTORY` | `SHOW TABLES HISTORY WHERE table_name = 't'` |
+| `CREATE TEMPORARY TABLE` | 用 CTE 替代，或创建普通表后手动删除 |
+| `CREATE OR REPLACE TABLE` | `DROP TABLE IF EXISTS t; CREATE TABLE t (...)` |
+| `BEGIN; COMMIT; ROLLBACK;` | 不支持事务，用 MERGE 实现原子操作 |
+| `WITH RECURSIVE` | 不支持递归 CTE，用 Python/ZettaPark 替代 |
