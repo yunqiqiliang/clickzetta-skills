@@ -1,0 +1,5 @@
+{"case_id":"001","type":"should_call","user_input":"我想给 public.dim_studio_user_dmin_f 表的 user_id 列加个索引，加快等值查询速度","expected_skill":"clickzetta-index-manager","expected_output_contains":["BLOOMFILTER","INDEX"]}
+{"case_id":"002","type":"should_call","user_input":"我想在 login_name 列上创建倒排索引，支持用户名的模糊搜索","expected_skill":"clickzetta-index-manager","expected_output_contains":["INVERTED","INDEX"]}
+{"case_id":"003","type":"should_call","user_input":"Bloom Filter 索引和倒排索引分别适合什么场景？怎么选？","expected_skill":"clickzetta-index-manager","expected_output_contains":["Bloom","倒排"]}
+{"case_id":"004","type":"should_call","user_input":"索引创建后存量数据怎么生效？BUILD INDEX 怎么用？","expected_skill":"clickzetta-index-manager","expected_output_contains":["BUILD INDEX"]}
+{"case_id":"005","type":"should_call","user_input":"怎么查看表上有哪些索引？怎么删除不需要的索引？","expected_skill":"clickzetta-index-manager","expected_output_contains":["SHOW INDEX","DROP INDEX"]}

@@ -1,0 +1,5 @@
+{"case_id":"001","type":"should_call","user_input":"为什么这个 JOIN 查询这么慢？SELECT t1.user_id, t2.tenant_name FROM public.dim_studio_user_dmin_f t1 JOIN public.dim_studio_tenant_dmin_f t2 ON t1.tenant_id = t2.tenant_id","expected_skill":"clickzetta-query-optimizer","expected_output_contains":["JOIN","优化"]}
+{"case_id":"002","type":"should_call","user_input":"public.dwd_studio_lakehouse_jobs_dd_i 表适合设置什么 Sort Key？","expected_skill":"clickzetta-query-optimizer","expected_output_contains":["sort","key"]}
+{"case_id":"003","type":"should_call","user_input":"怎么开启结果缓存？Result Cache 的使用限制是什么？","expected_skill":"clickzetta-query-optimizer","expected_output_contains":["cache","cz.sql.enable"]}
+{"case_id":"004","type":"should_call","user_input":"表有很多小文件影响查询性能，怎么合并优化？","expected_skill":"clickzetta-query-optimizer","expected_output_contains":["OPTIMIZE","小文件"]}
+{"case_id":"005","type":"should_call","user_input":"怎么用 EXPLAIN 分析执行计划？Map Join 什么时候用？","expected_skill":"clickzetta-query-optimizer","expected_output_contains":["EXPLAIN","Map Join"]}
