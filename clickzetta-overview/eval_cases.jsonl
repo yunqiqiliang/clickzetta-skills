@@ -1,0 +1,5 @@
+{"case_id":"001","type":"should_call","user_input":"ClickZetta 的对象层级是什么？工作空间和 Schema 什么关系？","expected_skill":"clickzetta-overview","expected_output_contains":["工作空间","Schema"]}
+{"case_id":"002","type":"should_call","user_input":"VCluster 有哪几种类型？CRU 是什么计费单位？","expected_skill":"clickzetta-overview","expected_output_contains":["通用","分析","CRU"]}
+{"case_id":"003","type":"should_call","user_input":"云器和 ClickZetta 和 Singdata 是什么关系？","expected_skill":"clickzetta-overview","expected_output_contains":["云器","ClickZetta"]}
+{"case_id":"004","type":"should_call","user_input":"Studio 有哪些功能模块？任务调度怎么配置？","expected_skill":"clickzetta-overview","expected_output_contains":["Studio","任务"]}
+{"case_id":"005","type":"should_call","user_input":"ClickZetta 和 Snowflake 在概念上有什么关键差异？","expected_skill":"clickzetta-overview","expected_output_contains":["Snowflake"]}
