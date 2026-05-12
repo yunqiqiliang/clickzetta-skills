@@ -13,8 +13,9 @@ description: |
 
 | 文件 | 说明 |
 |------|------|
-| `references/table_relation.sql` | UDF 定义 + 表关系查询 SQL |
-| `references/table_cost.sql` | UDF 定义 + 表成本查询 SQL |
+| `references/normalize_func.sql` | 归一化 UDF 定义（`__normalize_table` 和 `__normalize_objects`） |
+| `references/table_relation.sql` | 表关系查询 SQL（依赖 UDF，`{N}` 为天数占位符） |
+| `references/table_cost.sql` | 表成本查询 SQL（依赖 UDF，`{N}` 为天数占位符） |
 | `references/table_lineage_standalone.html` | 可视化 HTML 模板 |
 
 ## 指令
@@ -22,19 +23,19 @@ description: |
 ### 步骤 0：确定时间范围
 
 询问用户需要分析多长时间的血缘数据。默认 1 天。用户可指定天数如 1、7、30 等。
-SQL 中的 `interval 30 day` 替换为用户指定的天数，成本 SQL 中的除数也同步替换。
+SQL 中的 `{N}` 占位符将替换为用户指定的天数。
 
 ### 步骤 1：创建归一化 UDF
 
-读取 `references/table_relation.sql` 开头的两个 `CREATE OR REPLACE FUNCTION` 语句，通过 cz-cli 执行（已存在则跳过）。
+通过 cz-cli sql -f 执行 `references/normalize_func.sql`（已存在则跳过）。
 
 ### 步骤 2：导出表关系数据
 
-读取 `references/table_relation.sql` 中的查询 SQL，将 `interval` 天数替换为用户指定值，通过 cz-cli sql --no-limit 执行，将结果保存为 `table_relation.csv`。
+读取 `references/table_relation.sql`，将 `{N}` 替换为用户指定的天数，通过 cz-cli sql --no-limit 执行，将结果保存为 `table_relation.csv`。
 
 ### 步骤 3：导出表成本数据
 
-读取 `references/table_cost.sql` 中的查询 SQL，将 `interval` 天数和除数替换为用户指定值，通过 cz-cli sql --no-limit 执行，将结果保存为 `table_cost.csv`。
+读取 `references/table_cost.sql`，将 `{N}` 替换为用户指定的天数，通过 cz-cli sql --no-limit 执行，将结果保存为 `table_cost.csv`。
 
 ### 步骤 4：生成可视化页面
 
@@ -77,8 +78,8 @@ window.LINEAGE_DATA = {
 ## 故障排除
 
 可视化为空
-原因：CSV 文件格式不正确或无有效数据行
-解决方案：确认 CSV 有正确的表头（table_name,upstream），且 upstream 列不全为空
+原因：缺少作业运行历史
+解决方案：首先确认表关系和表成本 sql 正确运行，若结果为空，是正常现象。
 
 节点过多导致卡顿
 原因：浏览器渲染大量 DOM 节点
