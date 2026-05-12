@@ -1,0 +1,5 @@
+{"case_id":"001","type":"should_call","user_input":"怎么查看当前 schema 下有哪些表？SHOW TABLES 的用法","expected_skill":"clickzetta-metadata","expected_output_contains":["SHOW TABLES"]}
+{"case_id":"002","type":"should_call","user_input":"怎么查看一张表的字段信息和分区？","expected_skill":"clickzetta-metadata","expected_output_contains":["DESC","TABLE"]}
+{"case_id":"003","type":"should_call","user_input":"怎么通过 information_schema 统计各表的存储用量排行？","expected_skill":"clickzetta-metadata","expected_output_contains":["information_schema","tables"]}
+{"case_id":"004","type":"should_call","user_input":"怎么查看过去 7 天的 CRU 消耗和费用归因？哪个用户消耗最多？","expected_skill":"clickzetta-metadata","expected_output_contains":["information_schema","job_history"]}
+{"case_id":"005","type":"should_call","user_input":"SHOW/DESC 和 information_schema 有什么区别？该用哪个？","expected_skill":"clickzetta-metadata","expected_output_contains":["SHOW","information_schema"]}
