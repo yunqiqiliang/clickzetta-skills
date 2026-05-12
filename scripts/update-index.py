@@ -8,7 +8,7 @@ os.chdir(root)
 
 skills = []
 for d in sorted(os.listdir('.')):
-    if not d.startswith('clickzetta-') or not os.path.isdir(d):
+    if not d.startswith('clickzetta-') and not d.startswith('cz-') or not os.path.isdir(d):
         continue
     skill_md = os.path.join(d, 'SKILL.md')
     if not os.path.exists(skill_md):

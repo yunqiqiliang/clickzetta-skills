@@ -206,6 +206,13 @@
         "SKILL.md",
         "references/volume-ddl.md"
       ]
+    },
+    {
+      "name": "cz-table-lineage",
+      "description": "表血缘可视化工具。从 ClickZetta information_schema.job_history 获取表依赖关系和成本数据，",
+      "files": [
+        "SKILL.md"
+      ]
     }
   ]
 }
