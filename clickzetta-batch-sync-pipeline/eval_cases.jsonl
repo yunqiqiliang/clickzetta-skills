@@ -1,0 +1,5 @@
+{"case_id":"001","type":"should_call","user_input":"怎么创建离线同步任务把 MySQL 表定期同步到 Lakehouse？","expected_skill":"clickzetta-batch-sync-pipeline","expected_output_contains":["离线同步","Cron","调度"]}
+{"case_id":"002","type":"should_call","user_input":"多表离线同步支持自动建表吗？","expected_skill":"clickzetta-batch-sync-pipeline","expected_output_contains":["自动创建","多表"]}
+{"case_id":"003","type":"should_call","user_input":"离线同步的单表模式和多表模式怎么选？","expected_skill":"clickzetta-batch-sync-pipeline","expected_output_contains":["单表","多表","task_type"]}
+{"case_id":"004","type":"should_call","user_input":"批量同步支持 Schema Evolution 吗？新增字段会自动适配吗？","expected_skill":"clickzetta-batch-sync-pipeline","expected_output_contains":["Schema Evolution","多表"]}
+{"case_id":"005","type":"should_call","user_input":"怎么配置离线同步任务的调度周期？用 Cron 表达式吗？","expected_skill":"clickzetta-batch-sync-pipeline","expected_output_contains":["Cron","调度"]}

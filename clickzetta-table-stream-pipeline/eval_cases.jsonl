@@ -1,0 +1,5 @@
+{"case_id":"001","type":"should_call","user_input":"怎么创建 Table Stream 捕获表的增量变更？","expected_skill":"clickzetta-table-stream-pipeline","expected_output_contains":["CREATE TABLE STREAM","change_tracking"]}
+{"case_id":"002","type":"should_call","user_input":"Table Stream 的 STANDARD 和 APPEND_ONLY 模式有什么区别？","expected_skill":"clickzetta-table-stream-pipeline","expected_output_contains":["STANDARD","APPEND_ONLY","INSERT"]}
+{"case_id":"003","type":"should_call","user_input":"Table Stream 消费后 offset 怎么管理？","expected_skill":"clickzetta-table-stream-pipeline","expected_output_contains":["offset"]}
+{"case_id":"004","type":"should_call","user_input":"怎么用 Table Stream + MERGE 实现幂等增量消费？","expected_skill":"clickzetta-table-stream-pipeline","expected_output_contains":["MERGE","幂等"]}
+{"case_id":"005","type":"should_call","user_input":"Table Stream 的 __change_type 元数据字段有哪些值？","expected_skill":"clickzetta-table-stream-pipeline","expected_output_contains":["__change_type","INSERT","UPDATE","DELETE"]}

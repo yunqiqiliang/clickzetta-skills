@@ -1,0 +1,5 @@
+{"case_id":"001","type":"should_call","user_input":"从 URL 导入文件到 Lakehouse 的步骤和语法是什么？","expected_skill":"clickzetta-file-import-pipeline","expected_output_contains":["Volume","COPY INTO"]}
+{"case_id":"002","type":"should_call","user_input":"本地文件上传到 Lakehouse 表的流程是什么？需要哪些步骤？","expected_skill":"clickzetta-file-import-pipeline","expected_output_contains":["Volume","COPY INTO"]}
+{"case_id":"003","type":"should_call","user_input":"COPY INTO 导入数据时 append 和 overwrite 写入模式有什么区别？请说明语法","expected_skill":"clickzetta-file-import-pipeline","expected_output_contains":["append","overwrite"]}
+{"case_id":"004","type":"should_call","user_input":"COPY INTO 导入前怎么推断文件格式？有哪些支持的格式类型？","expected_skill":"clickzetta-file-import-pipeline","expected_output_contains":["CSV","JSON","Parquet"]}
+{"case_id":"005","type":"should_call","user_input":"CSV 有自定义分隔符，COPY INTO 的 OPTIONS 怎么写？","expected_skill":"clickzetta-file-import-pipeline","expected_output_contains":["CSV","OPTIONS"]}

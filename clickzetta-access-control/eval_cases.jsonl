@@ -1,3 +1,3 @@
-{"case_id":"002","type":"should_call","user_input":"怎么查看当前工作空间有哪些用户？","expected_skill":"clickzetta-access-control","expected_output_contains":["SHOW USERS"]}
+{"case_id":"002","type":"should_call","user_input":"怎么管理工作空间的用户？新用户加入后需要授予什么角色？","expected_skill":"clickzetta-access-control","expected_output_contains":["角色","授予"]}
 {"case_id":"003","type":"should_call","user_input":"当前有哪些系统预置角色？各自有什么权限？","expected_skill":"clickzetta-access-control","expected_output_contains":["workspace_admin","workspace_dev"]}
 {"case_id":"004","type":"should_call","user_input":"怎么给某个用户授予 public schema 下所有表的只读权限？","expected_skill":"clickzetta-access-control","expected_output_contains":["GRANT","SELECT"]}

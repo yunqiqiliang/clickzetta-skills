@@ -1,0 +1,5 @@
+{"case_id":"001","type":"should_call","user_input":"帮我创建一个 Dynamic Table，从 public.dim_studio_user_dmin_f 聚合按租户+日期统计用户数，每 60 分钟自动刷新","expected_skill":"clickzetta-dynamic-table","expected_output_contains":["DYNAMIC TABLE","REFRESH"]}
+{"case_id":"002","type":"should_call","user_input":"怎么查看动态表的刷新历史和状态","expected_skill":"clickzetta-dynamic-table","expected_output_contains":["REFRESH HISTORY"]}
+{"case_id":"003","type":"should_call","user_input":"动态表的增量刷新怎么配置？SESSION_CONFIGS 怎么用？","expected_skill":"clickzetta-dynamic-table","expected_output_contains":["SESSION_CONFIGS","增量"]}
+{"case_id":"004","type":"should_call","user_input":"静态分区 DT 和动态分区 DT 有什么区别？该怎么选？","expected_skill":"clickzetta-dynamic-table","expected_output_contains":["静态分区","动态分区"]}
+{"case_id":"005","type":"should_call","user_input":"动态表怎么修改刷新间隔和 vcluster？","expected_skill":"clickzetta-dynamic-table","expected_output_contains":["ALTER","DYNAMIC TABLE"]}

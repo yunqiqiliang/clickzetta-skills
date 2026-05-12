@@ -1,0 +1,5 @@
+{"case_id":"001","type":"should_call","user_input":"我要挂载一个阿里云 OSS bucket 到 Lakehouse，需要先创建 Storage Connection，endpoint 是 oss-cn-hangzhou-internal.aliyuncs.com，帮我说明完整流程","expected_skill":"clickzetta-volume-manager","expected_output_contains":["connection","volume"]}
+{"case_id":"002","type":"should_call","user_input":"创建一个外部 Volume 叫 eval_oss_volume，挂载 oss://studio-dev-hz/，用 eval_oss_conn 连接，开启目录自动刷新","expected_skill":"clickzetta-volume-manager","expected_output_contains":["eval_oss_volume"]}
+{"case_id":"003","type":"should_call","user_input":"查看 eval_oss_volume 里有哪些文件","expected_skill":"clickzetta-volume-manager","expected_output_contains":["eval_oss_volume"]}
+{"case_id":"004","type":"should_call","user_input":"直接查询 eval_oss_volume 里的 CSV 文件，看前 10 行","expected_skill":"clickzetta-volume-manager","expected_output_contains":["eval_oss_volume"]}
+{"case_id":"005","type":"should_call","user_input":"删除 eval_oss_volume 和 eval_oss_conn，清理测试资源","expected_skill":"clickzetta-volume-manager","expected_output_contains":["eval_oss"]}

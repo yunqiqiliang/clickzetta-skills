@@ -1,0 +1,5 @@
+{"case_id":"001","type":"should_call","user_input":"怎么从阿里云 OSS 持续自动导入数据到 Lakehouse？","expected_skill":"clickzetta-oss-ingest-pipeline","expected_output_contains":["PIPE","LIST_PURGE"]}
+{"case_id":"002","type":"should_call","user_input":"OSS PIPE 的 LIST_PURGE 和 EVENT_NOTIFICATION 模式有什么区别？","expected_skill":"clickzetta-oss-ingest-pipeline","expected_output_contains":["LIST_PURGE","EVENT_NOTIFICATION"]}
+{"case_id":"003","type":"should_call","user_input":"怎么从 S3 批量导入 Parquet 文件到 Lakehouse？","expected_skill":"clickzetta-oss-ingest-pipeline","expected_output_contains":["Volume","COPY INTO"]}
+{"case_id":"004","type":"should_call","user_input":"OSS 持续导入的前置步骤是什么？需要先创建什么对象？","expected_skill":"clickzetta-oss-ingest-pipeline","expected_output_contains":["CREATE STORAGE CONNECTION","External Volume"]}
+{"case_id":"005","type":"should_call","user_input":"腾讯云 COS 的数据怎么导入 ClickZetta？","expected_skill":"clickzetta-oss-ingest-pipeline","expected_output_contains":["COS","PIPE"]}
