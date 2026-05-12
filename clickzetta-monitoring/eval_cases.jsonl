@@ -1,0 +1,5 @@
+{"case_id":"001","type":"should_call","user_input":"SHOW JOBS 的语法是什么？怎么过滤特定状态的作业？","expected_skill":"clickzetta-monitoring","expected_output_contains":["SHOW JOBS"]}
+{"case_id":"002","type":"should_call","user_input":"怎么查询失败的作业？用什么 SQL？","expected_skill":"clickzetta-monitoring","expected_output_contains":["FAILED"]}
+{"case_id":"003","type":"should_call","user_input":"过去 7 天各集群的作业执行情况怎么查？","expected_skill":"clickzetta-monitoring","expected_output_contains":["job_history","virtual_cluster"]}
+{"case_id":"004","type":"should_call","user_input":"怎么查看慢查询？执行超过 2 分钟的作业有哪些？","expected_skill":"clickzetta-monitoring","expected_output_contains":["execution_time"]}
+{"case_id":"005","type":"should_call","user_input":"怎么通过 information_schema 查看所有表的大小和行数？","expected_skill":"clickzetta-monitoring","expected_output_contains":["information_schema","tables"]}
