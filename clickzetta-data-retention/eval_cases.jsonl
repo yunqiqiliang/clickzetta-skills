@@ -1,0 +1,5 @@
+{"case_id":"001","type":"should_call","user_input":"怎么给表设置数据生命周期？超过 30 天自动清理","expected_skill":"clickzetta-data-retention","expected_output_contains":["data_lifecycle","PROPERTIES"]}
+{"case_id":"002","type":"should_call","user_input":"表被误删了怎么恢复？UNDROP 怎么用？","expected_skill":"clickzetta-data-retention","expected_output_contains":["UNDROP","TABLE"]}
+{"case_id":"003","type":"should_call","user_input":"怎么用 Time Travel 查询昨天的历史数据？","expected_skill":"clickzetta-data-retention","expected_output_contains":["TIMESTAMP AS OF"]}
+{"case_id":"004","type":"should_call","user_input":"误执行了 DELETE，怎么回滚到操作前的状态？","expected_skill":"clickzetta-data-retention","expected_output_contains":["RESTORE","TIMESTAMP"]}
+{"case_id":"005","type":"should_call","user_input":"data_retention_days 和 data_lifecycle 有什么区别？","expected_skill":"clickzetta-data-retention","expected_output_contains":["data_retention_days","data_lifecycle"]}
