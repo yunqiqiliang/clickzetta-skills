@@ -39,7 +39,7 @@ CREATE API CONNECTION conn_bailian
     TYPE ai_function
     PROVIDER = 'bailian'
     BASE_URL = 'https://dashscope.aliyuncs.com/api/v1'
-    API_KEY = 'sk-xxxxxxxxxxxxxxxxxxxxxxxx';
+    API_KEY = '<key>';
 ```
 
 ### 2. AI_COMPLETE — 调用 LLM

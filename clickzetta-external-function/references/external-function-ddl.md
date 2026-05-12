@@ -142,7 +142,7 @@ CREATE API CONNECTION conn_bailian
     TYPE ai_function
     PROVIDER = 'bailian'
     BASE_URL = 'https://dashscope.aliyuncs.com/api/v1'
-    API_KEY = 'sk-xxxxxxxxxxxxxxxxxxxxxxxx';
+    API_KEY = '<key>';
 
 -- 调用 LLM 生成文本
 SELECT AI_COMPLETE('connection:conn_bailian', '请用一句话总结：' || content) AS summary
