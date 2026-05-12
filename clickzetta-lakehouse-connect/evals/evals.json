@@ -1,0 +1,35 @@
+{
+  "skill_name": "clickzetta-lakehouse-connect",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "我需要用 Python 连接 ClickZetta，实例名是 my_instance，工作空间是 analytics，region 是上海阿里云，用户名 alice，密码 secret123。帮我写一段查询 orders 表前 10 行的代码。",
+      "expected_output": "使用 clickzetta.connect() 或 clickzetta-connector-python，包含所有必填参数（service/instance/workspace/schema/username/password/vcluster），并演示 cursor.execute + fetchall 查询",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "我想用 ZettaPark 做数据工程，需要读取 sales 表，按 region 分组求 revenue 总和，然后写回到 sales_summary 表。帮我写完整代码。",
+      "expected_output": "使用 Session.builder.configs().create()，展示 session.table() + group_by + agg + write.save_as_table()，包含连接参数配置",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "我在用 Apache Superset 连接 ClickZetta，SQLAlchemy URI 应该怎么填？密码是 P@ss#2024，需要注意什么？",
+      "expected_output": "提供正确的 clickzetta:// URI 格式，指出密码特殊字符需要 quote_plus 编码，给出编码后的示例",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "连接云器 Lakehouse 报错 Connection refused，我的 service 填的是 api.clickzetta.com，实例在上海腾讯云，怎么排查？",
+      "expected_output": "识别 service 地址填错，给出正确的上海腾讯云地址 ap-shanghai-tencentcloud.api.clickzetta.com，并提供排查步骤",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "我有三个环境：dev/staging/prod，都在同一个 ClickZetta 实例上但不同 workspace。想用 connections.json 统一管理，并在代码里切换。怎么配置？",
+      "expected_output": "提供 connections.json 多连接配置示例（含 is_default），展示 switch_connection() 用法，说明文件放置路径",
+      "files": []
+    }
+  ]
+}

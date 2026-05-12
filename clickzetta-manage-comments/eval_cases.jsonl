@@ -1,0 +1,3 @@
+{"case_id":"001","type":"should_call","user_input":"怎么给表加注释？字段注释怎么写？","expected_skill":"clickzetta-manage-comments","expected_output_contains":["COMMENT"]}
+{"case_id":"002","type":"should_call","user_input":"动态表和物化视图怎么加注释？语法和普通表一样吗？","expected_skill":"clickzetta-manage-comments","expected_output_contains":["COMMENT","DYNAMIC TABLE"]}
+{"case_id":"003","type":"should_call","user_input":"怎么删除或清空一个字段的注释？","expected_skill":"clickzetta-manage-comments","expected_output_contains":["COMMENT"]}
