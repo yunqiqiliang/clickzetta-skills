@@ -1,5 +1,5 @@
 {"case_id":"001","type":"should_call","user_input":"创建分析型集群的语法是什么？需要哪些参数？","expected_skill":"clickzetta-vcluster-manager","expected_output_contains":["CREATE VCLUSTER","ANALYTICS","VCLUSTER_SIZE"]}
-{"case_id":"002","type":"should_call","user_input":"VCluster 的三种集群类型分别适合什么场景？","expected_skill":"clickzetta-vcluster-manager","expected_output_contains":["GENERAL","ANALYTICS","INTEGRATION"]}
+{"case_id":"002","type":"should_call","user_input":"怎么创建分析型集群并配置副本扩缩容？","expected_skill":"clickzetta-vcluster-manager","expected_output_contains":["CREATE VCLUSTER","ANALYTICS","REPLICAS"]}
 {"case_id":"003","type":"should_call","user_input":"分析型集群的副本扩缩容参数怎么配置？","expected_skill":"clickzetta-vcluster-manager","expected_output_contains":["MIN_REPLICAS","MAX_REPLICAS"]}
 {"case_id":"004","type":"should_call","user_input":"PRELOAD_TABLES 缓存预加载的语法和限制是什么？","expected_skill":"clickzetta-vcluster-manager","expected_output_contains":["PRELOAD_TABLES","ALTER VCLUSTER"]}
 {"case_id":"005","type":"should_call","user_input":"集群的 AUTO_SUSPEND 和 AUTO_RESUME 机制是怎样的？","expected_skill":"clickzetta-vcluster-manager","expected_output_contains":["AUTO_SUSPEND_IN_SECOND","AUTO_RESUME"]}
