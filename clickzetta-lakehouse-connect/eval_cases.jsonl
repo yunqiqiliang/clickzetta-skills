@@ -1,0 +1,3 @@
+{"case_id":"001","type":"should_call","user_input":"Python SDK 怎么连接 ClickZetta Lakehouse？连接参数有哪些？","expected_skill":"clickzetta-lakehouse-connect","expected_output_contains":["clickzetta","connect"]}
+{"case_id":"002","type":"should_call","user_input":"JDBC 连接 ClickZetta 的 URL 格式是什么？","expected_skill":"clickzetta-lakehouse-connect","expected_output_contains":["jdbc","clickzetta"]}
+{"case_id":"003","type":"should_call","user_input":"SQLAlchemy 怎么配置连接 ClickZetta？","expected_skill":"clickzetta-lakehouse-connect","expected_output_contains":["sqlalchemy","clickzetta"]}
