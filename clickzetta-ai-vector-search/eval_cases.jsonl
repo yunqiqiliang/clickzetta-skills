@@ -1,0 +1,4 @@
+{"case_id":"001","type":"should_call","user_input":"怎么在 ClickZetta 里创建 VECTOR 类型的列存储 embedding？","expected_skill":"clickzetta-ai-vector-search","expected_output_contains":["VECTOR","FLOAT"]}
+{"case_id":"002","type":"should_call","user_input":"HNSW 向量索引怎么创建？支持哪些距离函数？","expected_skill":"clickzetta-ai-vector-search","expected_output_contains":["HNSW","cosine"]}
+{"case_id":"003","type":"should_call","user_input":"怎么做 ANN 近似最近邻检索？SQL 怎么写？","expected_skill":"clickzetta-ai-vector-search","expected_output_contains":["ANN","distance"]}
+{"case_id":"004","type":"should_call","user_input":"向量检索和倒排索引能融合查询吗？怎么写？","expected_skill":"clickzetta-ai-vector-search","expected_output_contains":["向量","检索"]}
