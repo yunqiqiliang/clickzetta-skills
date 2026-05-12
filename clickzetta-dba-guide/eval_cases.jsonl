@@ -1,0 +1,3 @@
+{"case_id":"001","type":"should_call","user_input":"DBA 日常怎么启停集群和调整规格？","expected_skill":"clickzetta-dba-guide","expected_output_contains":["SUSPEND","RESUME"]}
+{"case_id":"002","type":"should_call","user_input":"怎么取消正在运行的作业？CANCEL JOB 怎么用？","expected_skill":"clickzetta-dba-guide","expected_output_contains":["CANCEL"]}
+{"case_id":"003","type":"should_call","user_input":"DBA 日常怎么做存储优化？小文件合并和 OPTIMIZE 怎么用？","expected_skill":"clickzetta-dba-guide","expected_output_contains":["OPTIMIZE","小文件"]}
