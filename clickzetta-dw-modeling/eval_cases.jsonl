@@ -1,0 +1,4 @@
+{"case_id":"001","type":"should_call","user_input":"帮我做数仓分层设计","expected_skill":"clickzetta-dw-modeling","expected_output_contains":["分层"]}
+{"case_id":"002","type":"should_call","user_input":"ODS/DWD/DWS/ADS 分层怎么设计","expected_skill":"clickzetta-dw-modeling","expected_output_contains":["ODS","DWD","DWS"]}
+{"case_id":"003","type":"should_call","user_input":"Medallion 架构 Bronze/Silver/Gold 怎么搭建","expected_skill":"clickzetta-dw-modeling","expected_output_contains":["Bronze","Silver","Gold"]}
+{"case_id":"004","type":"should_call","user_input":"星型模型和雪花模型怎么选","expected_skill":"clickzetta-dw-modeling","expected_output_contains":["星型","雪花"]}
