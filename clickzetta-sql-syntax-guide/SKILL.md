@@ -30,7 +30,6 @@ description: |
 | [函数参考](references/functions-reference.md) | 数值/字符串/日期/条件/聚合/向量函数完整列表 |
 | [vs Snowflake](references/vs-snowflake.md) | 差异汇总（含隐式转换规则表） |
 | [vs Spark SQL](references/vs-spark.md) | 数据类型映射 + 语法差异汇总 |
-| [JSON 实战指南](references/json-use-cases.md) | JSON 字段代替大宽表客户案例与最佳实践 |
 
 ---
 
