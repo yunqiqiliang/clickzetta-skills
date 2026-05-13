@@ -1,5 +1,5 @@
 ---
-name: cz-table-lineage
+name: clickzetta-table-lineage
 description: |
   表血缘可视化工具。从 ClickZetta information_schema.job_history 获取表依赖关系和成本数据，
   导出 CSV 后嵌入 HTML 模板生成交互式血缘图。
