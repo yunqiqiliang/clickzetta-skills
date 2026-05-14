@@ -207,6 +207,13 @@
       ]
     },
     {
+      "name": "clickzetta-pipeline-review",
+      "description": "对 ClickZetta Lakehouse 数据管道进行全面 Review 与诊断。从任意入口出发，自主发现管道涉及的全部对象（Studio 任务、Lakehouse 表、管道对象、运行记录），识别调度依赖缺失、DDL 幂等、分层跳层、DT 反模式等问题，给出优先级排序的修复建议并执行。",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
       "name": "clickzetta-query-optimizer",
       "description": "诊断和优化 ClickZetta Lakehouse SQL 查询性能。覆盖执行计划分析、慢查询排查、",
       "files": [
