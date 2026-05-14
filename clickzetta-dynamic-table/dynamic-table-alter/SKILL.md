@@ -12,7 +12,7 @@ description: |
 ## 指令
 
 ### 步骤 1：确认动态表存在并获取当前定义
-使用 `read_query` 执行 `SHOW CREATE TABLE schema_name.table_name` 获取动态表当前定义。
+执行 `SHOW CREATE TABLE schema_name.table_name` 获取动态表当前定义。
 如果不确定是否为动态表，先用 `SHOW TABLES WHERE is_dynamic` 查看列表。
 
 ### 步骤 2：判断操作类型并选择执行方式
@@ -69,11 +69,11 @@ ALTER DYNAMIC TABLE dt_name UNSET PROPERTIES('key');
 
 ### 步骤 3：执行 CREATE OR REPLACE 重建（仅 B 类操作）
 
-1. 用 `read_query` 执行 `SHOW CREATE TABLE schema_name.table_name` 获取原始 DDL
+1. 执行 `SHOW CREATE TABLE schema_name.table_name` 获取原始 DDL
    > ⚠️ `SHOW CREATE TABLE` 不支持 LIMIT/WHERE 子句，直接执行即可
 2. 解析出：列定义、REFRESH 子句、AS SELECT 子句、COMMENT 等
 3. 根据操作修改对应部分
-4. 用 `write_query` 执行重建 SQL
+4. 执行重建 SQL
 
 **关于全量刷新的触发**：
 - 简单的删除列 / 添加列（添加的列只是从源表 SELECT 透传，不参与 JOIN key、GROUP key 等计算）→ **增量刷新**
@@ -186,5 +186,5 @@ REFRESH DYNAMIC TABLE change_table;
 | `UNDROP DYNAMIC TABLE` 报错 | UNDROP 不支持 DYNAMIC TABLE 关键字 | 改为 `UNDROP TABLE dt_name` |
 | `DESC DYNAMIC TABLE ... EXTENDED` 报错 | 不支持 EXTENDED 参数 | 改为 `DESC TABLE dt_name`（不加 EXTENDED） |
 | UPDATE/DELETE 报 "MV__KEY" 相关错误 | 动态表有隐藏列 MV__KEY，默认禁止 DML | 先执行 `SET cz.sql.dt.allow.dml = true;` |
-| CREATE OR REPLACE 后数据为空 | AS SELECT 子句引用的源表或列不正确 | 先用 `read_query` 验证 SELECT 子句 |
+| CREATE OR REPLACE 后数据为空 | AS SELECT 子句引用的源表或列不正确 | 先验证 SELECT 子句是否返回数据 |
 | CREATE OR REPLACE 后全量刷新 | 新增列参与了计算逻辑（JOIN key、GROUP key 等） | 预期行为，等待全量刷新完成 |

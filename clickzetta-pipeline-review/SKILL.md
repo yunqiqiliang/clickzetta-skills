@@ -265,8 +265,8 @@ cz-cli task content <ddl_task_id>
 # 检查：读 Studio 任务脚本
 cz-cli task content <task_id>
 
-# 对比：读实际 DT 定义
-# write_query: SHOW CREATE TABLE <schema>.<table>
+# 对比：读实际 DT 定义（执行以下 SQL）
+# SHOW CREATE TABLE <schema>.<table>
 
 # 如果不一致，同步 Studio 任务脚本
 cz-cli task save-content <task_id> --content "<new_sql>"
@@ -314,7 +314,7 @@ cz-cli task save-content <task_id> --content "<updated_sql>"
 
 ### 执行原则
 
-- **直接 SQL 操作**（重建 DT、修改表结构）→ 用 `write_query`，执行前向用户确认
+- **直接 SQL 操作**（重建 DT、修改表结构）→ 执行对应 SQL，执行前向用户确认
 - **Studio 任务配置**（依赖、Cron、脚本）→ 用 `cz-cli task save-*` + `deploy`
 - **两者都改时**：先改 SQL（数据层），再同步 Studio（配置层）
 
