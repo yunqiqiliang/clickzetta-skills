@@ -16,6 +16,31 @@ description: |
 
 # Kafka 数据接入管道工作流
 
+## 向导：收集必要信息
+
+开始搭建 Kafka 管道前，先收集以下信息（一次性问完）：
+
+> 为了搭建 Kafka 接入管道，需要确认：
+>
+> **1. Kafka 连接信息**：
+>    - Bootstrap 地址（如 `kafka.example.com:9092`）
+>    - Topic 名称
+>    - 是否需要认证？（SASL 用户名/密码，或无认证）
+>
+> **2. 消息格式**：JSON / CSV / Avro？如果是 JSON，是否有嵌套结构需要解析？
+>
+> **3. 目标表**：写入 Lakehouse 的哪个 schema 和表名？表是否已存在？
+>
+> **4. 接入路径**（不确定可跳过，我来推荐）：
+>    - READ_KAFKA Pipe（推荐，通用场景）
+>    - Kafka 外部表 + Table Stream（需要保留原始消息或多个下游消费同一 Topic）
+>
+> **5. 批量写入频率**：多久批量写入一次？（默认 60 秒）
+
+**如果用户已经提供了足够信息，直接进入工作流，不再重复询问。**
+
+---
+
 ## 适用场景
 
 - 将 Kafka Topic 数据持续导入 ClickZetta Lakehouse 表
