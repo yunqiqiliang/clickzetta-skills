@@ -108,6 +108,22 @@ CREATE SCHEMA IF NOT EXISTS ecommerce_gold;
 8. 运维操作（SUSPEND/RESUME）
 ```
 
+**SQL 生成后，将各段代码保存为 Studio 任务（代码资产化）：**
+
+数据管道开发场景下，所有 SQL 都应保存为 Studio 任务，作为可管理的代码资产：
+
+```bash
+# 建表 DDL → 保存为 DRAFT 任务（不配 Cron）
+cz-cli task save-content <ddl_task_name> --content "<ddl_sql>"
+
+# ETL/转换 SQL → 保存为调度任务（配 Cron + 依赖）
+cz-cli task save-content <etl_task_name> --content "<etl_sql>"
+cz-cli task save-cron <etl_task_name> --cron '0 30 2 * * ? *'
+cz-cli task deploy <etl_task_name>
+```
+
+> Dynamic Table DDL 也应保存为 DRAFT 任务（`03_ddl_dws_ads`），方便后续查阅和多环境迁移。
+
 **⚠️ DDL 任务 vs 数据流转任务的调度规则（硬性约束，不得违反）：**
 
 | 任务类型 | 判断标准 | 调度配置 | Studio 状态 |

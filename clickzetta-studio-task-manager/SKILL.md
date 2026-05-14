@@ -210,16 +210,24 @@ cz-cli task create \
 
 ## 完整工程化 SOP
 
+### 代码资产化原则
+
+**数据管道开发 / 数仓建模场景下，所有 SQL 代码都应保存为 Studio 任务，作为可管理的代码资产。**
+
+- 任务是代码的载体，不只是调度配置
+- 即使是一次性执行的 DDL，也应保存为 DRAFT 任务，方便查阅、复用和多环境迁移
+- 不需要保存为任务的场景：SELECT 查询、临时修复 SQL、一次性验证查询
+
 ### 新项目启动流程
 
 ```
 1. 创建任务目录
    cz-cli task folder create <业务域>_dw
 
-2. 创建 DDL 任务（DRAFT，不配调度）
-   - 01_ddl_ods：建 ODS 层表
-   - 02_ddl_dwd：建 DWD 层表
-   - 03_ddl_dws_ads：建 DWS/ADS Dynamic Table（含首次 REFRESH）
+2. 生成各层 DDL，逐层保存为独立 DRAFT 任务（不配 Cron，不配依赖）
+   cz-cli task save-content 01_ddl_ods --content "<ods_ddl_sql>"
+   cz-cli task save-content 02_ddl_dwd --content "<dwd_ddl_sql>"
+   cz-cli task save-content 03_ddl_dws_ads --content "<dws_ads_ddl_sql>"
 
 3. 手动执行 DDL 任务（一次性）
    cz-cli task run <ddl_task_id>
@@ -228,11 +236,15 @@ cz-cli task create \
    - 00_sync：整库或单表同步到 ODS
    - MULTI_DI 类型需进 UI 配置映射
 
-5. 创建 ETL 转换任务（配 Cron + 依赖 00）
-   - 04_transform：ODS→DWD 清洗 SQL
+5. 生成 ETL 转换 SQL，保存为调度任务（配 Cron + 依赖 00）
+   cz-cli task save-content 04_transform_ods_to_dwd --content "<etl_sql>"
+   cz-cli task save-cron 04_transform_ods_to_dwd --cron '0 30 2 * * ? *'
+   cz-cli task deploy 04_transform_ods_to_dwd
 
-6. 可选：创建数据质量任务（配 Cron + 依赖 04）
-   - 05_dqc：行数检查、NULL 率验证
+6. 可选：生成数据质量 SQL，保存为任务（配 Cron + 依赖 04）
+   cz-cli task save-content 05_dqc_check --content "<dqc_sql>"
+   cz-cli task save-cron 05_dqc_check --cron '0 0 3 * * ? *'
+   cz-cli task deploy 05_dqc_check
 
 7. 验证全链路
    - 手动触发 00_sync，观察同步结果

@@ -248,6 +248,26 @@ CDC/Kafka 持续写入 Bronze → Silver（REFRESH INTERVAL 10 MINUTE）→ Gold
 
 加载 `clickzetta-sql-syntax-guide` 确认语法，生成各层 DDL。
 
+**数仓开发代码资产化原则：每段 SQL 都应保存为 Studio 任务，作为可管理的代码资产。**
+
+生成 DDL 后，按以下规范保存为 Studio 任务（先创建任务目录，再逐层保存）：
+
+```bash
+# 创建项目任务目录
+cz-cli task folder create <业务域>_dw
+
+# 各层 DDL 保存为独立 DRAFT 任务（不配 Cron，不配依赖）
+cz-cli task save-content 01_ddl_ods --content "<ods_ddl_sql>"
+cz-cli task save-content 02_ddl_dwd --content "<dwd_ddl_sql>"
+cz-cli task save-content 03_ddl_dws_ads --content "<dws_ads_ddl_sql>"
+
+# ETL 转换 SQL 保存为调度任务（配 Cron + 依赖上游同步任务）
+cz-cli task save-content 04_transform_ods_to_dwd --content "<etl_sql>"
+cz-cli task save-cron 04_transform_ods_to_dwd --cron '0 30 2 * * ? *'
+```
+
+> 任务是代码的载体，不只是调度配置。即使是一次性执行的 DDL，也应保存为 DRAFT 任务，方便后续查阅、复用和多环境迁移。
+
 **生成 Dynamic Table DDL 前，先确认可用的 GP 型 VCluster：**
 
 ```sql
