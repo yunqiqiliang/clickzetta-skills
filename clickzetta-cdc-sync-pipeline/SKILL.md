@@ -546,3 +546,36 @@ cz-cli agent run "查看 CDC 任务 <task_name> 的运行状态和详细信息" 
 cz-cli agent run "查看 CDC 任务 <task_name> 的最近运行记录" \
   --format a2a --dangerously-skip-permissions
 ```
+
+---
+
+## 交付验收 Checklist
+
+CDC 同步任务发布运行后，**必须逐项验证**：
+
+```sql
+-- 1. 行数比对：全量阶段完成后，ODS 层行数与源端一致
+SELECT COUNT(*) FROM <ods_schema>.<table>;
+
+-- 2. 增量验证：写入一条测试数据到源端，确认 Lakehouse 侧同步到位
+-- 在源端 MySQL 执行 INSERT，等待 10~30 秒后在 Lakehouse 查询
+
+-- 3. 关键字段非空率
+SELECT
+  COUNT(*) AS total,
+  COUNT(key_field) AS non_null,
+  ROUND(COUNT(key_field) * 100.0 / COUNT(*), 2) AS non_null_pct
+FROM <ods_schema>.<table>;
+
+-- 4. 检查 _op 字段分布（CDC 接入时）
+SELECT _op, COUNT(*) FROM <ods_schema>.<table> GROUP BY _op;
+-- 正常应有 I（INSERT）记录，UPDATE/DELETE 场景下有 U/D
+```
+
+**验收标准：**
+- [ ] 全量阶段完成，ODS 层行数与源端一致
+- [ ] 增量写入测试数据，Lakehouse 侧 30 秒内同步到位
+- [ ] 关键字段非空率符合预期
+- [ ] _op 字段分布合理（无异常大量 D 记录）
+- [ ] 任务状态为持续运行（RUNNING），无频繁重启
+- [ ] 字段类型映射正确（重点检查 BIT/ENUM/TEXT 等异构类型）

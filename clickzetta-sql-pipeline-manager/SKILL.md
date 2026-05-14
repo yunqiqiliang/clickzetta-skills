@@ -89,9 +89,20 @@ CREATE SCHEMA IF NOT EXISTS ecommerce_gold;
 3. 数据入口（Pipe 或 Table Stream，根据来源选择）
 4. 中间层动态表（清洗/过滤，REFRESH interval N MINUTE VCLUSTER name）
 5. 服务层动态表（聚合/维度，REFRESH interval N MINUTE VCLUSTER name）
-6. 验证命令（SHOW + REFRESH HISTORY）
-7. 运维操作（SUSPEND/RESUME）
+6. 各动态表创建后立即执行 REFRESH DYNAMIC TABLE（重置刷新基准）
+7. 验证命令（SHOW + REFRESH HISTORY）
+8. 运维操作（SUSPEND/RESUME）
 ```
+
+**⚠️ DDL 任务 vs 数据流转任务的调度规则（硬性约束，不得违反）：**
+
+| 任务类型 | 判断标准 | 调度配置 | Studio 状态 |
+|---|---|---|---|
+| DDL 任务 | 包含 `CREATE / DROP / ALTER TABLE/SCHEMA` | **禁止配置 Cron，禁止配置依赖** | DRAFT |
+| 数据流转任务 | 数据同步、ETL 转换、数据质量检查 | 配置 Cron + 上下游依赖 | PUBLISHED |
+| Dynamic Table | DWS/ADS 聚合层 | **不建 Studio 任务**，系统自动刷新 | — |
+
+> AI 生成 SQL 管道时，如果涉及 Studio 任务编排，必须遵守以上规则。不得为 DDL 语句生成 Cron 调度配置。
 
 **来源 → 入口对象的选择规则：**
 - Kafka → `CREATE PIPE ... AS COPY INTO ... FROM (SELECT ... FROM read_kafka('broker', 'topic', '', 'group', '', '', '', '', 'raw', 'raw', 0, MAP(...)))`
@@ -365,6 +376,52 @@ CREATE TABLE dwd.orders_manual (
 | `DROP TABLE` 删除物化视图报错 | 对象类型不匹配 | 用 `DROP MATERIALIZED VIEW`（不是 `DROP TABLE`） |
 | 动态表 DML 报错 `not allowed` | 动态表不支持 DML | 在源表修正数据，或使用普通表 + 调度任务 |
 | `SET cz.sql.dt.allow.dml` 报错 | 不支持 session statement | 动态表不支持 DML 操作，改用其他方案 |
+
+---
+
+## 交付验收 Checklist
+
+管道创建完成后，**必须逐项验证**，不得跳过：
+
+```sql
+-- 1. 行数比对：各层行数与预期一致
+SELECT COUNT(*) FROM ods.<table>;   -- ODS 行数 ≈ 源端
+SELECT COUNT(*) FROM dwd.<table>;   -- DWD 行数 ≤ ODS（清洗后）
+SELECT COUNT(*) FROM dws.<table>;   -- DWS 行数符合聚合逻辑
+
+-- 2. Dynamic Table 刷新状态
+SHOW DYNAMIC TABLE REFRESH HISTORY <schema>.<table> LIMIT 5;
+-- 确认最近一次 status = SUCCESS，refresh_mode = INCREMENTAL 或 FULL
+
+-- 3. 关键字段非空率
+SELECT
+  COUNT(*) AS total,
+  COUNT(key_field) AS non_null,
+  ROUND(COUNT(key_field) * 100.0 / COUNT(*), 2) AS non_null_pct
+FROM <schema>.<table>;
+-- 核心业务字段非空率应 > 99%
+
+-- 4. 主键唯一性（DWD 层事实表）
+SELECT key_col, COUNT(*) AS cnt
+FROM dwd.<table>
+GROUP BY key_col
+HAVING cnt > 1
+LIMIT 10;
+-- 结果为空 = 无重复，符合预期
+
+-- 5. Pipe 摄入状态（如有）
+SHOW PIPES;
+-- status = RUNNING，last_ingested_timestamp 持续更新
+```
+
+**验收标准：**
+- [ ] 各层行数与预期一致
+- [ ] Dynamic Table 最近刷新状态为 SUCCESS
+- [ ] 关键字段非空率 > 99%
+- [ ] DWD 层主键无重复
+- [ ] Pipe 状态 RUNNING（如有）
+- [ ] 所有 DDL 任务为 DRAFT 状态（如涉及 Studio 任务）
+- [ ] DWS/ADS 层无冗余 Studio 调度任务
 
 ---
 

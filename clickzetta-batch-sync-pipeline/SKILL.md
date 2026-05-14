@@ -384,3 +384,32 @@ cz-cli agent run "查看离线同步任务 sync_<table> 的详情和最近执行
 cz-cli agent run "查看任务 sync_<table> 最近一次失败的执行日志，找出失败原因" \
   --format a2a --dangerously-skip-permissions
 ```
+
+---
+
+## 交付验收 Checklist
+
+同步任务发布运行后，**必须逐项验证**：
+
+```sql
+-- 1. 行数比对：ODS 层行数与源端一致
+SELECT COUNT(*) FROM <ods_schema>.<table>;
+-- 与源端 MySQL/PG 执行 SELECT COUNT(*) FROM <table> 对比
+
+-- 2. 关键字段非空率
+SELECT
+  COUNT(*) AS total,
+  COUNT(key_field) AS non_null,
+  ROUND(COUNT(key_field) * 100.0 / COUNT(*), 2) AS non_null_pct
+FROM <ods_schema>.<table>;
+
+-- 3. 查看同步任务最近运行记录
+-- 通过 cz-cli 或 Studio UI 确认最近一次运行状态为 SUCCESS
+```
+
+**验收标准：**
+- [ ] ODS 层行数与源端一致（允许秒级延迟）
+- [ ] 关键字段非空率符合预期
+- [ ] 同步任务最近运行状态为 SUCCESS
+- [ ] 字段类型映射正确（重点检查 BIT/ENUM/TEXT 等异构类型）
+- [ ] 调度 Cron 配置正确，下次执行时间符合预期
