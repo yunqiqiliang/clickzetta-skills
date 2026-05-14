@@ -244,7 +244,20 @@ CDC/Kafka 持续写入 Bronze → Silver（REFRESH INTERVAL 10 MINUTE）→ Gold
 
 ### DDL 模板
 
-加载 `clickzetta-sql-syntax-guide` 确认语法，生成各层 DDL：
+加载 `clickzetta-sql-syntax-guide` 确认语法，生成各层 DDL。
+
+**生成 Dynamic Table DDL 前，先确认可用的 GP 型 VCluster：**
+
+```sql
+-- 查看所有 VCluster 及状态，找到 type=GENERAL 且 status=RUNNING 的集群
+SHOW VCLUSTERS;
+```
+
+- `type = GENERAL`（GP 型）且 `status = RUNNING` → 直接使用该集群名
+- `status = STOPPED` → 先执行 `ALTER VCLUSTER <name> RESUME;` 再建表
+- 无 GP 型集群 → 参考 `clickzetta-vcluster-manager` 创建
+
+将查到的集群名替换下方 DDL 中的 `<gp_vcluster_name>`。
 
 ```sql
 -- ODS/Bronze（以 CDC 接入为例）
@@ -276,7 +289,7 @@ COMMENT 'DWD 订单事实表，清洗标准化';
 
 -- DWS/Gold（Dynamic Table，不用物化视图）
 CREATE DYNAMIC TABLE IF NOT EXISTS dws.user_order_daily
-  REFRESH INTERVAL 1 HOUR vcluster default
+  REFRESH INTERVAL 1 HOUR vcluster <gp_vcluster_name>
 AS
 SELECT
     user_id,

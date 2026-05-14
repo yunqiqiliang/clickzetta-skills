@@ -14,6 +14,25 @@ description: |
 
 # Dynamic Table 使用指南 — 目录索引
 
+## 前置检查：确认可用的 GP 型 VCluster
+
+**创建动态表前必须先确认 VCluster 存在且运行正常。** 动态表的 `vcluster` 参数必须填写实际存在的 GP 型集群名称，写死 `default` 可能导致刷新失败。
+
+```sql
+-- 查看所有 VCluster 及其状态
+SHOW VCLUSTERS;
+-- 关注列：name, type, status
+-- type = GENERAL（GP 型，推荐用于动态表）
+-- status = RUNNING（正常）或 STOPPED（已停止，需先启动）
+```
+
+根据查询结果：
+- 找到 `type = GENERAL` 且 `status = RUNNING` 的集群名称，用于 `vcluster <name>`
+- 如果目标集群 `status = STOPPED`，先执行：`ALTER VCLUSTER <name> RESUME;`
+- 如果没有 GP 型集群，需先创建：参考 `clickzetta-vcluster-manager` skill
+
+> ⚠️ 不要用 `type = ANALYSIS`（AP 型）的集群创建动态表，AP 型不支持小文件合并，长期运行会导致查询性能下降。
+
 ## 快速入门
 
 ```sql

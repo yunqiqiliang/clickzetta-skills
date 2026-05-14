@@ -223,6 +223,7 @@ cz-cli task create \
 ### 交付验证 Checklist
 
 - [ ] 各层行数与预期一致
+- [ ] Dynamic Table 使用的 VCluster 存在且 `status = RUNNING`（`SHOW VCLUSTERS`）
 - [ ] Dynamic Table 刷新历史显示 SUCCESS
 - [ ] 关键字段 NULL 率在可接受范围
 - [ ] LEFT JOIN 结果行数 ≥ 左表行数
