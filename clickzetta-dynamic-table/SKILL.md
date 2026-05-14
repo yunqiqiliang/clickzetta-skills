@@ -51,8 +51,44 @@ SHOW TABLES IN silver WHERE table_name = 'orders_daily';
 
 INTERVAL 支持的单位：`SECOND`、`MINUTE`、`HOUR`、`DAY`，最小值为 1 分钟。
 
-> 建议使用 GP 型集群刷新动态表。动态表刷新过程中会自动执行小文件合并，AP 型集群不支持此功能。
-> ⚠️ **VCluster 类型限制**：创建动态表时如果指定了 AP 型集群（如 `default_ap`），刷新仍可执行但不会进行小文件合并，长期运行可能导致查询性能下降。建议始终使用 GP 型集群（如 `default`）。
+> ⚠️ **VCluster 类型**：始终使用 GP 型集群（`vcluster default`），不要用 AP 型（`default_ap`）。AP 型集群不支持小文件合并，长期运行会导致查询性能下降。
+
+### ⚠️ 刷新周期的时间基准
+
+**`REFRESH INTERVAL N DAY/HOUR` 以动态表的创建时间（或上次刷新时间）为基准计算下次触发时间，不是从零点或整点开始对齐。**
+
+例如：动态表在 23:17 创建，设置 `REFRESH INTERVAL 1 DAY`，则后续每次刷新约在 23:17 触发，而不是次日 00:00 或业务期望的 03:00。`START WITH TIMESTAMP` 仅影响首次刷新时间，不改变后续周期的基准。
+
+**如需控制刷新时间窗口，有三种方案：**
+
+1. **在目标时间点附近创建动态表**（最简单）
+2. **创建后立即执行 `REFRESH` 重置基准**（推荐，见下方最佳实践）
+3. **改用短间隔**（如 `4 HOUR`）减少偏差，业务容忍度允许时可接受
+
+### 创建动态表的最佳实践：创建后立即执行首次刷新
+
+```sql
+-- ✅ 推荐写法：创建后立即 REFRESH，重置刷新基准时间，实现"开箱即用"
+CREATE DYNAMIC TABLE IF NOT EXISTS dws.user_order_daily
+REFRESH INTERVAL 1 DAY vcluster default
+AS
+SELECT user_id, DATE(created_at) AS dt, COUNT(*) AS order_cnt
+FROM dwd.fact_orders
+GROUP BY 1, 2;
+
+REFRESH DYNAMIC TABLE dws.user_order_daily;
+-- 立即触发首次计算，同时将刷新基准时间重置为当前时刻
+```
+
+### 手动刷新命令
+
+```sql
+-- ✅ 正确：手动触发刷新
+REFRESH DYNAMIC TABLE schema.table_name;
+
+-- ❌ 错误：不存在此语法
+ALTER DYNAMIC TABLE schema.table_name REFRESH;
+```
 
 ### 开启增量刷新的前提
 
@@ -110,3 +146,4 @@ Dynamic Table 最佳实践与避坑指南（维度表 JOIN 场景、性能优化
 | 状态表损坏 | 系统异常 | `SET cz.optimizer.incremental.rebuild.rule.based.state.table = true` |
 | 手动 REFRESH 后历史未显示 | 刷新历史有短暂延迟 | 等待几秒后重新查询 `SHOW DYNAMIC TABLE REFRESH HISTORY` |
 | AP 集群刷新后查询变慢 | AP 集群不支持小文件合并 | 改用 GP 型集群（`CREATE OR REPLACE` 重建） |
+| 刷新时间与预期不符（如期望 03:00 实际 23:00） | REFRESH INTERVAL 以创建时间为基准，不对齐整点 | 在目标时间点附近创建 DT，或创建后立即执行 `REFRESH DYNAMIC TABLE` 重置基准 |

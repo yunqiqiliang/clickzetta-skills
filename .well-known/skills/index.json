@@ -80,6 +80,21 @@
       ]
     },
     {
+      "name": "clickzetta-dba-guide",
+      "description": "ClickZetta Lakehouse DBA 日常运维操作手册。集中覆盖 DBA 最常用的 8 类操作：",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "clickzetta-dw-modeling",
+      "description": "ClickZetta Lakehouse 数仓建模向导。先自主探索用户的数据现状，再给出有依据的",
+      "files": [
+        "SKILL.md",
+        "references/modeling-patterns.md"
+      ]
+    },
+    {
       "name": "clickzetta-dynamic-table",
       "description": "ClickZetta Dynamic Table（动态表）使用指南，覆盖创建、修改、增量计算配置和性能优化。包含静态分区 DT vs 动态分区 DT 声明策略、SQL 支持矩阵、增量配置参考、刷新历史查询、ALTER 操作指南，以及维度表 JOIN、性能优化、非分区表风险等最佳实践。",
       "files": [
@@ -94,21 +109,6 @@
         "best-practices/performance-optimization.md",
         "best-practices/non-partitioned-merge-into-warning.md",
         "best-practices/medallion-and-stream-patterns.md"
-      ]
-    },
-    {
-      "name": "clickzetta-dba-guide",
-      "description": "ClickZetta Lakehouse DBA 日常运维操作手册。集中覆盖 DBA 最常用的 8 类操作：",
-      "files": [
-        "SKILL.md"
-      ]
-    },
-    {
-      "name": "clickzetta-dw-modeling",
-      "description": "ClickZetta Lakehouse 数仓建模向导。先自主探索用户的数据现状，再给出有依据的",
-      "files": [
-        "SKILL.md",
-        "references/modeling-patterns.md"
       ]
     },
     {
@@ -268,6 +268,24 @@
       ]
     },
     {
+      "name": "clickzetta-studio-task-manager",
+      "description": "管理 ClickZetta Lakehouse Studio 任务，覆盖任务目录组织、任务类型区分（建管分离）、cz-cli task 命令族、调度配置、依赖管理和常见问题排查。",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "clickzetta-table-lineage",
+      "description": "表血缘可视化工具。从 ClickZetta information_schema.job_history 获取表依赖关系和成本数据，导出 CSV 后嵌入 HTML 模板生成交互式血缘图。",
+      "files": [
+        "SKILL.md",
+        "references/normalize_func.sql",
+        "references/table_cost.sql",
+        "references/table_relation.sql",
+        "references/table_lineage_standalone.html"
+      ]
+    },
+    {
       "name": "clickzetta-table-stream-pipeline",
       "description": "搭建和管理 ClickZetta Table Stream 变更数据捕获管道，覆盖从源表配置、Stream 创建、",
       "files": [
@@ -297,17 +315,6 @@
       "files": [
         "SKILL.md",
         "references/zettapark-api.md"
-      ]
-    },
-    {
-      "name": "clickzetta-table-lineage",
-      "description": "表血缘可视化工具。从 ClickZetta information_schema.job_history 获取表依赖关系和成本数据，导出 CSV 后嵌入 HTML 模板生成交互式血缘图。",
-      "files": [
-        "SKILL.md",
-        "references/normalize_func.sql",
-        "references/table_cost.sql",
-        "references/table_relation.sql",
-        "references/table_lineage_standalone.html"
       ]
     }
   ]

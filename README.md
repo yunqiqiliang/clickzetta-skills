@@ -19,6 +19,8 @@
 | 数据导入同步 | [clickzetta-file-import-pipeline](./clickzetta-file-import-pipeline/) | 本地文件 / URL 导入 |
 | 数据导入同步 | [clickzetta-sql-pipeline-manager](./clickzetta-sql-pipeline-manager/) | SQL 管道对象（动态表/物化视图/Pipe/Stream） |
 | 数据导入同步 | [clickzetta-table-stream-pipeline](./clickzetta-table-stream-pipeline/) | Table Stream CDC 变更捕获管道 |
+| 数仓工程 | [clickzetta-dw-modeling](./clickzetta-dw-modeling/) | 数仓建模向导：ODS/DWD/DWS/ADS 分层、Medallion 架构、DDL 模板 |
+| 数仓工程 | [clickzetta-studio-task-manager](./clickzetta-studio-task-manager/) | Studio 任务管理：建管分离规范、任务目录组织、cz-cli task 命令族、调度 DAG |
 | 计算集群 | [clickzetta-vcluster-manager](./clickzetta-vcluster-manager/) | VCluster 创建/启停/扩缩容/缓存管理 |
 | 数据湖 | [clickzetta-volume-manager](./clickzetta-volume-manager/) | Volume 挂载、文件查询、导入导出 |
 | 数据湖 | [clickzetta-external-catalog](./clickzetta-external-catalog/) | Hive/Iceberg/Databricks 联邦查询 |

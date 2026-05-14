@@ -173,30 +173,73 @@ CLUSTERED BY (user_id) INTO 32 BUCKETS
 
 ```
 ODS/Bronze → DWD/Silver：SQL 任务（Studio 调度，清洗逻辑需手动控制）
-DWD/Silver → DWS/Gold：Dynamic Table（TARGET_LAG 控制延迟，自动增量）
+DWD/Silver → DWS/Gold：Dynamic Table（REFRESH INTERVAL 控制延迟，自动增量）
 DWS → ADS：Dynamic Table 或直接查询
 ```
 
 加载 `clickzetta-sql-pipeline-manager` 获取 Dynamic Table 详细语法。
 
+### 建管分离原则（重要）
+
+Studio 任务按类型严格区分，**不同类型任务的调度策略完全不同**：
+
+| 任务类型 | 示例 | 调度配置 | 说明 |
+|---|---|---|---|
+| DDL 建表任务 | CREATE TABLE、CREATE SCHEMA | **DRAFT，禁止配 Cron，禁止配依赖** | 一次性执行，手动触发，不参与调度链 |
+| ETL 转换任务 | ODS→DWD 清洗 SQL | 配置 Cron + 依赖上游同步任务 | 周期性执行，构成调度 DAG |
+| 数据同步任务 | MySQL→ODS 整库同步 | 配置 Cron，作为 ETL 任务的上游 | 周期性执行，ETL 任务的触发前提 |
+| DWS/ADS 聚合层 | 指标汇总、报表宽表 | **使用 Dynamic Table，不建调度任务** | 系统自动刷新，额外建任务是冗余计算 |
+
+> ⚠️ **常见错误**：为 DDL 任务配置了 Cron，导致建表语句被重复执行，引发 `SCHEDULE_TASK_HAD_CHILDREN_NODES_EXCEPTION` 等调度冲突。DDL 任务完成后应立即降级为 DRAFT 状态。
+
+### Studio 任务目录组织规范
+
+每个数仓项目在 Studio 中创建独立任务目录，统一管理所有任务资产：
+
+```
+<业务域>_dw/                          ← 项目任务目录（如 shenyu_gateway_dw）
+├── 00_sync_<source>_to_ods           ← 数据同步（Cron，最早执行）
+├── 01_ddl_ods                        ← ODS 建表（DRAFT，不调度）
+├── 02_ddl_dwd                        ← DWD 建表（DRAFT，不调度）
+├── 03_ddl_dws_ads                    ← DWS/ADS 动态表建表（DRAFT，不调度）
+├── 04_transform_ods_to_dwd           ← ODS→DWD 清洗（Cron，依赖 00）
+└── 05_dqc_check                      ← 数据质量检查（Cron，依赖 04，可选）
+    （DWS/ADS 层由 Dynamic Table 自动刷新，无需任务）
+```
+
+> 任务编号规范：`00~` 同步层，`01~03` DDL 层（DRAFT），`04~` ETL 层（调度），DWS/ADS 无任务。
+
 ### 数据质量卡点
 
 | 层次 | 检查重点 | 时机 |
 |---|---|---|
-| ODS/Bronze | NULL 比例、CDC _op 分布 | 入库后 |
-| DWD/Silver | 唯一性、关联完整性（LEFT JOIN 验证匹配率） | ETL 后 |
-| DWS/Gold/ADS | 指标环比异常、汇总一致性 | Dynamic Table 刷新后 |
+| ODS/Bronze | NULL 比例、CDC _op 分布、行数与源端一致 | 入库后 |
+| DWD/Silver | 唯一性、LEFT JOIN 匹配率（结果行数 ≥ 左表行数）、关键字段非空率 | ETL 后 |
+| DWS/Gold/ADS | 指标环比异常、汇总一致性、Dynamic Table 刷新历史为 SUCCESS | Dynamic Table 刷新后 |
+
+> ⚠️ **LEFT JOIN 陷阱**：`LEFT JOIN ... WHERE 右表字段 = 值` 会退化为 INNER JOIN，导致数据丢失。过滤右表字段必须放在 `ON` 子句：`LEFT JOIN ... ON ... AND 右表字段 = 值`。
+
+### 交付验证 Checklist
+
+方案上线前必须逐项确认：
+
+- [ ] 各层行数与预期一致（ODS 行数 ≈ 源端，DWD 行数 ≤ ODS，DWS/ADS 行数符合聚合逻辑）
+- [ ] Dynamic Table 刷新历史显示 `SUCCESS`（`SHOW DYNAMIC TABLE REFRESH HISTORY`）
+- [ ] 关键字段 NULL 率在可接受范围内
+- [ ] LEFT JOIN 结果行数 ≥ 左表行数（否则检查过滤条件是否误放在 WHERE）
+- [ ] DWS/ADS 层无冗余调度任务（Dynamic Table 不需要额外 Cron）
+- [ ] 所有 DDL 任务已降级为 DRAFT 状态
 
 ### 调度 DAG
 
 ```
 日批场景：
-数据同步（ODS 接入）→ DWD 清洗任务 → 数据质量检查
-                                          ↓
-                              DWS/Gold（Dynamic Table 自动刷新，无需调度）
+00_sync（Cron 02:00）→ 04_transform（Cron 02:30，依赖 00）→ 05_dqc（可选）
+                                                                ↓
+                                            DWS/ADS（Dynamic Table 自动刷新，无需调度）
 
 实时场景：
-CDC/Kafka 持续写入 Bronze → Silver（TARGET_LAG='10min'）→ Gold（TARGET_LAG='1h'）
+CDC/Kafka 持续写入 Bronze → Silver（REFRESH INTERVAL 10 MINUTE）→ Gold（REFRESH INTERVAL 1 HOUR）
 ```
 
 ### DDL 模板
@@ -233,8 +276,7 @@ COMMENT 'DWD 订单事实表，清洗标准化';
 
 -- DWS/Gold（Dynamic Table，不用物化视图）
 CREATE DYNAMIC TABLE IF NOT EXISTS dws.user_order_daily
-  REFRESH interval 1 HOUR
-  VCLUSTER default_ap
+  REFRESH INTERVAL 1 HOUR vcluster default
 AS
 SELECT
     user_id,
@@ -245,6 +287,9 @@ SELECT
 FROM dwd.fact_orders
 WHERE status_code = 1
 GROUP BY user_id, order_date;
+
+-- 创建后立即执行首次刷新，重置刷新基准时间
+REFRESH DYNAMIC TABLE dws.user_order_daily;
 ```
 
 ---
@@ -257,3 +302,5 @@ GROUP BY user_id, order_date;
 4. **建模和管道一体**——DDL 和管道配置同步输出
 5. **分区用转换函数**：`days(col)` 不是 `col`
 6. **ODS/Bronze 零转换**，保留原始数据方便回溯
+7. **建管分离**——DDL 任务 DRAFT 不调度，DWS/ADS 层不建调度任务
+8. **创建 Dynamic Table 后立即 REFRESH**——重置刷新基准，实现开箱即用

@@ -124,9 +124,39 @@ OPTIONS('header' = 'true');
 - `save_as_table` 方式：`df.write.save_as_table("table_name")`
 - 建议用户参考官方文档：`comprehensive_guide_to_ingesting_zettapark_save_as_table`
 
-## 数据入仓 vs 数据入湖
+## 异构数据源类型映射（ODS 层建表必读）
 
-| 维度 | 数据入仓 | 数据入湖 |
+从关系型数据库（MySQL/PostgreSQL 等）同步数据时，ODS 层建表的字段类型选择直接影响同步成功率。
+
+**核心原则：ODS 层使用宽泛类型，DWD 层再做精确转换。**
+
+### MySQL → Lakehouse 类型映射
+
+| MySQL 类型 | ❌ ODS 层不要用 | ✅ ODS 层用 | DWD 层转换 |
+|---|---|---|---|
+| `BIT(1)` | `BOOLEAN` | `TINYINT` | `CAST(col AS BOOLEAN)` |
+| `TINYINT(1)` | `BOOLEAN` | `TINYINT` | `CAST(col AS BOOLEAN)` |
+| `DATETIME` | `DATETIME` | `TIMESTAMP` | 直接用 |
+| `ENUM('a','b')` | `ENUM` | `STRING` | 直接用 |
+| `TEXT` / `LONGTEXT` / `MEDIUMTEXT` | `TEXT` | `STRING` | 直接用 |
+| `DECIMAL(p,s)` | `FLOAT` / `DOUBLE` | `DECIMAL(p,s)` | 直接用 |
+| `JSON` | `JSON` | `STRING` | `parse_json(col)['field']` |
+| `SET('a','b')` | `SET` | `STRING` | 直接用 |
+
+> ⚠️ **最常见踩坑**：`BIT(1)` 映射为 `BOOLEAN` 会导致同步任务失败。ODS 层改为 `TINYINT`，同步成功后在 DWD 层用 `CAST(col AS BOOLEAN)` 转换。
+
+### PostgreSQL → Lakehouse 类型映射
+
+| PostgreSQL 类型 | ❌ ODS 层不要用 | ✅ ODS 层用 |
+|---|---|---|
+| `BOOLEAN` | `BOOLEAN` | `TINYINT` |
+| `SERIAL` / `BIGSERIAL` | `SERIAL` | `BIGINT` |
+| `JSONB` / `JSON` | `JSON` | `STRING` |
+| `ARRAY` | `ARRAY` | `STRING`（JSON 序列化） |
+| `UUID` | `UUID` | `STRING` |
+| `NUMERIC(p,s)` | `FLOAT` | `DECIMAL(p,s)` |
+
+## 数据入仓 vs 数据入湖| 维度 | 数据入仓 | 数据入湖 |
 |------|---------|---------|
 | 目标 | Lakehouse 托管表 | 用户 Volume（对象存储） |
 | 格式 | 自动转为内部列式格式 | 保持原始文件格式 |
