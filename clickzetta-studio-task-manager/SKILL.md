@@ -1,13 +1,16 @@
 ---
 name: clickzetta-studio-task-manager
 description: |
-  管理 ClickZetta Lakehouse Studio 任务，覆盖任务目录组织、任务类型区分、cz-cli task 命令族、
+  管理 ClickZetta Lakehouse Studio 任务，覆盖任务类型说明（离线同步/多表离线同步/实时同步/
+  多表实时同步/数据开发）、任务目录组织、任务类型区分、cz-cli task 命令族、
   调度配置、依赖管理和常见问题排查。实现"建管分离"工程规范：DDL 任务草稿化、ETL 任务调度化、
   Dynamic Table 自动刷新化。
   当用户说"创建 Studio 任务"、"任务目录"、"任务调度"、"cz-cli task"、"任务依赖"、
   "任务失败"、"任务状态"、"整库同步任务"、"ETL 任务编排"、"任务管理"、
-  "建管分离"、"DDL 任务"、"调度 DAG"、"任务文件夹"、"Studio 任务"时触发。
-  Keywords: Studio task, task management, cz-cli task, scheduling, DAG, DDL draft, ETL pipeline, task folder
+  "建管分离"、"DDL 任务"、"调度 DAG"、"任务文件夹"、"Studio 任务"、
+  "离线同步"、"实时同步"、"多表实时同步"、"数据开发任务"、"任务类型"、
+  "选哪种同步"、"同步任务区别"时触发。
+  Keywords: Studio task, task management, cz-cli task, scheduling, DAG, DDL draft, ETL pipeline, task folder, offline sync, realtime sync, CDC, task types
 ---
 
 # ClickZetta Studio 任务管理
@@ -29,6 +32,72 @@ description: |
 - 业务域/项目名称（用于任务目录命名，如 `ecommerce_dw`）
 - 数据源类型（MySQL/PG/Kafka/OSS 等）
 - 分层结构（ODS/DWD/DWS/ADS 还是 Bronze/Silver/Gold）
+
+---
+
+## Studio 任务类型说明
+
+Studio 提供四大类任务，选错类型是最常见的工程错误：
+
+### 离线同步（单表）
+将单张源表周期性全量同步到 Lakehouse。
+
+- **适用场景**：单表定期覆盖更新、数据时效性要求不高（按天/小时批量）、资源优化（不需要实时）
+- **运行模式**：周期调度（需配置 Cron），每次全量覆盖或追加
+- **数据源**：MySQL、PostgreSQL、SQL Server 等关系型数据库
+- **对应 skill**：`clickzetta-batch-sync-pipeline`（单表模式）
+
+### 多表离线同步
+将多张源表或整库周期性批量同步到 Lakehouse。
+
+- **适用场景**：
+  - 整库迁移（批量同步所有表，减少逐表配置工作量）
+  - 分库分表合并（多个分库分表合并到统一目标表）
+  - 定期数据校准（周期性全量同步确保目标端与源端一致）
+- **运行模式**：周期调度（需配置 Cron），支持整库镜像、多表镜像、多表合并三种模式
+- **数据源**：MySQL、PostgreSQL、SQL Server 等
+- **对应 skill**：`clickzetta-batch-sync-pipeline`（多表模式）
+
+### 实时同步（单表）
+将单张 Kafka Topic 数据持续实时同步到 Lakehouse。
+
+- **适用场景**：Kafka 消息流实时入湖、秒级/分钟级延迟要求、单 Topic 精细化同步
+- **运行模式**：持续运行（无需配置 Cron，提交即运行）
+- **数据源**：**仅支持 Kafka**（JSON 消息解析，支持 JSONPath 计算列）
+- **对应 skill**：`clickzetta-realtime-sync-pipeline`
+
+### 多表实时同步（CDC）
+将 MySQL / PostgreSQL 整库或多表通过 CDC 实时同步到 Lakehouse，包含全量 + 增量两阶段。
+
+- **适用场景**：数据库整库实时镜像、秒级端到端时效性、分库分表实时合并
+- **运行模式**：持续运行（无需配置 Cron，提交即运行）
+- **数据源**：
+
+| 类型 | 增量读取模式 | 支持版本 |
+|---|---|---|
+| MySQL 类（含 Aurora MySQL、PolarDB MySQL） | Binlog | 5.6 及以上、8.x |
+| PostgreSQL 类（含 Aurora PG、PolarDB PG） | WALs 日志 | 14 及以上 |
+
+- **对应 skill**：`clickzetta-cdc-sync-pipeline`
+
+### 数据开发任务（SQL / Python / Shell）
+在 Studio 中编写和调度数据处理逻辑，是数仓 ETL 的核心载体。
+
+- **SQL 任务**：ODS→DWD 清洗转换、数据质量检查、临时数据修复
+- **Python 任务**：自定义数据处理脚本、调用外部 API、机器学习推理
+- **Shell 任务**：系统命令、文件操作、调用外部工具
+- **运行模式**：周期调度（配置 Cron）或手动触发
+- **对应 skill**：`clickzetta-studio-task-manager`（本 skill）
+
+### 四类任务对比速查
+
+| 任务类型 | 数据源 | 同步粒度 | 运行模式 | 时效性 |
+|---|---|---|---|---|
+| 离线同步 | 关系型数据库 | 单表 | 周期调度 | 小时/天级 |
+| 多表离线同步 | 关系型数据库 | 多表/整库 | 周期调度 | 小时/天级 |
+| 实时同步 | **仅 Kafka** | 单 Topic | 持续运行 | 秒/分钟级 |
+| 多表实时同步 | MySQL / PostgreSQL | 多表/整库 | 持续运行 | 秒级 |
+| 数据开发 | 任意（SQL/Python/Shell） | 自定义逻辑 | 周期调度或手动 | 取决于调度频率 |
 
 ---
 
