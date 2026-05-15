@@ -53,21 +53,39 @@ def build_claude_cmd(prompt: str, system_prompt_file: Path, profile: str) -> lis
     return cmd
 
 
+STEP_TIMEOUT = 600
+
+
 def run_single_step(prompt: str, system_prompt_file: Path, profile: str) -> dict:
-    """Run one claude subprocess and return parsed result."""
+    """Run one claude subprocess and return parsed result. Returns timeout sentinel on timeout."""
     cmd = build_claude_cmd(prompt, system_prompt_file, profile)
     start = time.monotonic()
-    proc = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        timeout=600,
-    )
+    try:
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=STEP_TIMEOUT,
+        )
+        jsonl = proc.stdout
+    except subprocess.TimeoutExpired as e:
+        elapsed_ms = int((time.monotonic() - start) * 1000)
+        print(f"TIMEOUT ({elapsed_ms}ms)", end=" ")
+        return {
+            "wall_time_ms": elapsed_ms,
+            "total_time_ms": elapsed_ms,
+            "tool_call_count": 0,
+            "tool_sequence": [],
+            "tool_calls": [],
+            "agent_run_count": 0,
+            "final_output": f"TIMEOUT after {elapsed_ms}ms",
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cache_read_tokens": 0,
+            "timed_out": True,
+        }
     elapsed_ms = int((time.monotonic() - start) * 1000)
-
-    jsonl = proc.stdout
     result = parse_stream_json(jsonl)
-
     result["wall_time_ms"] = max(elapsed_ms, result.get("total_time_ms", 0))
     result["raw_jsonl"] = jsonl
     return result
