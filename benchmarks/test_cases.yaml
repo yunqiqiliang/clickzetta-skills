@@ -1,0 +1,81 @@
+cases:
+
+  # --- Single-turn query cases ---
+
+  - id: Q1
+    type: single
+    skill_source: clickzetta-monitoring
+    steps:
+      - prompt: "怎么查询过去 7 天失败的作业？"
+
+  - id: Q2
+    type: single
+    skill_source: clickzetta-query-optimizer
+    steps:
+      - prompt: "为什么这个 JOIN 查询慢？SELECT t1.user_id, t2.tenant_name FROM public.dim_studio_user_dmin_f t1 JOIN public.dim_studio_tenant_dmin_f t2 ON t1.tenant_id = t2.tenant_id"
+
+  - id: Q3
+    type: single
+    skill_source: clickzetta-dynamic-table
+    steps:
+      - prompt: "怎么查看动态表的刷新历史和状态？"
+
+  # --- Single-turn operation cases ---
+
+  - id: O1
+    type: single
+    skill_source: clickzetta-dynamic-table
+    steps:
+      - prompt: "帮我创建一个 Dynamic Table，从 public.dim_studio_user_dmin_f 聚合按租户+日期统计用户数，每 60 分钟自动刷新"
+
+  - id: O2
+    type: single
+    skill_source: clickzetta-batch-sync-pipeline
+    steps:
+      - prompt: "怎么创建离线同步任务把 MySQL 表定期同步到 Lakehouse？"
+
+  # --- Multi-turn cases (context transfer) ---
+
+  - id: M1
+    type: multi
+    skill_source: clickzetta-batch-sync-pipeline
+    steps:
+      - prompt: "查 public.dim_studio_user_dmin_f 的表结构和行数"
+        key_values_for_next:
+          - pattern: "\\b(user_id|tenant_id|create_time|update_time|\\w+_id)\\b"
+            description: "字段名"
+          - pattern: "\\d[\\d,]+ (行|rows|records)"
+            description: "行数"
+      - prompt: "基于以下信息：\n{prev_output}\n\n基于刚才查到的字段，帮我建一个每天同步到新表的离线同步任务"
+        check_context_transfer: true
+
+  - id: M2
+    type: multi
+    skill_source: clickzetta-query-optimizer
+    steps:
+      - prompt: "查过去 24 小时执行时间最长的 3 个作业，列出 job_id 和耗时"
+        key_values_for_next:
+          - pattern: "\\b[0-9a-f]{20,}\\b|job_id[：:][\\s]*[\\w-]+"
+            description: "job_id"
+          - pattern: "\\d+(\\.\\d+)?\\s*(秒|分钟|ms|s|min)"
+            description: "耗时"
+      - prompt: "基于以下信息：\n{prev_output}\n\n针对刚才找到的最慢作业，给出具体的 SQL 优化建议"
+        check_context_transfer: true
+
+  - id: M3
+    type: multi
+    skill_source: clickzetta-dynamic-table
+    steps:
+      - prompt: "在 skill_test schema 下创建一个名为 bench_dt 的动态表，从 skill_test.pipeline_src 按 category 聚合 amount，每 60 分钟刷新"
+        key_values_for_next:
+          - pattern: "bench_dt|skill_test\\.bench_dt"
+            description: "动态表名"
+          - pattern: "(成功|created|RUNNING|SUSPENDED|已创建)"
+            description: "创建状态"
+      - prompt: "基于以下信息：\n{prev_output}\n\n查刚才创建的动态表的刷新状态"
+        check_context_transfer: true
+        key_values_for_next:
+          - pattern: "bench_dt|skill_test\\.bench_dt"
+            description: "动态表名"
+      - prompt: "基于以下信息：\n{prev_output}\n\n把刚才那个动态表的刷新间隔改成 30 分钟"
+        check_context_transfer: true
