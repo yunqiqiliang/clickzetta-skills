@@ -79,7 +79,7 @@ description: |
 - 源端数据源已在 Studio 中配置（通过 Studio UI 添加数据源，不是 SQL Storage Connection），且账号具备 CDC 所需权限
 - Sync VCluster 可用（多表实时同步任务 task_type=281 必须使用 Sync VCluster）
 - **执行环境（满足其一即可，优先使用 cz-cli）**：
-  - **cz-cli 路径**：已安装 cz-cli（`pip install cz-cli`），并完成 `cz-cli configure` 配置
+  - **cz-cli 路径**：已安装 cz-cli（`brew install cz-cli 或参考官方文档安装`），并完成 `cz-cli setup` 配置
   - **MCP 路径**：clickzetta-studio-mcp 工具可用（`create_task`、`save_cdc_realtime_task`、`publish_task`、`list_data_sources`、`LH_show_object_list` 等）
 
 ## 环境探测（执行前必读）
@@ -99,7 +99,7 @@ cz-cli --version
 - 若工具存在于 tool list → **走 MCP 路径**（本文档默认路径）
 - 若工具不存在 → 停止执行，提示用户：
   > "当前环境既无 cz-cli 也无 MCP 工具，请安装其中之一后重试。
-  > cz-cli 安装：`pip install cz-cli`，然后运行 `cz-cli configure`
+  > cz-cli 安装：`brew install cz-cli 或参考官方文档安装`，然后运行 `cz-cli setup`
   > MCP 安装：参考 clickzetta-studio-mcp 配置文档"
 
 > ⚠️ **重要区分**：CDC 多表同步使用 **Studio 数据源**（通过 Studio UI 或 API 配置），不是 SQL 的 `CREATE STORAGE CONNECTION`。
@@ -505,7 +505,18 @@ PostgreSQL 权限要求（建议用管理员账号执行）：
 > 仅在 cz-cli 可用且 MCP 不可用时使用本节。步骤编号与上方 MCP 路径对应。
 > 所有操作通过 `cz-cli agent run` 委托给内置 agent 完成，agent 内置完整的 Studio MCP 工具访问能力。
 
-### 模式一：整库镜像同步（cz-cli 版）
+### 快速路径：直接创建任务 + Studio UI 配置
+
+```bash
+# 创建 CDC 多表实时同步任务（task_type=281，即 MULTI_REALTIME）
+cz-cli task create "cdc_<database>" --type MULTI_REALTIME --folder <folder_name>
+# 返回 task_id 和 studio_url，在 studio_url 中完成数据源选择、表映射等配置
+
+# 配置完成后发布（CDC 任务无需调度，提交即持续运行）
+cz-cli task deploy "cdc_<database>" -y
+```
+
+### 模式一：整库镜像同步（cz-cli agent 版）
 
 ```bash
 # 步骤 1-9 合并：让 agent 完成完整的 CDC 整库同步任务创建
@@ -535,7 +546,7 @@ cz-cli agent run "提交 CDC 任务 cdc_<database>，使其开始持续运行" \
 
 ---
 
-### 模式二：多表镜像同步（cz-cli 版）
+### 模式二：多表镜像同步（cz-cli agent 版）
 
 ```bash
 # 创建多表镜像 CDC 任务（指定具体表）
@@ -545,7 +556,7 @@ cz-cli agent run "创建 CDC 多表实时同步任务（task_type=281），pipel
 
 ---
 
-### 模式三：多表合并同步（cz-cli 版）
+### 模式三：多表合并同步（cz-cli agent 版）
 
 ```bash
 # 创建多表合并 CDC 任务（多源表合并到单目标表）
@@ -558,13 +569,17 @@ cz-cli agent run "创建 CDC 多表实时同步任务（task_type=281），pipel
 ### 运维监控（cz-cli 版）
 
 ```bash
-# 查看任务状态
-cz-cli agent run "查看 CDC 任务 <task_name> 的运行状态和详细信息" \
-  --format a2a --dangerously-skip-permissions
+# 查看最近运行记录
+cz-cli runs list --task <task_name>
 
-# 查看运行记录
-cz-cli agent run "查看 CDC 任务 <task_name> 的最近运行记录" \
-  --format a2a --dangerously-skip-permissions
+# 查看运行详情
+cz-cli runs detail <run_id>
+
+# 查看执行日志
+cz-cli attempts log <run_id>
+
+# 下线任务（停止持续运行）
+cz-cli task undeploy <task_name> -y
 ```
 
 ---
