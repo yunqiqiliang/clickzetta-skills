@@ -105,17 +105,19 @@ Studio 提供四大类任务，选错类型是最常见的工程错误：
 
 **不同类型的任务，调度策略完全不同。** 混淆任务类型是最常见的工程错误。
 
-| 任务类型 | 典型内容 | 调度配置 | 状态 |
-|---|---|---|---|
-| **DDL 建表任务** | CREATE TABLE / CREATE SCHEMA | ❌ 禁止 Cron，禁止依赖 | DRAFT |
-| **数据同步任务** | MySQL→ODS 整库/单表同步 | ✅ 配置 Cron | PUBLISHED |
-| **ETL 转换任务** | ODS→DWD 清洗 SQL | ✅ 配置 Cron + 依赖上游同步 | PUBLISHED |
-| **数据质量任务** | 行数检查、NULL 率验证 | ✅ 配置 Cron + 依赖 ETL | PUBLISHED |
-| **DWS/ADS 聚合层** | 指标汇总、报表宽表 | ❌ 使用 Dynamic Table，不建任务 | — |
+| 任务类型 | 典型内容 | Studio 任务类型 | 调度配置 | 状态 |
+|---|---|---|---|---|
+| **DDL 建表任务** | CREATE TABLE / CREATE SCHEMA | SQL 任务 | ❌ 禁止 Cron，禁止依赖 | DRAFT |
+| **数据同步任务** | MySQL/PG/Kafka → ODS（外部数据源入湖） | **SINGLE_DI / MULTI_DI / REALTIME**（不是 SQL 任务） | ✅ 配置 Cron（离线）或持续运行（实时） | PUBLISHED |
+| **ETL 转换任务** | ODS→DWD 清洗 SQL（Lakehouse 内部） | SQL 任务 | ✅ 配置 Cron + 依赖上游同步 | PUBLISHED |
+| **数据质量任务** | 行数检查、NULL 率验证 | SQL 任务 | ✅ 配置 Cron + 依赖 ETL | PUBLISHED |
+| **DWS/ADS 聚合层** | 指标汇总、报表宽表 | ❌ 使用 Dynamic Table，不建任务 | — | — |
 
 > ⚠️ **DDL 任务绝对不能配 Cron**：建表语句重复执行会引发 `SCHEDULE_TASK_HAD_CHILDREN_NODES_EXCEPTION` 等调度冲突。DDL 任务执行完成后立即降级为 DRAFT。
 
 > ⚠️ **DWS/ADS 层不要建调度任务**：Dynamic Table 系统自动刷新，额外建任务是冗余计算，浪费资源。
+
+> ⚠️ **严禁用 SQL 任务替代数据同步任务**：从 MySQL/PostgreSQL/Kafka 等外部数据源同步数据到 Lakehouse，必须创建数据同步任务（SINGLE_DI/MULTI_DI/REALTIME），不能用 SQL 任务写 `SELECT FROM EXTERNAL` 来模拟。SQL 任务只处理 Lakehouse 内部数据。
 
 ---
 
