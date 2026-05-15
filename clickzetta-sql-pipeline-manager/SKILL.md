@@ -84,14 +84,33 @@ CREATE SCHEMA IF NOT EXISTS ecommerce_gold;
 
 **如果用户已经提供了足够信息（数据来源、字段、层次需求、项目前缀），直接生成完整 SQL，不要再问。**
 
-如果信息不完整，一次性问清楚以下 5 点（合并成一个问题，不要逐一追问）：
+如果信息不完整，优先使用交互式问答工具（如 `question`）收集以下信息并弹出选项菜单；若无此类工具，则用文字一次性列出所有问题：
 
-> 为了生成完整的 pipeline SQL，需要确认几个信息：
-> 1. **项目/业务前缀**：Schema 名称的前缀是什么（如 `ecommerce`、`risk`、`ads`）？多个项目共用 Workspace 时必须加前缀避免冲突。
-> 2. **数据来源**：Kafka（broker/topic）/ 对象存储（Volume 路径/格式）/ 已有表（是否有 UPDATE/DELETE）？
-> 3. **字段结构**：目标表的字段名和类型？
-> 4. **层次需求**：需要几层？每层做什么处理（清洗/聚合/维度建模）？
-> 5. **刷新频率**：实时（秒级）/ 近实时（分钟级）/ 低频（小时/天）？
+```
+question({
+  questions: [
+    {
+      question: "数据来源？",
+      options: [
+        { label: "Kafka", description: "提供 broker 地址和 topic 名称" },
+        { label: "对象存储（OSS/S3/COS）", description: "提供 Volume 路径和文件格式" },
+        { label: "已有 Lakehouse 表（仅 INSERT）", description: "Dynamic Table 直接读源表" },
+        { label: "已有 Lakehouse 表（含 UPDATE/DELETE）", description: "需要 Table Stream + Dynamic Table" }
+      ]
+    },
+    {
+      question: "刷新频率？",
+      options: [
+        { label: "实时（秒级）", description: "REFRESH INTERVAL 10~60 SECOND" },
+        { label: "近实时（分钟级）", description: "REFRESH INTERVAL 1~10 MINUTE" },
+        { label: "低频（小时/天）", description: "REFRESH INTERVAL 1 HOUR 或 1 DAY" }
+      ]
+    }
+  ]
+})
+```
+
+还需确认：项目/业务前缀（Schema 命名用）、层次需求（几层、每层做什么）、目标表字段结构。这些可在用户回答后追问，或从上下文推断。
 
 ### 生成完整 SQL
 
