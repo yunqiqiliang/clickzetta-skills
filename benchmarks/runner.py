@@ -42,6 +42,7 @@ def build_claude_cmd(prompt: str, system_prompt_file: Path, profile: str) -> lis
     cmd = [
         "claude", "-p", prompt,
         "--bare",
+        "--no-session-persistence",
         "--system-prompt", system_prompt,
         "--output-format", "stream-json",
         "--verbose",
