@@ -1,13 +1,16 @@
 ---
 name: clickzetta-external-catalog
 description: |
-  配置和使用 ClickZetta Lakehouse External Catalog，实现对 Hive、Iceberg、Databricks 等
-  外部数据源的联邦查询（只读）。覆盖完整创建流程：存储连接 → Catalog Connection →
-  External Catalog，以及 SHOW/DESC/查询外部表等操作。
+  配置和使用 ClickZetta Lakehouse External Catalog，实现对 Hive、Iceberg、Databricks、
+  Snowflake Open Catalog 等外部数据源的联邦查询（只读）。覆盖完整创建流程：存储连接 →
+  Catalog Connection → External Catalog，以及 SHOW/DESC/查询外部表等操作。
+  支持数据源：Hive（OSS/COS/S3/HDFS）、Databricks Unity Catalog、
+  Snowflake Open Catalog（通过 Iceberg，OAuth 认证）。
   当用户说"外部数据目录"、"External Catalog"、"联邦查询"、"Hive 联邦"、
   "访问 Hive 数据"、"Databricks 联邦"、"Iceberg 联邦"、"跨数据源查询"、
-  "不迁移数据直接查询"、"Catalog Connection"时触发。
-  Keywords: external catalog, Hive, Iceberg, Databricks, federation, read-only
+  "不迁移数据直接查询"、"Catalog Connection"、"Snowflake 联邦"、
+  "访问 Snowflake 数据"时触发。
+  Keywords: external catalog, Hive, Iceberg, Databricks, Snowflake, federation, read-only
 ---
 
 # ClickZetta External Catalog

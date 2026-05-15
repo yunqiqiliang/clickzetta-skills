@@ -108,16 +108,25 @@ Studio 提供四大类任务，选错类型是最常见的工程错误：
 | 任务类型 | 典型内容 | Studio 任务类型 | 调度配置 | 状态 |
 |---|---|---|---|---|
 | **DDL 建表任务** | CREATE TABLE / CREATE SCHEMA | SQL 任务 | ❌ 禁止 Cron，禁止依赖 | DRAFT |
-| **数据同步任务** | MySQL/PG/SQL Server → ODS（关系型数据库入湖） | **SINGLE_DI / MULTI_DI / REALTIME**（不是 SQL 任务） | ✅ 配置 Cron（离线）或持续运行（实时） | PUBLISHED |
+| **数据同步任务** | 外部数据源（关系型数据库/对象存储）→ ODS | **SINGLE_DI / MULTI_DI / REALTIME**（不是 SQL 任务） | ✅ 配置 Cron（离线）或持续运行（实时） | PUBLISHED |
 | **ETL 转换任务** | ODS→DWD 清洗 SQL（Lakehouse 内部） | SQL 任务 | ✅ 配置 Cron + 依赖上游同步 | PUBLISHED |
 | **数据质量任务** | 行数检查、NULL 率验证 | SQL 任务 | ✅ 配置 Cron + 依赖 ETL | PUBLISHED |
 | **DWS/ADS 聚合层** | 指标汇总、报表宽表 | ❌ 使用 Dynamic Table，不建任务 | — | — |
+
+**数据同步任务支持的数据源：**
+- 离线同步（SINGLE_DI/MULTI_DI）：MySQL、PostgreSQL、Oracle、SQL Server 等关系型数据库，以及 OSS/COS/S3 对象存储
+- 实时同步单表（REALTIME）：Kafka
+- 多表实时同步 CDC：MySQL（Binlog，5.6+/8.x）、PostgreSQL（WALs，14+）
+
+**其他数据访问方式（不是数据同步任务）：**
+- Kafka/OSS/S3/COS → 也可以用 SQL Pipe（`READ_KAFKA`/Volume Pipe），与 Studio 同步任务都合法，根据场景选择
+- Hive/Databricks/Snowflake Open Catalog → External Catalog 联邦只读查询，不做数据同步
 
 > ⚠️ **DDL 任务绝对不能配 Cron**：建表语句重复执行会引发 `SCHEDULE_TASK_HAD_CHILDREN_NODES_EXCEPTION` 等调度冲突。DDL 任务执行完成后立即降级为 DRAFT。
 
 > ⚠️ **DWS/ADS 层不要建调度任务**：Dynamic Table 系统自动刷新，额外建任务是冗余计算，浪费资源。
 
-> ⚠️ **关系型数据库同步必须用数据同步任务**：从 MySQL/PostgreSQL/SQL Server 同步数据到 Lakehouse，必须创建 SINGLE_DI/MULTI_DI/REALTIME 任务，不能用 SQL 任务写 `SELECT FROM EXTERNAL`（语法不支持），也不能用 JDBC 任务（JDBC 任务只能在外部数据库上执行 SQL，不支持将数据同步到 Lakehouse）。Kafka 和对象存储（OSS/S3/COS）可以用 SQL Pipe，也可以用 Studio 实时同步任务，两者都合法。
+> ⚠️ **严禁用 SQL 任务替代数据同步任务**：不能用 SQL 任务写 `SELECT FROM EXTERNAL` 模拟同步（语法不支持），也不能用 JDBC 任务（JDBC 只能在外部数据库执行 SQL，不支持将数据同步到 Lakehouse）。
 
 ---
 
