@@ -108,7 +108,7 @@ Studio 提供四大类任务，选错类型是最常见的工程错误：
 | 任务类型 | 典型内容 | Studio 任务类型 | 调度配置 | 状态 |
 |---|---|---|---|---|
 | **DDL 建表任务** | CREATE TABLE / CREATE SCHEMA | SQL 任务 | ❌ 禁止 Cron，禁止依赖 | DRAFT |
-| **数据同步任务** | MySQL/PG/Kafka → ODS（外部数据源入湖） | **SINGLE_DI / MULTI_DI / REALTIME**（不是 SQL 任务） | ✅ 配置 Cron（离线）或持续运行（实时） | PUBLISHED |
+| **数据同步任务** | MySQL/PG/SQL Server → ODS（关系型数据库入湖） | **SINGLE_DI / MULTI_DI / REALTIME**（不是 SQL 任务） | ✅ 配置 Cron（离线）或持续运行（实时） | PUBLISHED |
 | **ETL 转换任务** | ODS→DWD 清洗 SQL（Lakehouse 内部） | SQL 任务 | ✅ 配置 Cron + 依赖上游同步 | PUBLISHED |
 | **数据质量任务** | 行数检查、NULL 率验证 | SQL 任务 | ✅ 配置 Cron + 依赖 ETL | PUBLISHED |
 | **DWS/ADS 聚合层** | 指标汇总、报表宽表 | ❌ 使用 Dynamic Table，不建任务 | — | — |
@@ -117,7 +117,7 @@ Studio 提供四大类任务，选错类型是最常见的工程错误：
 
 > ⚠️ **DWS/ADS 层不要建调度任务**：Dynamic Table 系统自动刷新，额外建任务是冗余计算，浪费资源。
 
-> ⚠️ **严禁用 SQL 任务替代数据同步任务**：从 MySQL/PostgreSQL/Kafka 等外部数据源同步数据到 Lakehouse，必须创建数据同步任务（SINGLE_DI/MULTI_DI/REALTIME），不能用 SQL 任务写 `SELECT FROM EXTERNAL` 来模拟。SQL 任务只处理 Lakehouse 内部数据。
+> ⚠️ **关系型数据库同步必须用数据同步任务**：从 MySQL/PostgreSQL/SQL Server 同步数据到 Lakehouse，必须创建 SINGLE_DI/MULTI_DI/REALTIME 任务，不能用 SQL 任务写 `SELECT FROM EXTERNAL`（语法不支持），也不能用 JDBC 任务（JDBC 任务只能在外部数据库上执行 SQL，不支持将数据同步到 Lakehouse）。Kafka 和对象存储（OSS/S3/COS）可以用 SQL Pipe，也可以用 Studio 实时同步任务，两者都合法。
 
 ---
 
