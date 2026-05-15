@@ -35,6 +35,25 @@ description: |
 
 # ClickZetta 元数据查询指南
 
+## 执行方式
+
+所有 SQL 通过 `cz-cli sql` 执行，无需 MCP 工具：
+
+```bash
+# 执行 SHOW/DESC 查询
+cz-cli sql "SHOW TABLES" --sync -o table
+
+# 执行 information_schema 查询
+cz-cli sql "SELECT * FROM information_schema.tables LIMIT 10" --sync -o table
+
+# 执行 load_history 查询
+cz-cli sql "SELECT * FROM load_history('my_schema.my_table') LIMIT 20" --sync -o table
+```
+
+注意：`--sync` 等待结果返回；`-o table` 输出为表格格式便于阅读。
+
+---
+
 ## 选择查询方式
 
 | 场景 | 推荐方式 | 原因 |
@@ -138,7 +157,7 @@ SHOW VCLUSTERS WHERE state = 'RUNNING';
 
 -- 作业（最近 7 天，最多 10000 条，不支持 ORDER BY）
 SHOW JOBS LIMIT 20;
-SHOW JOBS IN VCLUSTER default_ap LIMIT 20;
+SHOW JOBS IN VCLUSTER default LIMIT 20;
 
 -- 动态表刷新历史（最近 7 天）
 SHOW DYNAMIC TABLE REFRESH HISTORY LIMIT 20;
@@ -169,7 +188,7 @@ SHOW SHARES;
 DESC my_table;
 DESC EXTENDED my_table;          -- 含 last_modified_time/properties/statistics
 DESC SCHEMA my_schema;
-DESC VCLUSTER default_ap;
+DESC VCLUSTER default;
 DESC VOLUME my_volume;
 DESC CONNECTION my_oss_conn;
 DESC FUNCTION my_schema.my_function;  -- 仅支持外部函数

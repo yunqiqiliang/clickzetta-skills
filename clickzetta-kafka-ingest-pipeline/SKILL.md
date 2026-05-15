@@ -64,29 +64,18 @@ description: |
 - Kafka 集群网络可达（确认 bootstrap 地址和端口）
 - 已知 Kafka Topic 名称和消息格式
 - 认证信息（如需要）：SASL 用户名/密码
-- **执行环境（满足其一即可，优先使用 cz-cli）**：
-  - **cz-cli 路径**：已安装 cz-cli（`pip install cz-cli`），并完成 `cz-cli configure` 配置
-  - **MCP 路径**：clickzetta-mcp-server 工具可用（`LH_execute_query`、`LH_show_object_list` 等）
+- **执行环境**：已安装 cz-cli（`pip install cz-cli`），并完成 `cz-cli configure` 配置
 
-## 环境探测（执行前必读）
+## 执行环境
 
-在开始任何操作前，先判断当前执行环境：
+所有 SQL 通过 `cz-cli sql` 执行：
 
-**第一步：检测 cz-cli 是否可用**
 ```bash
-cz-cli --version
+cz-cli --version   # 确认 cz-cli 可用
+cz-cli sql "SELECT 1" --sync   # 验证连接
 ```
-- 若命令存在 → **走 cz-cli 路径**（见本文档末尾"cz-cli 替代路径"章节）
-- 若命令不存在 → 继续检测 MCP
 
-**第二步：检测 MCP 是否可用（仅在 cz-cli 不可用时）**
-
-尝试调用 `LH_execute_query` 工具执行一条简单 SQL（如 `SELECT 1`）。
-- 若工具存在于 tool list → **走 MCP 路径**（本文档默认路径）
-- 若工具不存在 → 停止执行，提示用户：
-  > "当前环境既无 cz-cli 也无 MCP 工具，请安装其中之一后重试。
-  > cz-cli 安装：`pip install cz-cli`，然后运行 `cz-cli configure`
-  > MCP 安装：参考 clickzetta-mcp-server 配置文档"
+若命令不存在，请先安装：`pip install cz-cli`，然后运行 `cz-cli configure`
 
 ## ⚠️ 关键注意事项
 
@@ -688,9 +677,8 @@ COPY INTO ods.secure_events FROM (
 
 ---
 
-## cz-cli 替代路径
+## cz-cli 执行路径
 
-> 仅在 cz-cli 可用且 MCP 不可用时使用本节。步骤编号与上方 MCP 路径对应。
 > 所有操作通过 `cz-cli agent run` 委托给内置 agent 完成，agent 内置完整的 MCP 工具访问能力。
 
 ### 路径一：READ_KAFKA Pipe（cz-cli 版）

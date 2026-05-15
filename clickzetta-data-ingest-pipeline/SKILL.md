@@ -23,29 +23,18 @@ description: |
 ## 前置依赖
 
 - ClickZetta Lakehouse 账户，具备创建工作空间、Schema、表、PIPE、任务等权限
-- **执行环境（满足其一即可，优先使用 cz-cli）**：
-  - **cz-cli 路径**：已安装 cz-cli（`pip install cz-cli`），并完成 `cz-cli configure` 配置
-  - **MCP 路径**：clickzetta-studio-mcp 或 clickzetta-mcp-server 工具可用（`LH_execute_query`、`create_task`、`save_integration_task` 等）
+- **执行环境**：已安装 cz-cli（`pip install cz-cli`），并完成 `cz-cli configure` 配置
 
-## 环境探测（执行前必读）
+## 执行环境
 
-在开始任何操作前，先判断当前执行环境：
+所有操作通过 `cz-cli` 执行：
 
-**第一步：检测 cz-cli 是否可用**
 ```bash
 cz-cli --version
 ```
-- 若命令存在 → **走 cz-cli 路径**（见本文档末尾"cz-cli 替代路径"章节，以及各专项 Skill 的 cz-cli 替代路径）
-- 若命令不存在 → 继续检测 MCP
 
-**第二步：检测 MCP 是否可用（仅在 cz-cli 不可用时）**
-
-尝试调用 `LH_execute_query` 工具执行一条简单 SQL（如 `SELECT 1`）。
-- 若工具存在于 tool list → **走 MCP 路径**（本文档默认路径）
-- 若工具不存在 → 停止执行，提示用户：
-  > "当前环境既无 cz-cli 也无 MCP 工具，请安装其中之一后重试。
-  > cz-cli 安装：`pip install cz-cli`，然后运行 `cz-cli configure`
-  > MCP 安装：参考 clickzetta-studio-mcp 或 clickzetta-mcp-server 配置文档"
+若命令不存在，请先安装：
+> `pip install cz-cli`，然后运行 `cz-cli configure`
 
 ## 数据导入方式决策树
 
@@ -94,7 +83,6 @@ cz-cli --version
 
 #### SQL INSERT 导入（小数据量）
 ```sql
--- 使用 LH_execute_query 执行
 INSERT INTO schema_name.table_name (col1, col2, col3)
 VALUES ('val1', 'val2', 'val3');
 ```
@@ -205,7 +193,7 @@ OPTIONS('header' = 'true');
 | 用户无法确定数据源类型 | 询问数据当前存储位置（哪个系统/服务），帮助判断 |
 | 用户需求跨多种导入方式 | 拆分为多个独立的导入任务，分别路由到对应 Skill |
 | 推荐的 Skill 尚未创建 | 提供该导入方式的基本步骤和关键 SQL/API，引导用户参考官方文档 |
-| 用户的云环境不支持某种连接 | 使用 `LH_show_object_list`（object_type=CONNECTIONS）检查可用连接类型，推荐替代方案 |
+| 用户的云环境不支持某种连接 | 执行 `cz-cli sql "SHOW CONNECTIONS" --sync` 检查可用连接类型，推荐替代方案 |
 | 数据量极大（TB 级） | 建议分批导入，优先使用 PIPE 或 Studio 同步任务（支持断点续传） |
 
 ## 注意事项
@@ -213,7 +201,7 @@ OPTIONS('header' = 'true');
 - 本 Skill 是路由入口，不直接执行复杂的 pipeline 搭建，而是引导到专项 Skill
 - 对于简单场景（SQL INSERT、单次 COPY INTO），可以直接在本 Skill 中完成
 - 推荐方案时需考虑用户的云环境（阿里云/腾讯云/AWS），不同环境支持的连接类型可能不同
-- 使用 `LH_show_object_list`（object_type=VCLUSTERS）确认可用的虚拟集群，同步任务需要 SYNC 类型的 VCluster
+- 执行 `cz-cli sql "SHOW VCLUSTERS" --sync` 确认可用的虚拟集群，同步任务需要 SYNC 类型的 VCluster
 - 数据入仓是最常见的场景，数据入湖主要用于原始数据暂存或跨系统共享
 
 ---

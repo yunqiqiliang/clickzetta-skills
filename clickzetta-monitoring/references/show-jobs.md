@@ -24,10 +24,10 @@ SHOW JOBS [IN VCLUSTER vc_name] [LIKE 'pattern'] [WHERE <expr>] [LIMIT num];
 SHOW JOBS;
 
 -- 查看指定集群的作业
-SHOW JOBS IN VCLUSTER default_ap;
+SHOW JOBS IN VCLUSTER default;
 
 -- 查看执行时间超过2分钟的作业
-SHOW JOBS IN VCLUSTER default_ap WHERE execution_time > INTERVAL 2 MINUTE;
+SHOW JOBS IN VCLUSTER default WHERE execution_time > INTERVAL 2 MINUTE;
 
 -- 限制返回100条
 SHOW JOBS LIMIT 100;

@@ -13,6 +13,22 @@ description: |
   Keywords: monitoring, job status, performance, resource usage, SHOW JOBS, slow query
 ---
 
+## 执行方式
+
+所有 SQL 通过 `cz-cli sql` 执行，无需 MCP 工具：
+
+```bash
+# 执行查询
+cz-cli sql "SHOW JOBS LIMIT 20" --sync -o table
+
+# 执行 information_schema 查询
+cz-cli sql "SELECT * FROM information_schema.job_history WHERE pt_date >= CAST(CURRENT_DATE - INTERVAL 1 DAY AS DATE) LIMIT 10" --sync -o table
+```
+
+注意：`--sync` 等待结果返回；`-o table` 输出为表格格式便于阅读。
+
+---
+
 # ClickZetta 作业监控与分析
 
 阅读 [references/show-jobs.md](references/show-jobs.md) 了解 SHOW JOBS 语法。
@@ -27,7 +43,7 @@ description: |
 SHOW JOBS;
 
 -- 查看指定集群的作业
-SHOW JOBS IN VCLUSTER default_ap;
+SHOW JOBS IN VCLUSTER default;
 
 -- 查看执行时间超过2分钟的慢查询
 SHOW JOBS WHERE execution_time > INTERVAL 2 MINUTE;
@@ -36,7 +52,7 @@ SHOW JOBS WHERE execution_time > INTERVAL 2 MINUTE;
 SHOW JOBS WHERE status = 'FAILED';
 
 -- 限制返回数量
-SHOW JOBS IN VCLUSTER default_ap LIMIT 50;
+SHOW JOBS IN VCLUSTER default LIMIT 50;
 ```
 
 ---
