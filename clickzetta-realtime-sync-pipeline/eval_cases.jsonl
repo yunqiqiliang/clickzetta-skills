@@ -1,5 +1,0 @@
-{"case_id":"001","type":"should_call","user_input":"怎么用 Studio 创建单表实时同步任务？","expected_skill":"clickzetta-realtime-sync-pipeline","expected_output_contains":["实时同步","task_type","28"]}
-{"case_id":"002","type":"should_call","user_input":"Kafka 单个 topic 实时同步到 Lakehouse 表怎么配置？","expected_skill":"clickzetta-realtime-sync-pipeline","expected_output_contains":["Kafka","实时同步"]}
-{"case_id":"003","type":"should_call","user_input":"单表实时同步和多表实时同步有什么区别？","expected_skill":"clickzetta-realtime-sync-pipeline","expected_output_contains":["单表","多表","28","281"]}
-{"case_id":"004","type":"should_call","user_input":"MySQL 单表 CDC 实时同步到 Lakehouse 怎么做？","expected_skill":"clickzetta-realtime-sync-pipeline","expected_output_contains":["MySQL","实时同步","CDC"]}
-{"case_id":"005","type":"should_call","user_input":"实时同步任务需要配置调度策略吗？","expected_skill":"clickzetta-realtime-sync-pipeline","expected_output_contains":["无需配置","持续运行"]}

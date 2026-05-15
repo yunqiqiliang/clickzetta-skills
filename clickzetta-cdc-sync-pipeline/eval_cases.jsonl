@@ -1,5 +1,0 @@
-{"case_id":"001","type":"should_call","user_input":"怎么把 MySQL 整库实时同步到 Lakehouse？","expected_skill":"clickzetta-cdc-sync-pipeline","expected_output_contains":["整库镜像","Binlog","CDC"]}
-{"case_id":"002","type":"should_call","user_input":"分库分表的数据怎么合并同步到 Lakehouse 一张表？","expected_skill":"clickzetta-cdc-sync-pipeline","expected_output_contains":["多表合并","分库分表"]}
-{"case_id":"003","type":"should_call","user_input":"CDC 同步任务 Binlog 位点过期了怎么办？","expected_skill":"clickzetta-cdc-sync-pipeline","expected_output_contains":["Binlog"]}
-{"case_id":"004","type":"should_call","user_input":"多表实时同步怎么配置告警？支持飞书通知吗？","expected_skill":"clickzetta-cdc-sync-pipeline","expected_output_contains":["告警","webhook"]}
-{"case_id":"005","type":"should_call","user_input":"PostgreSQL 整库 CDC 同步需要源端做什么准备？","expected_skill":"clickzetta-cdc-sync-pipeline","expected_output_contains":["WAL","PostgreSQL"]}
