@@ -61,7 +61,7 @@ def run_single_step(prompt: str, system_prompt_file: Path, profile: str) -> dict
         cmd,
         capture_output=True,
         text=True,
-        timeout=300,
+        timeout=600,
     )
     elapsed_ms = int((time.monotonic() - start) * 1000)
 
