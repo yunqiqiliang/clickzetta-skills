@@ -64,7 +64,7 @@ description: |
 - Kafka 集群网络可达（确认 bootstrap 地址和端口）
 - 已知 Kafka Topic 名称和消息格式
 - 认证信息（如需要）：SASL 用户名/密码
-- **执行环境**：已安装 cz-cli（`pip install cz-cli`），并完成 `cz-cli configure` 配置
+- **执行环境**：已安装 cz-cli（`curl -fsSL https://github.com/clickzetta/cz-cli/releases/latest/download/install.sh | sh`（macOS/Linux）或 `npm install -g @clickzetta/cz-cli`（Windows）），并完成 `cz-cli configure` 配置
 
 ## 执行环境
 
@@ -75,7 +75,11 @@ cz-cli --version   # 确认 cz-cli 可用
 cz-cli sql "SELECT 1" --sync   # 验证连接
 ```
 
-若命令不存在，请先安装：`pip install cz-cli`，然后运行 `cz-cli configure`
+若命令不存在，请先安装：
+- macOS/Linux：`curl -fsSL https://github.com/clickzetta/cz-cli/releases/latest/download/install.sh | sh`
+- Windows：`npm install -g @clickzetta/cz-cli`
+
+安装后运行 `cz-cli configure` 完成配置
 
 ## ⚠️ 关键注意事项
 
@@ -679,7 +683,6 @@ COPY INTO ods.secure_events FROM (
 
 ## cz-cli 执行路径
 
-> 所有操作通过 `cz-cli agent run` 委托给内置 agent 完成，agent 内置完整的 MCP 工具访问能力。
 
 ### 路径一：READ_KAFKA Pipe（cz-cli 版）
 

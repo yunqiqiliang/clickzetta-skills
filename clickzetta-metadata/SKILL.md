@@ -37,7 +37,15 @@ description: |
 
 ## 执行方式
 
-所有 SQL 通过 `cz-cli sql` 执行，无需 MCP 工具：
+所有 SQL 通过 `cz-cli sql` 执行，无需 MCP 工具。
+
+**安装 cz-cli（如未安装）：**
+- macOS/Linux：`curl -fsSL https://github.com/clickzetta/cz-cli/releases/latest/download/install.sh | sh`
+- Windows：`npm install -g @clickzetta/cz-cli`
+
+安装后运行 `cz-cli configure` 完成配置。
+
+**执行示例：**
 
 ```bash
 # 执行 SHOW/DESC 查询
