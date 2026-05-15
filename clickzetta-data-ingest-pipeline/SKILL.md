@@ -23,7 +23,7 @@ description: |
 ## 前置依赖
 
 - ClickZetta Lakehouse 账户，具备创建工作空间、Schema、表、PIPE、任务等权限
-- **执行环境**：已安装 cz-cli（`curl -fsSL https://github.com/clickzetta/cz-cli/releases/latest/download/install.sh | sh`（macOS/Linux）或 `npm install -g @clickzetta/cz-cli`（Windows）），并完成 `cz-cli configure` 配置
+- **执行环境**：已安装并配置 cz-cli
 
 ## 执行环境
 
@@ -33,11 +33,7 @@ description: |
 cz-cli --version
 ```
 
-若命令不存在，请先安装：
-- macOS/Linux：`curl -fsSL https://github.com/clickzetta/cz-cli/releases/latest/download/install.sh | sh`
-- Windows：`npm install -g @clickzetta/cz-cli`
-
-安装后运行 `cz-cli configure` 完成配置
+需要 cz-cli，请参考官方文档安装并完成配置后重试。
 
 ## 数据导入方式决策树
 

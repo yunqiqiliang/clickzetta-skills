@@ -53,7 +53,7 @@ description: |
 
 - ClickZetta Lakehouse 账户，具备创建 PIPE、表、存储连接、Volume 等权限
 - 对象存储桶可达（Endpoint、AccessKey 或 Role ARN）
-- **执行环境**：已安装 cz-cli（`curl -fsSL https://github.com/clickzetta/cz-cli/releases/latest/download/install.sh | sh`（macOS/Linux）或 `npm install -g @clickzetta/cz-cli`（Windows）），并完成 `cz-cli configure` 配置
+- **执行环境**：已安装并配置 cz-cli
 
 ## 执行环境
 
@@ -64,11 +64,7 @@ cz-cli --version   # 确认 cz-cli 可用
 cz-cli sql "SELECT 1" --sync   # 验证连接
 ```
 
-若命令不存在，请先安装：
-- macOS/Linux：`curl -fsSL https://github.com/clickzetta/cz-cli/releases/latest/download/install.sh | sh`
-- Windows：`npm install -g @clickzetta/cz-cli`
-
-安装后运行 `cz-cli configure` 完成配置
+需要 cz-cli，请参考官方文档安装并完成配置后重试。
 
 ## 核心概念
 
