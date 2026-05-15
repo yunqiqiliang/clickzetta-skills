@@ -17,21 +17,87 @@ description: |
 
 ## 向导：明确操作意图
 
-收到任务管理请求后，先判断用户意图，选择对应工作流：
+收到任务管理请求后，优先使用交互式问答工具（如 `question`）收集意图；若无此类工具，则用文字列出选项：
 
-> 你想做什么？
->
-> **A. 从零搭建新管道的任务体系**（创建目录、DDL 任务、同步任务、ETL 任务）
-> **B. 管理现有任务**（查看状态、修改配置、配置依赖、重跑、补数据）
-> **C. 排查任务问题**（失败诊断、依赖检查、日志分析）→ 加载 `clickzetta-pipeline-review` skill，它提供完整的五阶段诊断流程
-> **D. 规范检查**（检查现有任务是否符合建管分离规范）
+```
+question({
+  questions: [{
+    question: "你想做什么？",
+    options: [
+      { label: "从零搭建新管道", description: "创建目录、DDL 任务、同步任务、ETL 任务" },
+      { label: "管理现有任务", description: "查看状态、修改配置、配置依赖、重跑、补数" },
+      { label: "排查任务问题", description: "失败诊断、依赖检查、日志分析 → 加载 clickzetta-pipeline-review" },
+      { label: "规范检查", description: "检查现有任务是否符合建管分离规范" }
+    ]
+  }]
+})
+```
 
-**如果用户已经明确说了要做什么（如"帮我创建一个 ETL 任务"、"查看任务 xxx 的运行日志"），直接执行，不再询问。**
+**如果用户已经明确说了要做什么，直接执行，不再询问。**
 
-对于 **A（从零搭建）**，还需要确认：
-- 业务域/项目名称（用于任务目录命名，如 `ecommerce_dw`）
-- 数据源类型（MySQL/PG/Kafka/OSS 等）
-- 分层结构（ODS/DWD/DWS/ADS 还是 Bronze/Silver/Gold）
+对于**从零搭建**，还需收集：业务域/项目名称、数据源类型、分层结构。
+
+## 数据管道向导（从零搭建时使用）
+
+**第一步：选数据源类型**
+
+```
+question({
+  questions: [{
+    question: "数据来自哪里？",
+    options: [
+      { label: "外部数据库", description: "MySQL / PostgreSQL / SQL Server / Oracle 等" },
+      { label: "Kafka 消息队列", description: "Kafka Topic → Lakehouse" },
+      { label: "对象存储", description: "OSS / S3 / COS 文件导入" },
+      { label: "Lakehouse 内部 ETL 分层", description: "ODS→DWD→DWS/ADS，SQL 任务 + Dynamic Table" },
+      { label: "端到端完整管道", description: "数据接入 + 分层建模 + 聚合" },
+      { label: "不确定，先探索数据", description: "先看现有数据再给方案建议" }
+    ]
+  }]
+})
+```
+
+**第二步：追问（仅部分选项需要）**
+
+选了"外部数据库"：
+```
+question({ questions: [{ question: "同步时效性？", options: [
+  { label: "实时同步（秒级）", description: "CDC，基于 Binlog/WALs，持续运行" },
+  { label: "离线批量（小时/天级）", description: "周期性全量同步，配置 Cron" }
+]}]})
+```
+
+选了"对象存储"：
+```
+question({ questions: [{ question: "接入方式？", options: [
+  { label: "SQL Pipe（持续自动导入）", description: "LIST_PURGE 或 EVENT_NOTIFICATION 模式" },
+  { label: "Studio 离线同步任务", description: "周期性批量导入，配置 Cron" }
+]}]})
+```
+
+选了"Kafka"：
+```
+question({ questions: [{ question: "接入方式？", options: [
+  { label: "SQL Pipe（READ_KAFKA）", description: "纯 SQL，灵活，推荐工程师使用" },
+  { label: "Studio 实时同步任务", description: "图形化配置，支持 JSONPath 计算列" }
+]}]})
+```
+
+**路由表**
+
+| 数据源 | 时效性/方式 | 加载 skill |
+|---|---|---|
+| 外部数据库 | 实时单表 CDC | `clickzetta-realtime-sync-pipeline` |
+| 外部数据库 | 实时多表/整库 CDC | `clickzetta-cdc-sync-pipeline` |
+| 外部数据库 | 离线批量 | `clickzetta-batch-sync-pipeline` |
+| Kafka | SQL Pipe | `clickzetta-kafka-ingest-pipeline` |
+| Kafka | Studio 实时同步 | `clickzetta-realtime-sync-pipeline` |
+| 对象存储 | SQL Pipe | `clickzetta-oss-ingest-pipeline` |
+| 对象存储 | Studio 离线同步 | `clickzetta-batch-sync-pipeline` |
+| Lakehouse 内部 ETL 分层 | — | `clickzetta-sql-pipeline-manager` |
+| 端到端完整管道 / 不确定 | — | `clickzetta-dw-modeling` |
+
+> 实时 CDC 单表 vs 多表：用户说"整库"或"多张表"→ `cdc-sync-pipeline`；"一张表"→ `realtime-sync-pipeline`；不确定时追问。
 
 ---
 
