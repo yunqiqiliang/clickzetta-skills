@@ -15,23 +15,32 @@ description: |
 
 ## 向导：收集必要信息
 
-开始创建实时同步任务前，先收集以下信息（一次性问完）：
+开始创建实时同步任务前，优先使用交互式问答工具（如 `question`）收集以下信息并弹出选项菜单；若无此类工具，则用文字一次性列出所有问题：
 
-> 为了创建单表实时同步任务，需要确认：
->
-> **1. 数据源类型和名称**：
->    - Kafka（提供 broker 地址和 Topic 名称）
->    - MySQL / PostgreSQL / SQL Server（提供数据源名称和表名）
->
-> **2. 目标**：同步到 Lakehouse 的哪个 schema 和表名？
->
-> **3. 如果是 Kafka**：消息格式是 JSON 吗？是否需要解析嵌套字段（JSONPath）？
->
-> **4. 如果是数据库**：是单表 CDC，还是需要同步整库？
->    - 单表 → 本 skill（实时同步）
->    - 整库/多表 → 建议用 `clickzetta-cdc-sync-pipeline`
+```
+question({
+  questions: [
+    {
+      question: "数据源类型？",
+      options: [
+        { label: "Kafka", description: "Kafka Topic 实时接入，支持 JSON 消息解析" },
+        { label: "MySQL / Aurora MySQL", description: "单表 CDC 实时同步" },
+        { label: "PostgreSQL / Aurora PG", description: "单表 CDC 实时同步" },
+        { label: "SQL Server", description: "单表 CDC 实时同步" }
+      ]
+    },
+    {
+      question: "同步粒度？",
+      options: [
+        { label: "单表/单 Topic", description: "本 skill 支持，精细化配置" },
+        { label: "整库/多表", description: "建议改用 clickzetta-cdc-sync-pipeline" }
+      ]
+    }
+  ]
+})
+```
 
-**如果用户已经提供了足够信息，直接进入工作流，不再重复询问。**
+**如果用户已经提供了足够信息，直接进入工作流，不再弹出菜单。**
 
 ---
 

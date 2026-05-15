@@ -15,28 +15,40 @@ description: |
 
 ## 向导：收集必要信息
 
-开始搭建对象存储管道前，先收集以下信息（一次性问完）：
+开始搭建对象存储管道前，优先使用交互式问答工具（如 `question`）收集以下信息并弹出选项菜单；若无此类工具，则用文字一次性列出所有问题：
 
-> 为了搭建对象存储导入管道，需要确认：
->
-> **1. 云平台和存储信息**：
->    - 云平台：阿里云 OSS / AWS S3 / 腾讯云 COS？
->    - Bucket 名称和路径（如 `oss://my-bucket/data/`）
->    - 认证方式：AccessKey（access_id + access_key）还是 Role ARN？
->
-> **2. 导入模式**（选一个）：
->    - A. 持续导入 — 新文件自动触发导入（PIPE 模式）
->    - B. 批量一次性导入 — 手动或定时执行 COPY INTO
->
-> **3. 如果选持续导入，触发方式**：
->    - LIST_PURGE（定期扫描，通用，导入后删除源文件）
->    - EVENT_NOTIFICATION（消息通知，低延迟，仅支持 OSS/S3，需 Role ARN）
->
-> **4. 文件格式**：CSV / JSON / Parquet / ORC？
->
-> **5. 目标表**：写入 Lakehouse 的哪个 schema 和表名？
+```
+question({
+  questions: [
+    {
+      question: "云平台？",
+      options: [
+        { label: "阿里云 OSS", description: "支持 LIST_PURGE 和 EVENT_NOTIFICATION 两种模式" },
+        { label: "AWS S3", description: "支持 LIST_PURGE 和 EVENT_NOTIFICATION 两种模式" },
+        { label: "腾讯云 COS", description: "仅支持 LIST_PURGE 模式" }
+      ]
+    },
+    {
+      question: "导入模式？",
+      options: [
+        { label: "持续导入（PIPE）", description: "新文件自动触发导入，近实时" },
+        { label: "批量一次性导入", description: "手动或定时执行 COPY INTO" }
+      ]
+    },
+    {
+      question: "文件格式？",
+      options: [
+        { label: "CSV", description: "逗号分隔文本" },
+        { label: "JSON / JSONL", description: "JSON 或换行分隔 JSON" },
+        { label: "Parquet", description: "列式存储格式" },
+        { label: "ORC", description: "列式存储格式" }
+      ]
+    }
+  ]
+})
+```
 
-**如果用户已经提供了足够信息，直接进入工作流，不再重复询问。**
+**如果用户已经提供了足够信息，直接进入工作流，不再弹出菜单。**
 
 ---
 

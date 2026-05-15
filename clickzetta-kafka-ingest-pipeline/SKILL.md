@@ -18,26 +18,32 @@ description: |
 
 ## 向导：收集必要信息
 
-开始搭建 Kafka 管道前，先收集以下信息（一次性问完）：
+开始搭建 Kafka 管道前，优先使用交互式问答工具（如 `question`）收集以下信息并弹出选项菜单；若无此类工具，则用文字一次性列出所有问题：
 
-> 为了搭建 Kafka 接入管道，需要确认：
->
-> **1. Kafka 连接信息**：
->    - Bootstrap 地址（如 `kafka.example.com:9092`）
->    - Topic 名称
->    - 是否需要认证？（SASL 用户名/密码，或无认证）
->
-> **2. 消息格式**：JSON / CSV / Avro？如果是 JSON，是否有嵌套结构需要解析？
->
-> **3. 目标表**：写入 Lakehouse 的哪个 schema 和表名？表是否已存在？
->
-> **4. 接入路径**（不确定可跳过，我来推荐）：
->    - READ_KAFKA Pipe（推荐，通用场景）
->    - Kafka 外部表 + Table Stream（需要保留原始消息或多个下游消费同一 Topic）
->
-> **5. 批量写入频率**：多久批量写入一次？（默认 60 秒）
+```
+question({
+  questions: [
+    {
+      question: "Kafka 消息格式？",
+      options: [
+        { label: "JSON（简单结构）", description: "顶层字段直接映射" },
+        { label: "JSON（嵌套结构）", description: "需要 JSONPath 解析嵌套字段" },
+        { label: "CSV", description: "逗号分隔文本" },
+        { label: "Avro / 其他", description: "需要额外配置" }
+      ]
+    },
+    {
+      question: "接入路径？",
+      options: [
+        { label: "READ_KAFKA Pipe（推荐）", description: "通用场景，支持复杂 SQL 转换" },
+        { label: "Kafka 外部表 + Table Stream", description: "需要保留原始消息或多个下游消费同一 Topic" }
+      ]
+    }
+  ]
+})
+```
 
-**如果用户已经提供了足够信息，直接进入工作流，不再重复询问。**
+**如果用户已经提供了足够信息，直接进入工作流，不再弹出菜单。**
 
 ---
 

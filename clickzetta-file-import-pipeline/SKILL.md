@@ -12,24 +12,33 @@ description: |
 
 ## 向导：收集必要信息
 
-开始导入前，先收集以下信息（一次性问完）：
+开始导入前，优先使用交互式问答工具（如 `question`）收集以下信息并弹出选项菜单；若无此类工具，则用文字一次性列出所有问题：
 
-> 为了完成文件导入，需要确认：
->
-> **1. 文件来源**：
->    - HTTP/HTTPS URL（提供完整链接）
->    - 本地文件路径
->    - 已在 Volume 上（提供 Volume 名称和文件路径）
->    - 外部 Volume（OSS/S3/COS，提供路径）
->
-> **2. 目标表**：写入 Lakehouse 的哪个 schema 和表名？
->
-> **3. 写入模式**：
->    - create（表不存在，自动建表）
->    - append（追加到已有表）
->    - overwrite（清空已有表再写入）
->
-> **4. 文件格式**（如果扩展名不明确）：CSV / JSON / Parquet / ORC？
+```
+question({
+  questions: [
+    {
+      question: "文件来源？",
+      options: [
+        { label: "HTTP/HTTPS URL", description: "提供完整链接，自动下载" },
+        { label: "本地文件", description: "本地路径，上传到 User Volume" },
+        { label: "已在 Volume 上", description: "提供 Volume 名称和文件路径" },
+        { label: "外部 Volume（OSS/S3/COS）", description: "提供外部存储路径" }
+      ]
+    },
+    {
+      question: "写入模式？",
+      options: [
+        { label: "create（自动建表）", description: "表不存在，推断 schema 后建表" },
+        { label: "append（追加）", description: "追加到已有表，不删除历史数据" },
+        { label: "overwrite（覆盖）", description: "清空已有表再写入" }
+      ]
+    }
+  ]
+})
+```
+
+**如果用户已经提供了足够信息，直接进入工作流，不再弹出菜单。**
 
 **如果用户已经提供了足够信息（如"把这个 URL 的 CSV 导入到 ods.orders 表"），直接进入步骤 1，不再重复询问。**
 

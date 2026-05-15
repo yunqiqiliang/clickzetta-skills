@@ -14,20 +14,42 @@ description: |
 
 ## 向导：收集必要信息
 
-开始创建同步任务前，先收集以下信息（一次性问完）：
+开始创建同步任务前，优先使用交互式问答工具（如 `question`）收集以下信息并弹出选项菜单；若无此类工具，则用文字一次性列出所有问题：
 
-> 为了创建离线同步任务，需要确认：
->
-> **1. 数据源**：源端数据库类型和名称是什么？（如 MySQL `aliyun_mysql`）
-> **2. 同步范围**：
->    - 单表（指定表名）
->    - 多表镜像（整库或指定多张表）
->    - 分库分表合并（多张源表合并到一张目标表）
-> **3. 目标**：同步到 Lakehouse 的哪个 schema？（如 `ods`）
-> **4. 调度频率**：每天几点执行？（如每天凌晨 02:00）
-> **5. 写入模式**：全量覆盖（OVERWRITE）还是增量追加（APPEND）？
+```
+question({
+  questions: [
+    {
+      question: "数据源类型和名称是什么？",
+      options: [
+        { label: "MySQL", description: "如 aliyun_mysql、rds_mysql" },
+        { label: "PostgreSQL", description: "如 pg_prod、aurora_pg" },
+        { label: "SQL Server", description: "如 sqlserver_prod" },
+        { label: "OSS/S3/COS 对象存储", description: "如 oss_bucket、s3_data" }
+      ]
+    },
+    {
+      question: "同步范围是什么？",
+      options: [
+        { label: "单表同步", description: "指定一张源表同步到目标表" },
+        { label: "多表镜像", description: "整库或指定多张表批量同步" },
+        { label: "分库分表合并", description: "多张源表合并到一张目标表" }
+      ]
+    },
+    {
+      question: "写入模式？",
+      options: [
+        { label: "全量覆盖（OVERWRITE）", description: "每次全量覆盖目标表，推荐" },
+        { label: "增量追加（APPEND）", description: "追加新数据，不删除历史" }
+      ]
+    }
+  ]
+})
+```
 
-**如果用户已经提供了足够信息，直接进入工作流，不再重复询问。**
+收集到信息后，还需确认：目标 schema（如 `ods`）、调度时间（如每天 02:00）。这两项可以在用户回答后直接询问，或从上下文推断。
+
+**如果用户已经提供了足够信息，直接进入工作流，不再弹出菜单。**
 
 ---
 

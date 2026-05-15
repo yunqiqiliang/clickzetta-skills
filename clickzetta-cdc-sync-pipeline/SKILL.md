@@ -17,23 +17,40 @@ description: |
 
 ## 向导：收集必要信息
 
-开始创建 CDC 同步任务前，先收集以下信息（一次性问完）：
+开始创建 CDC 同步任务前，优先使用交互式问答工具（如 `question`）收集以下信息并弹出选项菜单；若无此类工具，则用文字一次性列出所有问题：
 
-> 为了创建多表实时同步任务，需要确认：
->
-> **1. 数据源**：源端数据库类型和名称？（如 MySQL `aliyun_mysql`，PostgreSQL `pg_prod`）
-> **2. 同步模式**（选一个）：
->    - A. 整库镜像（同步整个数据库，自动适配新增表）
->    - B. 多表镜像（指定同步哪些表）
->    - C. 多表合并（分库分表合并到一张目标表）
-> **3. 目标 schema**：同步到 Lakehouse 的哪个 schema？（如 `shenyu_gateway_ods`）
-> **4. 是否已完成源端准备**：
->    - MySQL：是否已开启 Binlog（`binlog_format=ROW`）？账号是否有 REPLICATION 权限？
->    - PostgreSQL：是否已设置 `wal_level=logical`？
->
-> 如果不确定源端是否已准备好，我可以先帮你检查。
+```
+question({
+  questions: [
+    {
+      question: "源端数据库类型？",
+      options: [
+        { label: "MySQL", description: "含 Aurora MySQL、PolarDB MySQL，基于 Binlog" },
+        { label: "PostgreSQL", description: "含 Aurora PG、PolarDB PG，基于 WALs，需 14+" }
+      ]
+    },
+    {
+      question: "同步模式？",
+      options: [
+        { label: "整库镜像", description: "同步整个数据库，自动适配新增表" },
+        { label: "多表镜像", description: "指定同步哪些表" },
+        { label: "多表合并", description: "分库分表合并到一张目标表" }
+      ]
+    },
+    {
+      question: "源端是否已完成准备？",
+      options: [
+        { label: "已准备好", description: "MySQL: Binlog 已开启，账号有 REPLICATION 权限；PG: wal_level=logical" },
+        { label: "不确定，帮我检查", description: "我来帮你验证源端配置" }
+      ]
+    }
+  ]
+})
+```
 
-**如果用户已经提供了足够信息，直接进入工作流，不再重复询问。**
+收集到信息后，还需确认目标 schema（如 `ods`）。
+
+**如果用户已经提供了足够信息，直接进入工作流，不再弹出菜单。**
 
 ## 适用场景
 
