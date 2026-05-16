@@ -39,25 +39,111 @@ question({
 
 ## 数据管道向导（从零搭建时使用）
 
-**第一步：选数据源类型**
+完整流程：**需求理解 → 数据探索 → 技术选型 → 方案确认 → 执行**
+
+---
+
+### Step 0：需求输入
+
+**优先询问用户是否有需求文档**（PRD、需求说明、数仓设计文档等）：
 
 ```
 question({
   questions: [{
-    question: "数据来自哪里？",
+    question: "开始前，你有需求文档或背景说明吗？",
     options: [
-      { label: "外部数据库", description: "MySQL / PostgreSQL / SQL Server / Oracle 等" },
-      { label: "Kafka 消息队列", description: "Kafka Topic → Lakehouse" },
-      { label: "对象存储", description: "OSS / S3 / COS 文件导入" },
-      { label: "Lakehouse 内部 ETL 分层", description: "ODS→DWD→DWS/ADS，SQL 任务 + Dynamic Table" },
-      { label: "端到端完整管道", description: "数据接入 + 分层建模 + 聚合" },
-      { label: "不确定，先探索数据", description: "先看现有数据再给方案建议" }
+      { label: "有，我来提供", description: "请粘贴文档内容或上传文件，我来提取关键信息" },
+      { label: "没有，口头描述", description: "我来引导你回答几个关键问题" }
     ]
   }]
 })
 ```
 
-**第二步：追问（仅部分选项需要）**
+**如果有文档**：读取文档，自动提取业务场景、数据源、目标产出、时效性要求，跳到 Step 1。
+
+**如果没有文档**，收集以下业务需求（优先使用交互式工具；若无，一次性文字列出）：
+
+```
+question({
+  questions: [
+    {
+      question: "这个管道服务于什么业务场景？",
+      options: [
+        { label: "BI 报表 / 数据看板", description: "固定报表，指标体系明确，T+1 或小时级" },
+        { label: "实时监控 / 运营看板", description: "分钟级延迟，关注实时指标" },
+        { label: "数据科学 / 特征工程", description: "供模型训练或推理使用" },
+        { label: "数据共享 / 对外输出", description: "提供给其他系统或团队使用" }
+      ]
+    },
+    {
+      question: "数据消费方是谁？",
+      options: [
+        { label: "BI 工具（Superset/Tableau 等）", description: "需要宽表或聚合表" },
+        { label: "数据分析师（SQL 查询）", description: "需要清洗后的明细表" },
+        { label: "下游系统 / API", description: "需要结构化输出" },
+        { label: "数据科学家（Python/ZettaPark）", description: "需要特征表或原始明细" }
+      ]
+    },
+    {
+      question: "数据时效性要求？",
+      options: [
+        { label: "T+1（次日可用）", description: "每天凌晨跑批，早上数据就绪" },
+        { label: "小时级", description: "每小时更新一次" },
+        { label: "分钟级", description: "近实时，延迟 < 10 分钟" },
+        { label: "秒级实时", description: "CDC 持续同步，秒级延迟" }
+      ]
+    }
+  ]
+})
+```
+
+还需口头确认（文字追问，不用菜单）：
+- **核心指标口径**：如果涉及 GMV、活跃用户等业务指标，确认计算口径
+- **项目/业务域名称**：用于任务目录和 Schema 命名（如 `ecommerce_dw`）
+
+---
+
+### Step 1：数据探索（AI 自主执行，不问用户）
+
+收集到需求后，立即探查数据现状：
+
+```sql
+-- 查看相关 schema 和表
+SHOW SCHEMAS;
+SHOW TABLES IN <相关schema>;
+
+-- 查表大小和行数
+SELECT table_schema, table_name,
+       ROUND(bytes/1024.0/1024/1024, 2) AS size_gb, row_count
+FROM information_schema.tables
+WHERE table_type = 'MANAGED_TABLE'
+ORDER BY bytes DESC NULLS LAST LIMIT 20;
+
+-- 抽样了解字段含义
+SELECT * FROM <schema>.<table> LIMIT 5;
+```
+
+同时用 `cz-cli datasource list` 查看已配置的外部数据源。
+
+---
+
+### Step 2：技术选型（选数据源类型和接入方式）
+
+基于需求和数据探索结果，用交互式工具收集技术选型：
+
+**选数据源类型：**
+```
+question({ questions: [{ question: "数据来自哪里？", options: [
+  { label: "外部数据库", description: "MySQL / PostgreSQL / SQL Server / Oracle 等" },
+  { label: "Kafka 消息队列", description: "Kafka Topic → Lakehouse" },
+  { label: "对象存储", description: "OSS / S3 / COS 文件导入" },
+  { label: "Lakehouse 内部 ETL 分层", description: "ODS→DWD→DWS/ADS，SQL 任务 + Dynamic Table" },
+  { label: "端到端完整管道", description: "数据接入 + 分层建模 + 聚合" },
+  { label: "不确定，先探索数据", description: "先看现有数据再给方案建议" }
+]}]})
+```
+
+**追问（仅部分选项需要）：**
 
 选了"外部数据库"：
 ```
@@ -83,6 +169,26 @@ question({ questions: [{ question: "接入方式？", options: [
 ]}]})
 ```
 
+---
+
+### Step 3：方案确认（必须执行，不得跳过）
+
+综合需求和技术选型，向用户呈现完整方案摘要，请求确认：
+
+```
+question({
+  questions: [{
+    question: "确认以下方案后开始构建：\n业务场景：<场景>\n数据源：<数据源名称>\n同步方式：<离线/实时/SQL Pipe>\n分层结构：<ODS/DWD/DWS 或 Bronze/Silver/Gold>\n目标 Schema：<schema>\n调度：<Cron 或持续运行>\n是否开始？",
+    options: [
+      { label: "确认，开始构建", description: "加载对应 skill，开始创建任务" },
+      { label: "需要调整", description: "重新收集信息" }
+    ]
+  }]
+})
+```
+
+用户确认后，按路由表加载对应 skill：
+
 **路由表**
 
 | 数据源 | 时效性/方式 | 加载 skill |
@@ -98,26 +204,6 @@ question({ questions: [{ question: "接入方式？", options: [
 | 端到端完整管道 / 不确定 | — | `clickzetta-dw-modeling` |
 
 > 实时 CDC 单表 vs 多表：用户说"整库"或"多张表"→ `cdc-sync-pipeline`；"一张表"→ `realtime-sync-pipeline`；不确定时追问。
-
-**⚠️ 路由确定后，必须先向用户确认方案，再加载 skill 执行。禁止在用户确认前开始任何开发工作。**
-
-### 方案确认步骤（必须执行，不得跳过）
-
-根据向导收集到的信息，向用户呈现方案摘要，并用交互式工具（如 `question`）请求确认：
-
-```
-question({
-  questions: [{
-    question: "确认以下方案后开始构建：\n数据源：<数据源名称>\n同步方式：<离线/实时/SQL Pipe>\n目标：<schema>\n调度：<Cron 或持续运行>\n是否开始？",
-    options: [
-      { label: "确认，开始构建", description: "加载对应 skill，开始创建任务" },
-      { label: "需要调整", description: "重新收集信息" }
-    ]
-  }]
-})
-```
-
-用户选择"确认"后，再加载对应 skill；选择"需要调整"则重新进入向导第一步。
 
 ---
 
