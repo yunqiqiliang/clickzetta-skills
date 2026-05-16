@@ -514,3 +514,42 @@ cz-cli task create \
 - [ ] 所有 DDL 任务为 DRAFT 状态
 - [ ] DWS/ADS 层无冗余调度任务
 - [ ] 调度 DAG 无循环依赖
+- [ ] **ETL 任务依赖链完整**（`cz-cli task deps <task>` 验证，`task_dependencies` 不为空）
+- [ ] 关键表和字段已加注释（加载 `clickzetta-manage-comments`）
+
+---
+
+## 多环境管理（dev → prod）
+
+企业通常有 dev/staging/prod 多套环境。管道在 dev 验证通过后，迁移到 prod 的 SOP：
+
+### 迁移步骤
+
+```bash
+# 1. 导出 dev 环境的任务配置
+cz-cli task list --folder <业务域>_dw > task_list.txt
+cz-cli task content <task_id> > task_<name>.json  # 逐个导出
+
+# 2. 替换环境相关配置（数据源名称、Schema 前缀、VCluster 名称）
+# dev 数据源：aliyun_mysql_dev  →  prod 数据源：aliyun_mysql_prod
+# dev schema：ecommerce_ods_dev  →  prod schema：ecommerce_ods
+
+# 3. 在 prod 环境创建任务目录
+cz-cli task folder create <业务域>_dw
+
+# 4. 逐层创建任务（先 DDL，再同步，再 ETL）
+cz-cli task save-content <task_name> --content "<替换后的SQL>"
+cz-cli task save-cron <task_name> --cron '<cron>'
+cz-cli task deploy <task_name>
+
+# 5. 验证 prod 环境任务依赖
+cz-cli task deps <task_name>
+```
+
+### 注意事项
+
+- **数据源名称**：dev/prod 通常是不同的数据源配置，迁移时必须替换
+- **Schema 命名**：建议 dev 用 `<业务域>_dev` 后缀，prod 不加后缀，便于区分
+- **VCluster**：prod 环境的集群名称可能与 dev 不同，`SHOW VCLUSTERS` 确认
+- **Dynamic Table**：prod 环境重建后立即执行 `REFRESH DYNAMIC TABLE` 重置基准时间
+- **调度时间**：dev 可以用短间隔测试，prod 按业务需求设置正式 Cron
