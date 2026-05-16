@@ -470,38 +470,158 @@ cz-cli task create \
 - 即使是一次性执行的 DDL，也应保存为 DRAFT 任务，方便查阅、复用和多环境迁移
 - 不需要保存为任务的场景：SELECT 查询、临时修复 SQL、一次性验证查询
 
-### 新项目启动流程
+### 新项目启动流程（含快速验证节点）
+
+敏捷原则：**每步完成后立即验证，30 秒内知道是否成功，不等全链路跑完再发现问题。**
 
 ```
 1. 创建任务目录
    cz-cli task folder create <业务域>_dw
 
-2. 生成各层 DDL，逐层保存为独立 DRAFT 任务（不配 Cron，不配依赖）
+2. 建 ODS 层表，立即验证
    cz-cli task save-content 01_ddl_ods --content "<ods_ddl_sql>"
+   cz-cli task run 01_ddl_ods
+   ✅ 验证：SHOW TABLES IN <ods_schema>  → 确认表已创建
+
+3. 创建数据同步任务，手动触发一次，立即验证
+   - 00_sync：整库或单表同步到 ODS（MULTI_DI 需进 UI 配置映射）
+   cz-cli task execute 00_sync
+   ✅ 验证：SELECT COUNT(*) FROM <ods_schema>.<table>  → 与源端行数对比
+            SELECT * FROM <ods_schema>.<table> LIMIT 5  → 抽样检查字段
+
+4. 建 DWD 层表，立即验证
    cz-cli task save-content 02_ddl_dwd --content "<dwd_ddl_sql>"
-   cz-cli task save-content 03_ddl_dws_ads --content "<dws_ads_ddl_sql>"
+   cz-cli task run 02_ddl_dwd
+   ✅ 验证：SHOW TABLES IN <dwd_schema>  → 确认表已创建
 
-3. 手动执行 DDL 任务（一次性）
-   cz-cli task run <ddl_task_id>
-
-4. 创建数据同步任务（配 Cron）
-   - 00_sync：整库或单表同步到 ODS
-   - MULTI_DI 类型需进 UI 配置映射
-
-5. 生成 ETL 转换 SQL，保存为调度任务（配 Cron + 依赖 00）
+5. 生成 ETL 转换 SQL，先手动执行一次验证逻辑，再配调度
    cz-cli task save-content 04_transform_ods_to_dwd --content "<etl_sql>"
+   cz-cli task execute 04_transform_ods_to_dwd   ← 先手动跑一次
+   ✅ 验证：SELECT COUNT(*) FROM <dwd_schema>.<table>  → 行数符合预期
+            检查关键字段非空率、LEFT JOIN 结果行数 ≥ 左表行数
+   确认无误后再配调度：
    cz-cli task save-cron 04_transform_ods_to_dwd --cron '0 30 2 * * ? *'
    cz-cli task deploy 04_transform_ods_to_dwd
 
-6. 可选：生成数据质量 SQL，保存为任务（配 Cron + 依赖 04）
+6. 建 DWS/ADS Dynamic Table，立即触发首次刷新验证
+   cz-cli task save-content 03_ddl_dws_ads --content "<dws_ads_ddl_sql>"
+   cz-cli task run 03_ddl_dws_ads
+   REFRESH DYNAMIC TABLE <dws_schema>.<table>
+   ✅ 验证：SHOW DYNAMIC TABLE REFRESH HISTORY <schema>.<table> LIMIT 3
+            → status = SUCCESS，行数符合聚合逻辑
+
+7. 可选：数据质量检查任务（配 Cron + 依赖 04）
    cz-cli task save-content 05_dqc_check --content "<dqc_sql>"
    cz-cli task save-cron 05_dqc_check --cron '0 0 3 * * ? *'
    cz-cli task deploy 05_dqc_check
+```
 
-7. 验证全链路
-   - 手动触发 00_sync，观察同步结果
-   - 手动触发 04_transform，验证 DWD 行数
-   - 检查 Dynamic Table 刷新历史
+> **快速失败原则**：任何一步验证失败，立即停下来修复，不要继续往下走。ODS 数据不对，DWD 一定也不对。
+
+---
+
+## 增量迭代向导
+
+**已有管道需要修改时，走增量流程，不要重走完整建管道流程。**
+
+当用户说"加一张表"、"加一个字段"、"加一个指标"、"改 ETL 逻辑"时，优先使用交互式工具收集迭代类型：
+
+```
+question({
+  questions: [{
+    question: "你想对现有管道做什么修改？",
+    options: [
+      { label: "新增同步表", description: "在现有同步任务里增加一张源表" },
+      { label: "新增字段", description: "源表加了字段，ODS/DWD 需要跟进" },
+      { label: "新增指标/DWS 层", description: "新增聚合逻辑或 Dynamic Table" },
+      { label: "修改 ETL 逻辑", description: "清洗规则、过滤条件、JOIN 关系变更" }
+    ]
+  }]
+})
+```
+
+### 新增同步表
+
+```
+1. 查血缘，确认影响范围
+   加载 clickzetta-table-lineage，确认新表是否与现有表有关联
+
+2. 在现有同步任务里增加表（或新建单表同步任务）
+   cz-cli task content 00_sync  → 查看现有配置
+   按需修改后重新部署
+
+3. 手动触发同步，立即验证
+   cz-cli task execute 00_sync
+   ✅ SELECT COUNT(*) FROM <ods_schema>.<new_table>
+
+4. 如需 DWD 层处理，新增 ETL SQL 并追加到 04_transform 任务
+   cz-cli task content 04_transform_ods_to_dwd  → 查看现有 SQL
+   追加新表的清洗逻辑，手动执行验证后重新部署
+```
+
+### 新增字段（Schema Evolution）
+
+```
+1. 查血缘，识别所有受影响的下游任务/DT
+   加载 clickzetta-table-lineage
+
+2. 逐层更新（从上游到下游，不能跳层）
+   ODS 层：ALTER TABLE <ods_schema>.<table> ADD COLUMN <col> <type>
+   ✅ 验证：DESC TABLE <ods_schema>.<table>  → 确认字段已加
+
+   DWD 层：更新 ETL SQL，加入新字段的清洗逻辑
+   手动执行 04_transform 验证后重新部署
+   ✅ 验证：SELECT <new_col>, COUNT(*) FROM <dwd_schema>.<table> GROUP BY 1 LIMIT 5
+
+   DWS/ADS 层（如需）：Dynamic Table 不支持 ALTER，用 CREATE OR REPLACE 重建
+   重建后立即 REFRESH DYNAMIC TABLE
+   ✅ 验证：SHOW DYNAMIC TABLE REFRESH HISTORY LIMIT 3  → status = SUCCESS
+
+3. 更新 Studio 任务脚本（保持代码资产同步）
+   cz-cli task save-content <task_name> --content "<updated_sql>"
+```
+
+### 新增指标/DWS 层
+
+```
+1. 确认指标口径（与用户确认计算逻辑，避免后期返工）
+
+2. 检查 DWD 层是否有所需字段，没有先走"新增字段"流程
+
+3. 创建新的 Dynamic Table
+   CREATE OR REPLACE DYNAMIC TABLE <dws_schema>.<new_metric_table>
+     REFRESH INTERVAL <n> <unit> vcluster <gp_cluster>
+   AS SELECT ...;
+   REFRESH DYNAMIC TABLE <dws_schema>.<new_metric_table>
+   ✅ 验证：SELECT COUNT(*), SUM(<metric>) FROM <dws_schema>.<new_metric_table>
+            与已知基准值对比
+
+4. 保存 DDL 到 Studio 任务
+   cz-cli task save-content 03_ddl_dws_ads --content "<updated_ddl>"
+```
+
+### 修改 ETL 逻辑
+
+```
+1. 查血缘，确认下游影响范围
+   加载 clickzetta-table-lineage
+
+2. 在 dev/测试环境先验证新逻辑（如有）
+
+3. 更新 ETL SQL
+   cz-cli task content 04_transform_ods_to_dwd  → 查看现有逻辑
+   修改后先手动执行验证：
+   cz-cli task execute 04_transform_ods_to_dwd
+   ✅ 验证：行数对比、关键字段抽样、与修改前结果对比
+
+4. 验证通过后重新部署
+   cz-cli task save-content 04_transform_ods_to_dwd --content "<new_sql>"
+   cz-cli task deploy 04_transform_ods_to_dwd
+
+5. 下游 Dynamic Table 如受影响，触发全量刷新
+   SET cz.optimizer.incremental.force.full.refresh = true;
+   REFRESH DYNAMIC TABLE <dws_schema>.<table>;
+   SET cz.optimizer.incremental.force.full.refresh = false;
 ```
 
 ### 交付验证 Checklist
