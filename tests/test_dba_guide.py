@@ -140,8 +140,8 @@ def test_optimize_table(cur):
 
 
 def test_analyze_table(cur):
-    """ANALYZE TABLE must work."""
-    run_sql(cur, f'ANALYZE TABLE {T}')
+    """ANALYZE TABLE ... COMPUTE STATISTICS must work (bare ANALYZE TABLE is not supported)."""
+    run_sql(cur, f'ANALYZE TABLE {T} COMPUTE STATISTICS')
 
 
 def test_show_jobs(cur):

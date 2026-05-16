@@ -74,20 +74,22 @@ def test_create_table_clustered_by_buckets(cur):
     """)
 
 
-def test_create_table_partitioned_by_col_fails(cur):
-    """PARTITIONED BY (col) without days() must fail."""
-    err = run_sql(cur, f"""
-        CREATE TABLE {SCHEMA}.dw_wrong_partition (
+def test_create_table_partitioned_by_col_succeeds(cur):
+    """PARTITIONED BY (col) without days() now succeeds.
+
+    Verified 2026-05-16: ClickZetta now allows plain column partitioning
+    without the days() transform (behavior changed from earlier versions).
+    """
+    run_sql(cur, f"""
+        CREATE TABLE IF NOT EXISTS {SCHEMA}.dw_plain_partition (
             id INT, dt DATE
         )
         PARTITIONED BY (dt)
-    """, expect_error=True)
-    # If it fails, that's expected. If it succeeds, clean up.
-    if not err:
-        try:
-            cur.execute(f'DROP TABLE IF EXISTS {SCHEMA}.dw_wrong_partition')
-        except Exception:
-            pass
+    """)
+    try:
+        cur.execute(f'DROP TABLE IF EXISTS {SCHEMA}.dw_plain_partition')
+    except Exception:
+        pass
 
 
 def test_create_table_with_data_retention(cur):

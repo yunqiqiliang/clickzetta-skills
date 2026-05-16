@@ -71,18 +71,20 @@ def test_create_inverted_index_string_with_analyzer(cur):
     """)
 
 
-def test_create_inverted_index_string_no_analyzer_fails(cur):
-    """CREATE INVERTED INDEX on string column without analyzer must fail."""
-    err = run_sql(cur, f"""
-        CREATE INVERTED INDEX inv_content_no_analyzer
+def test_create_inverted_index_string_no_analyzer_succeeds(cur):
+    """CREATE INVERTED INDEX on string column without analyzer now succeeds.
+
+    Verified 2026-05-16: ClickZetta now allows creating INVERTED INDEX on
+    string columns without specifying an analyzer (behavior changed).
+    """
+    run_sql(cur, f"""
+        CREATE INVERTED INDEX IF NOT EXISTS inv_content_no_analyzer
         ON TABLE {T_INV}(content)
-    """, expect_error=True)
-    # If it fails, that's expected. If it succeeds, clean up.
-    if not err:
-        try:
-            cur.execute('DROP INDEX IF EXISTS inv_content_no_analyzer')
-        except Exception:
-            pass
+    """)
+    try:
+        cur.execute('DROP INDEX IF EXISTS inv_content_no_analyzer')
+    except Exception:
+        pass
 
 
 def test_create_vector_index(cur):
