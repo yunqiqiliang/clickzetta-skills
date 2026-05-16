@@ -29,6 +29,37 @@ python -m pytest test_sql_syntax.py -v
 python -m pytest . -q
 ```
 
+## Skill Framework Evaluation
+
+The repository also includes framework-level checks and model-eval scaffolding
+for the `clickzetta-*` skills themselves.
+
+```bash
+# Fast static contract checks for SKILL.md, index.json, and eval_cases.jsonl
+python -m pytest tests/test_static_skill_contract.py -q
+
+# Generate static validation + overlap report
+python -m tests.skill_eval.run_all --root . --report-root reports
+
+# Run trigger and A/B evals when an agent command is configured
+export SKILL_EVAL_AGENT_COMMAND='your-agent-command --prompt-file {prompt_file}'
+python -m tests.skill_eval.run_all --root . --include-model-evals --runs 3
+```
+
+The generated report contains both Markdown and HTML:
+
+```text
+reports/skill-eval-YYYYMMDD-HHMMSS/
+  raw/
+  summary.md
+  summary.html
+```
+
+Trigger and A/B evals consume each skill's `eval_cases.jsonl`. `should_call`
+cases measure whether the right skill is selected; `should_not_call` cases
+measure over-triggering. The report also includes description and eval-case
+overlap analysis to identify skill confusion or duplicated functional scope.
+
 ## Test Files
 
 | File | Skill | Key Assertions |

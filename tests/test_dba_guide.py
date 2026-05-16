@@ -147,3 +147,160 @@ def test_analyze_table(cur):
 def test_show_jobs(cur):
     """SHOW JOBS must work."""
     run_sql(cur, 'SHOW JOBS LIMIT 5')
+
+
+# ---------------------------------------------------------------------------
+# P1: UNDROP TABLE
+# ---------------------------------------------------------------------------
+
+def test_undrop_table(cur):
+    """UNDROP TABLE should restore a dropped table and preserve its data."""
+    T = f'{SCHEMA}.undrop_test'
+    run_sql(cur, f'CREATE SCHEMA IF NOT EXISTS {SCHEMA}')
+    run_sql(cur, f'DROP TABLE IF EXISTS {T}')
+    run_sql(cur, f'CREATE TABLE {T} (id INT, val STRING)')
+    run_sql(cur, f"INSERT INTO {T} VALUES (1, 'a')")
+    run_sql(cur, f'DROP TABLE {T}')
+    run_sql(cur, f'UNDROP TABLE {T}')
+    cur.execute(f'SELECT COUNT(*) FROM {T}')
+    count = cur.fetchone()[0]
+    assert count == 1, f"Expected 1 row after UNDROP, got {count}"
+    run_sql(cur, f'DROP TABLE IF EXISTS {T}')
+
+
+# ---------------------------------------------------------------------------
+# P1: RESTORE TABLE
+# ---------------------------------------------------------------------------
+
+@pytest.fixture(scope='module')
+def restore_table(cur):
+    """Create and populate restore_test table; yield table name; drop on teardown."""
+    import time
+    import datetime
+    T = f'{SCHEMA}.restore_test'
+    run_sql(cur, f'CREATE SCHEMA IF NOT EXISTS {SCHEMA}')
+    run_sql(cur, f'DROP TABLE IF EXISTS {T}')
+    run_sql(cur, f'CREATE TABLE {T} (id INT)')
+    run_sql(cur, f'INSERT INTO {T} VALUES (1),(2),(3)')
+    time.sleep(3)
+    ts = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    time.sleep(3)
+    run_sql(cur, f'DELETE FROM {T} WHERE id = 3')
+    yield T, ts
+    try:
+        cur.execute(f'DROP TABLE IF EXISTS {T}')
+    except Exception:
+        pass
+
+
+def test_restore_table_correct_syntax(cur, restore_table):
+    """RESTORE TABLE with CAST() syntax should restore data to the given timestamp."""
+    T, ts = restore_table
+    run_sql(cur, f"RESTORE TABLE {T} TO TIMESTAMP AS OF CAST('{ts}' AS TIMESTAMP)")
+    cur.execute(f'SELECT COUNT(*) FROM {T}')
+    count = cur.fetchone()[0]
+    assert count == 3, f"Expected 3 rows after RESTORE, got {count}"
+
+
+def test_restore_table_wrong_syntax_fails(cur, restore_table):
+    """RESTORE TABLE with a bare string literal (no CAST) must fail."""
+    T, _ = restore_table
+    err = run_sql(
+        cur,
+        f"RESTORE TABLE {T} TO TIMESTAMP AS OF '2024-01-01 00:00:00'",
+        expect_error=True,
+    )
+    assert err, "Expected syntax error for bare string in RESTORE TABLE"
+
+
+# ---------------------------------------------------------------------------
+# P2: OPTIMIZE variants
+# ---------------------------------------------------------------------------
+
+def test_optimize_table_nosuffix(cur):
+    """OPTIMIZE table (no extra clause) must work."""
+    run_sql(cur, f'CREATE SCHEMA IF NOT EXISTS {SCHEMA}')
+    run_sql(cur, f'CREATE TABLE IF NOT EXISTS {T} (id INT, val STRING)')
+    run_sql(cur, f'OPTIMIZE {T}')
+
+
+def test_optimize_with_partition_filter(cur):
+    """OPTIMIZE with WHERE partition filter currently fails (partition column not resolvable).
+
+    Verified 2026-05-16: CZLH-42000 - partition column cannot be resolved.
+    Recorded as expected failure so the test suite documents the limitation.
+    """
+    PT = f'{SCHEMA}.opt_part'
+    run_sql(cur, f'CREATE SCHEMA IF NOT EXISTS {SCHEMA}')
+    run_sql(cur, f'DROP TABLE IF EXISTS {PT}')
+    run_sql(cur, f'CREATE TABLE {PT} (id INT, dt DATE) PARTITIONED BY (days(dt))')
+    run_sql(cur, f"INSERT INTO {PT} VALUES (1, DATE '2024-01-01')")
+    err = run_sql(
+        cur,
+        f"OPTIMIZE {PT} WHERE dt = DATE '2024-01-01'",
+        expect_error=True,
+    )
+    assert err, "Expected error: partition column cannot be resolved in OPTIMIZE WHERE"
+    run_sql(cur, f'DROP TABLE IF EXISTS {PT}')
+
+
+# ---------------------------------------------------------------------------
+# P2: ANALYZE TABLE variants
+# ---------------------------------------------------------------------------
+
+def test_analyze_table_noscan(cur):
+    """ANALYZE TABLE ... COMPUTE STATISTICS NOSCAN must work."""
+    run_sql(cur, f'CREATE SCHEMA IF NOT EXISTS {SCHEMA}')
+    run_sql(cur, f'CREATE TABLE IF NOT EXISTS {T} (id INT, val STRING)')
+    run_sql(cur, f'ANALYZE TABLE {T} COMPUTE STATISTICS NOSCAN')
+
+
+def test_analyze_table_for_columns(cur):
+    """ANALYZE TABLE ... FOR COLUMNS is not supported (syntax error).
+
+    Verified 2026-05-16: CZLH-42000 - Syntax error at or near 'COLUMNS'.
+    Recorded as expected failure to document the unsupported syntax.
+    """
+    run_sql(cur, f'CREATE SCHEMA IF NOT EXISTS {SCHEMA}')
+    run_sql(cur, f'CREATE TABLE IF NOT EXISTS {T} (id INT, val STRING)')
+    err = run_sql(
+        cur,
+        f'ANALYZE TABLE {T} FOR COLUMNS id, val',
+        expect_error=True,
+    )
+    assert err, "Expected syntax error for ANALYZE TABLE ... FOR COLUMNS"
+
+
+# ---------------------------------------------------------------------------
+# P2: SHOW JOBS IN VCLUSTER
+# ---------------------------------------------------------------------------
+
+def test_show_jobs_in_vcluster(cur):
+    """SHOW JOBS IN VCLUSTER DEFAULT LIMIT 5 must work."""
+    run_sql(cur, 'SHOW JOBS IN VCLUSTER DEFAULT LIMIT 5')
+
+
+# ---------------------------------------------------------------------------
+# P3: DESC HISTORY
+# ---------------------------------------------------------------------------
+
+def test_desc_history(cur):
+    """DESC HISTORY must work on an existing table."""
+    run_sql(cur, f'CREATE SCHEMA IF NOT EXISTS {SCHEMA}')
+    run_sql(cur, f'CREATE TABLE IF NOT EXISTS {T} (id INT, val STRING)')
+    run_sql(cur, f'DESC HISTORY {T}')
+
+
+# ---------------------------------------------------------------------------
+# P3: TRUNCATE TABLE
+# ---------------------------------------------------------------------------
+
+def test_truncate_table(cur):
+    """TRUNCATE TABLE must empty the table."""
+    run_sql(cur, f'CREATE SCHEMA IF NOT EXISTS {SCHEMA}')
+    run_sql(cur, f'CREATE TABLE IF NOT EXISTS {T} (id INT, val STRING)')
+    run_sql(cur, f"INSERT INTO {T} VALUES (99, 'tmp')")
+    run_sql(cur, f'TRUNCATE TABLE {T}')
+    cur.execute(f'SELECT COUNT(*) FROM {T}')
+    count = cur.fetchone()[0]
+    assert count == 0, f"Expected 0 rows after TRUNCATE, got {count}"

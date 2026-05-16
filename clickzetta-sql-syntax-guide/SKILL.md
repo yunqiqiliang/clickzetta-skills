@@ -37,7 +37,7 @@ description: |
 
 | 场景 | Snowflake / Spark | ClickZetta 正确写法 |
 |---|---|---|
-| 替换普通表 | `CREATE OR REPLACE TABLE t` | `CREATE TABLE IF NOT EXISTS t`（普通表不支持 OR REPLACE；Dynamic Table / View / MV 支持） |
+| 替换普通表 | `CREATE OR REPLACE TABLE t` | `CREATE OR REPLACE TABLE t` ✅ ClickZetta 支持；`CREATE OR REPLACE TABLE IF NOT EXISTS t` ❌ OR REPLACE 与 IF NOT EXISTS 不能同时使用 |
 | OR REPLACE + IF NOT EXISTS | `CREATE OR REPLACE TABLE IF NOT EXISTS t` | ❌ 两者不能同时使用，会报错 |
 | 动态表刷新 | `TARGET_LAG = '1 hour'` (SF) | `PROPERTIES ('target_lag' = '1 hour', 'warehouse' = 'vc')` |
 | Stream 元数据 | `METADATA$ACTION` | `__change_type` |
@@ -70,7 +70,7 @@ description: |
 | NULL转0 | `ZEROIFNULL(x)` (SF) | `COALESCE(x, 0)` |
 | 0转NULL | `NULLIFZERO(x)` (SF) | `NULLIF(x, 0)` |
 | 对象聚合 | `OBJECT_AGG(k, v)` (SF) | `MAP_AGG(k, v)` |
-| 数组大小 | `ARRAY_SIZE(arr)` (SF) | `SIZE(arr)` |
+| 数组大小 | `ARRAY_SIZE(arr)` (SF) | `SIZE(arr)` 或 `ARRAY_SIZE(arr)` ✅ 两者均支持 |
 | PIVOT | 原生 PIVOT 语法 (SF) | `CASE WHEN` 手动实现 |
 | 临时表 | `CREATE TEMPORARY TABLE` (SF) | 不支持，用 CTE 替代 |
 | 日期字符串写入 | `INSERT ... VALUES (..., '2024-01-15', ...)` | `CAST('2024-01-15' AS DATE)` 或 `DATE '2024-01-15'` 或 `TO_DATE(...)` |
@@ -199,7 +199,7 @@ FROM docs ORDER BY dist LIMIT 10;
 |---|---|
 | `MAP_FROM_ZIP(keys, values)` | `MAP_FROM_ARRAYS(keys, values)` |
 | `TO_ARRAY(expr)` | `ARRAY(expr)` 或 `CAST(expr AS ARRAY<T>)` |
-| `ARRAY_SIZE(arr)` (Snowflake) | `SIZE(arr)` |
+| `ARRAY_SIZE(arr)` (Snowflake) | `SIZE(arr)` 或 `ARRAY_SIZE(arr)` ✅ 两者均支持 |
 
 ### 正则函数
 
@@ -244,6 +244,6 @@ FROM docs ORDER BY dist LIMIT 10;
 | `DESC TABLE t EXTENDED` | `DESC TABLE t` 或 `SHOW CREATE TABLE t` |
 | `DESC TABLE t HISTORY` | `SHOW TABLES HISTORY WHERE table_name = 't'` |
 | `CREATE TEMPORARY TABLE` | 用 CTE 替代，或创建普通表后手动删除 |
-| `CREATE OR REPLACE TABLE` | `DROP TABLE IF EXISTS t; CREATE TABLE t (...)` |
+| `CREATE OR REPLACE TABLE` | `CREATE OR REPLACE TABLE t (...)` ✅ 直接支持 |
 | `BEGIN; COMMIT; ROLLBACK;` | 不支持事务，用 MERGE 实现原子操作 |
 | `WITH RECURSIVE` | 不支持递归 CTE，用 Python/ZettaPark 替代 |

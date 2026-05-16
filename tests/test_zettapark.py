@@ -40,7 +40,8 @@ def session():
 
 @pytest.fixture(scope='module', autouse=True)
 def setup_data(session):
-    """Create source table with test data."""
+    """Create schema and source table with test data."""
+    session.sql(f"CREATE SCHEMA IF NOT EXISTS {SCHEMA}").collect()
     session.sql(f"DROP TABLE IF EXISTS {SRC_TABLE}").collect()
     session.sql(f"DROP TABLE IF EXISTS {RESULT_TABLE}").collect()
     session.sql(f"""
@@ -106,18 +107,15 @@ def test_groupby_agg_with_as(session):
 
 
 def test_alias_fails(session):
-    """alias() must NOT work (ClickZetta uses .as_() not .alias())."""
+    """alias() raises AttributeError in ZettaPark — use .as_() for column renaming."""
     from clickzetta.zettapark import functions as F
-    try:
-        df = (
+    with pytest.raises(AttributeError):
+        (
             session.table(SRC_TABLE)
             .group_by("category")
             .agg(F.sum("amount").alias("total"))
+            .collect()
         )
-        df.collect()
-        # If it somehow works, that's fine — just document it
-    except (AttributeError, Exception):
-        pass  # Expected: .alias() not supported
 
 
 def test_with_column(session):

@@ -12,3 +12,6 @@ tests/.env
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# Local reports (not for repo)
+docs/reports/test-improvement-plan.md

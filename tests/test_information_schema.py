@@ -138,3 +138,50 @@ def test_storage_size_query(cur):
         ORDER BY bytes DESC
         LIMIT 5
     """)
+
+
+def test_columns_no_ordinal_position(cur):
+    """information_schema.columns must NOT have ordinal_position column."""
+    err = run_sql(cur, f"""
+        SELECT ordinal_position FROM information_schema.columns
+        WHERE table_schema = '{SCHEMA}' LIMIT 1
+    """, expect_error=True)
+    assert err, "Expected error: information_schema.columns has no ordinal_position column"
+    assert 'ordinal_position' in err.lower() or 'cannot resolve' in err.lower(), \
+        f"Unexpected error message: {err[:300]}"
+
+
+def test_job_history_cru_aggregation_by_user(cur):
+    """job_history CRU aggregation by user must work using sys.information_schema."""
+    cur.execute("""
+        SELECT job_creator, COUNT(*) AS job_cnt, SUM(cru) AS total_cru
+        FROM sys.information_schema.job_history
+        WHERE start_time >= CURRENT_DATE() - INTERVAL 7 DAY
+        GROUP BY job_creator
+        ORDER BY total_cru DESC
+        LIMIT 10
+    """)
+    rows = cur.fetchall()
+    # Query must succeed; result may be empty in quiet environments
+    assert rows is not None
+    col_names = [d[0].lower() for d in cur.description]
+    assert 'job_creator' in col_names
+    assert 'job_cnt' in col_names
+    assert 'total_cru' in col_names
+
+
+def test_sys_instance_usage_queryable(cur):
+    """SYS.information_schema.instance_usage must be queryable.
+
+    Requires instance_admin or equivalent privilege. Skipped if permission denied.
+    """
+    import pytest as _pytest
+    try:
+        cur.execute('SELECT * FROM SYS.information_schema.instance_usage LIMIT 5')
+        rows = cur.fetchall()
+        assert cur.description is not None
+    except Exception as e:
+        err = str(e)
+        if 'permission' in err.lower() or 'privilege' in err.lower() or 'access' in err.lower():
+            _pytest.skip(f"instance_admin privilege required: {err[:80]}")
+        raise

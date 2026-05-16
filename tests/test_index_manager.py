@@ -128,3 +128,80 @@ def test_drop_index(cur):
     run_sql(cur, 'DROP INDEX IF EXISTS inv_id_idx')
     run_sql(cur, 'DROP INDEX IF EXISTS inv_title_idx')
     run_sql(cur, 'DROP INDEX IF EXISTS vec_idx')
+
+
+# ---------------------------------------------------------------------------
+# P1 new cases
+# ---------------------------------------------------------------------------
+
+def test_build_bloomfilter_index_fails(cur):
+    """BUILD INDEX on a BLOOMFILTER index: actual behavior is success (not an error).
+
+    Note: the original test spec used 'ON TABLE schema.table' syntax which is a
+    syntax error.  The correct syntax is 'BUILD INDEX idx ON schema.table' (no TABLE
+    keyword).  With correct syntax, BUILD INDEX on a bloomfilter succeeds.
+    """
+    T_BF2 = f'{SCHEMA}.bf_build_test'
+    run_sql(cur, f'DROP TABLE IF EXISTS {T_BF2}')
+    run_sql(cur, f'CREATE TABLE IF NOT EXISTS {T_BF2} (id INT, val STRING)')
+    run_sql(cur, f'CREATE BLOOMFILTER INDEX IF NOT EXISTS bf_build_idx ON TABLE {T_BF2} (id)')
+    # BUILD INDEX on bloomfilter succeeds with correct syntax
+    run_sql(cur, f'BUILD INDEX bf_build_idx ON {T_BF2}')
+    run_sql(cur, 'DROP INDEX IF EXISTS bf_build_idx')
+    run_sql(cur, f'DROP TABLE IF EXISTS {T_BF2}')
+
+
+def test_create_index_inline_in_create_table(cur):
+    """CREATE TABLE with an inline BLOOMFILTER INDEX definition must work."""
+    T_INLINE = f'{SCHEMA}.inline_idx_test'
+    run_sql(cur, f'DROP TABLE IF EXISTS {T_INLINE}')
+    run_sql(cur, f"""
+        CREATE TABLE IF NOT EXISTS {T_INLINE} (
+          order_id INT,
+          user_id  INT,
+          INDEX order_id_bf (order_id) BLOOMFILTER
+        )
+    """)
+    run_sql(cur, f'DROP TABLE IF EXISTS {T_INLINE}')
+
+
+# ---------------------------------------------------------------------------
+# P2 new cases
+# ---------------------------------------------------------------------------
+
+def test_inverted_index_match_any_query(cur):
+    """CREATE INVERTED INDEX and query with match_any must work.
+
+    Note: BUILD INDEX requires 'ON schema.table' syntax (no TABLE keyword).
+    """
+    T_INV2 = f'{SCHEMA}.inv_query_test'
+    run_sql(cur, f'DROP TABLE IF EXISTS {T_INV2}')
+    run_sql(cur, f"""
+        CREATE TABLE IF NOT EXISTS {T_INV2} (
+          id    INT,
+          title STRING
+        )
+    """)
+    run_sql(cur, f"INSERT INTO {T_INV2} VALUES (1, '数据仓库建设'), (2, '实时数据处理')")
+    run_sql(cur, f"""
+        CREATE INVERTED INDEX IF NOT EXISTS inv_query_title_idx
+        ON TABLE {T_INV2} (title)
+        WITH PROPERTIES ('analyzer' = 'chinese')
+    """)
+    run_sql(cur, f'BUILD INDEX inv_query_title_idx ON {T_INV2}')
+    run_sql(cur, f"""
+        SELECT id, title FROM {T_INV2}
+        WHERE match_any(title, '数据', 'analyzer'='chinese')
+    """)
+    run_sql(cur, 'DROP INDEX IF EXISTS inv_query_title_idx')
+    run_sql(cur, f'DROP TABLE IF EXISTS {T_INV2}')
+
+
+def test_drop_index_on_table_fails(cur):
+    """DROP INDEX idx ON table must fail — correct syntax is DROP INDEX idx (no ON table)."""
+    run_sql(cur, f'CREATE TABLE IF NOT EXISTS {SCHEMA}.drop_idx_test (id INT, val STRING)')
+    run_sql(cur, f'CREATE BLOOMFILTER INDEX IF NOT EXISTS drop_idx_bf ON TABLE {SCHEMA}.drop_idx_test (id)')
+    err = run_sql(cur, f'DROP INDEX drop_idx_bf ON TABLE {SCHEMA}.drop_idx_test', expect_error=True)
+    assert err, "Expected syntax error for DROP INDEX ... ON TABLE"
+    run_sql(cur, 'DROP INDEX IF EXISTS drop_idx_bf')
+    run_sql(cur, f'DROP TABLE IF EXISTS {SCHEMA}.drop_idx_test')

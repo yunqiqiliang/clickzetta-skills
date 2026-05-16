@@ -143,5 +143,61 @@ def test_information_schema_tables_query(cur):
         LIMIT 10
     """)
     col_names = [d[0].lower() for d in cur.description]
-    assert 'bytes' in col_names
+    assert 'size_gb' in col_names  # bytes is aliased as size_gb via ROUND(...) AS size_gb
     assert 'row_count' in col_names
+
+
+def test_refresh_dynamic_table_after_create(cur):
+    """REFRESH DYNAMIC TABLE command must be syntactically valid.
+
+    If the dynamic table feature is unavailable in this environment the test
+    is skipped.  When available, REFRESH must succeed after CREATE.
+    """
+    import pytest as _pytest
+    # T_DWS may not exist if DT feature is unavailable; skip gracefully
+    try:
+        cur.execute(f'REFRESH DYNAMIC TABLE {T_DWS}')
+    except Exception as e:
+        err = str(e)
+        if 'not available' in err.lower() or 'dynamic_table not found' in err.lower():
+            _pytest.skip(f"Dynamic table feature not available: {err[:80]}")
+        raise
+
+
+def test_left_join_where_clause_trap(cur):
+    """LEFT JOIN + WHERE on right-table column degrades to INNER JOIN."""
+    run_sql(cur, f'CREATE TABLE IF NOT EXISTS {SCHEMA}.dw_left_a (id INT, val STRING)')
+    run_sql(cur, f'CREATE TABLE IF NOT EXISTS {SCHEMA}.dw_left_b (id INT, extra STRING)')
+    run_sql(cur, f"INSERT INTO {SCHEMA}.dw_left_a VALUES (1,'a'),(2,'b'),(3,'c')")
+    run_sql(cur, f"INSERT INTO {SCHEMA}.dw_left_b VALUES (1,'x')")
+
+    cur.execute(f"""
+        SELECT a.id FROM {SCHEMA}.dw_left_a a
+        LEFT JOIN {SCHEMA}.dw_left_b b ON a.id = b.id
+    """)
+    full_rows = len(cur.fetchall())
+
+    cur.execute(f"""
+        SELECT a.id FROM {SCHEMA}.dw_left_a a
+        LEFT JOIN {SCHEMA}.dw_left_b b ON a.id = b.id
+        WHERE b.extra = 'x'
+    """)
+    filtered_rows = len(cur.fetchall())
+
+    assert full_rows == 3, f"LEFT JOIN without WHERE should return 3 rows, got {full_rows}"
+    assert filtered_rows == 1, f"LEFT JOIN + WHERE degrades to INNER JOIN, expected 1 row, got {filtered_rows}"
+
+    run_sql(cur, f'DROP TABLE IF EXISTS {SCHEMA}.dw_left_a')
+    run_sql(cur, f'DROP TABLE IF EXISTS {SCHEMA}.dw_left_b')
+
+
+def test_information_schema_tables_last_modify_time(cur):
+    """information_schema.tables must have last_modify_time column."""
+    cur.execute(f"""
+        SELECT table_schema, table_name, last_modify_time
+        FROM information_schema.tables
+        WHERE table_schema = '{SCHEMA}'
+        LIMIT 3
+    """)
+    col_names = [d[0].lower() for d in cur.description]
+    assert 'last_modify_time' in col_names

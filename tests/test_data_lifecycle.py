@@ -74,3 +74,65 @@ def test_restore_table(cur):
     earliest = sorted(rows, key=lambda r: r[version_idx])[0]
     ts = earliest[time_idx]
     run_sql(cur, f"RESTORE TABLE {T} TO TIMESTAMP AS OF '{ts}'")
+
+
+# ---------------------------------------------------------------------------
+# New test cases (P1 / P2)
+# ---------------------------------------------------------------------------
+
+def test_alter_data_retention_days(cur):
+    """ALTER TABLE SET PROPERTIES data_retention_days must work and be reflected in SHOW CREATE TABLE."""
+    run_sql(cur, f"ALTER TABLE {T} SET PROPERTIES ('data_retention_days'='7')")
+    cur.execute(f'SHOW CREATE TABLE {T}')
+    rows = cur.fetchall()
+    ddl = str(rows)
+    assert 'data_retention_days' in ddl, (
+        f"Expected 'data_retention_days' in SHOW CREATE TABLE output, got: {ddl[:400]}"
+    )
+
+
+def test_alter_data_lifecycle_disable(cur):
+    """ALTER TABLE SET PROPERTIES data_lifecycle='-1' (disable) must work."""
+    run_sql(cur, f"ALTER TABLE {T} SET PROPERTIES ('data_lifecycle'='-1')")
+
+
+def test_show_tables_history(cur):
+    """SHOW TABLES HISTORY IN schema must work."""
+    run_sql(cur, f'SHOW TABLES HISTORY IN {SCHEMA}')
+
+
+def test_show_tables_history_like(cur):
+    """SHOW TABLES HISTORY IN schema LIKE pattern must work."""
+    cur.execute(f"SHOW TABLES HISTORY IN {SCHEMA} LIKE 'lifecycle%'")
+    rows = cur.fetchall()
+    assert len(rows) >= 1, "Expected at least one row matching 'lifecycle%'"
+    col_names = [d[0].lower() for d in cur.description]
+    assert 'table_name' in col_names, f"Missing 'table_name' column, got: {col_names}"
+
+
+def test_time_travel_relative_interval(cur):
+    """SELECT ... TIMESTAMP AS OF CURRENT_TIMESTAMP() - INTERVAL N syntax must be accepted.
+
+    Uses CURRENT_TIMESTAMP() (zero offset) to guarantee a valid version exists.
+    The INTERVAL arithmetic syntax is what is being validated here.
+    """
+    # CURRENT_TIMESTAMP() - INTERVAL 0 SECOND resolves to now, which always has a version.
+    cur.execute(
+        f"SELECT COUNT(*) FROM {T} TIMESTAMP AS OF CURRENT_TIMESTAMP() - INTERVAL 0 SECOND"
+    )
+    rows = cur.fetchall()
+    assert rows[0][0] >= 0, "COUNT(*) must be non-negative"
+
+
+def test_alter_data_lifecycle_verify_with_show_create(cur):
+    """SET PROPERTIES data_lifecycle then SHOW CREATE TABLE must reflect the value."""
+    run_sql(cur, f"ALTER TABLE {T} SET PROPERTIES ('data_lifecycle'='30')")
+    cur.execute(f'SHOW CREATE TABLE {T}')
+    rows = cur.fetchall()
+    ddl = str(rows)
+    assert 'data_lifecycle' in ddl, (
+        f"Expected 'data_lifecycle' in SHOW CREATE TABLE output, got: {ddl[:400]}"
+    )
+    assert '30' in ddl, (
+        f"Expected value '30' in SHOW CREATE TABLE output, got: {ddl[:400]}"
+    )

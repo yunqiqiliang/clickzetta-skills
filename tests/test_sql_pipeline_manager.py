@@ -33,8 +33,8 @@ def setup(cur):
     run_sql(cur, f'CREATE TABLE {SRC} (id INT, category STRING, amount DOUBLE, dt DATE)')
     run_sql(cur, f"""
         INSERT INTO {SRC} VALUES
-        (1, 'A', 100.0, '2024-01-01'),
-        (2, 'B', 200.0, '2024-01-02')
+        (1, 'A', 100.0, DATE '2024-01-01'),
+        (2, 'B', 200.0, DATE '2024-01-02')
     """)
     yield
     for obj, drop in [
@@ -96,13 +96,25 @@ def test_alter_dynamic_table_suspend_resume(cur):
     run_sql(cur, f'ALTER DYNAMIC TABLE {DT} RESUME')
 
 
-def test_create_materialized_view_refresh_auto(cur):
-    """CREATE MATERIALIZED VIEW with REFRESH AUTO EVERY must work."""
+def test_create_materialized_view_refresh_auto_fails(cur):
+    """REFRESH AUTO EVERY '1 hours' VCLUSTER = ... is wrong syntax — must fail."""
     run_sql(cur, f"""
         CREATE OR REPLACE MATERIALIZED VIEW {MV}
           COMMENT '测试物化视图'
           REFRESH AUTO EVERY '1 hours'
           VCLUSTER = default_ap
+        AS
+        SELECT category, SUM(amount) AS total
+        FROM {SRC}
+        GROUP BY category
+    """, expect_error=True)
+
+
+def test_create_materialized_view_correct_syntax(cur):
+    """CREATE MATERIALIZED VIEW with REFRESH INTERVAL MINUTE vcluster must work."""
+    run_sql(cur, f"""
+        CREATE MATERIALIZED VIEW IF NOT EXISTS {MV}
+          REFRESH INTERVAL 60 MINUTE vcluster DEFAULT
         AS
         SELECT category, SUM(amount) AS total
         FROM {SRC}
@@ -140,3 +152,63 @@ def test_show_table_streams(cur):
 def test_show_pipes(cur):
     """SHOW PIPES must work."""
     run_sql(cur, 'SHOW PIPES')
+
+
+def test_create_or_replace_pipe_fails(cur):
+    """CREATE OR REPLACE PIPE is not supported — must fail."""
+    run_sql(cur, f"""
+        CREATE OR REPLACE PIPE {SCHEMA}.test_pipe_replace
+          AS COPY INTO {SRC} FROM VOLUME test_vol
+    """, expect_error=True)
+
+
+def test_create_or_replace_materialized_view_fails(cur):
+    """CREATE OR REPLACE MATERIALIZED VIEW is not supported — must fail."""
+    run_sql(cur, f"""
+        CREATE OR REPLACE MATERIALIZED VIEW {SCHEMA}.test_mv_replace
+          REFRESH INTERVAL 60 MINUTE vcluster DEFAULT
+        AS SELECT id FROM {SRC}
+    """, expect_error=True)
+
+
+def test_drop_table_on_mv_fails(cur):
+    """DROP TABLE on a MATERIALIZED VIEW must fail — must use DROP MATERIALIZED VIEW."""
+    run_sql(cur, f'DROP TABLE IF EXISTS {MV}', expect_error=True)
+
+
+# ---------------------------------------------------------------------------
+# P2 additions
+# ---------------------------------------------------------------------------
+
+def test_alter_dynamic_table_as_fails(cur):
+    """ALTER DYNAMIC TABLE ... AS SELECT is not supported — must fail.
+
+    Changing the query of a dynamic table requires CREATE OR REPLACE.
+    """
+    run_sql(cur, f'ALTER DYNAMIC TABLE {DT} AS SELECT id FROM {SRC}',
+            expect_error=True)
+
+
+def test_alter_materialized_view_suspend_resume(cur):
+    """ALTER MATERIALIZED VIEW SUSPEND / RESUME is not supported — must fail.
+
+    ClickZetta does not support SUSPEND/RESUME for materialized views.
+    Verified: raises 'not supported feature - ALTER MATERIALIZED VIEW ... SUSPEND/RESUME'.
+    """
+    err_suspend = run_sql(cur, f'ALTER MATERIALIZED VIEW {MV} SUSPEND',
+                          expect_error=True)
+    assert err_suspend, "Expected error for ALTER MATERIALIZED VIEW SUSPEND"
+    err_resume = run_sql(cur, f'ALTER MATERIALIZED VIEW {MV} RESUME',
+                         expect_error=True)
+    assert err_resume, "Expected error for ALTER MATERIALIZED VIEW RESUME"
+
+
+def test_drop_materialized_view(cur):
+    """DROP MATERIALIZED VIEW IF EXISTS must work after CREATE."""
+    mv_drop = f'{SCHEMA}.pipeline_mv_drop_test'
+    run_sql(cur, f"""
+        CREATE MATERIALIZED VIEW IF NOT EXISTS {mv_drop}
+          REFRESH INTERVAL 60 MINUTE vcluster DEFAULT
+        AS SELECT id FROM {SRC}
+    """)
+    run_sql(cur, f'DROP MATERIALIZED VIEW IF EXISTS {mv_drop}')

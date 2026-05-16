@@ -102,11 +102,11 @@ REFRESH DYNAMIC TABLE dws.user_order_daily;
 ### 手动刷新命令
 
 ```sql
--- ✅ 正确：手动触发刷新
+-- ✅ 推荐：手动触发刷新
 REFRESH DYNAMIC TABLE schema.table_name;
 
--- ❌ 错误：不存在此语法
-ALTER DYNAMIC TABLE schema.table_name REFRESH;
+-- ⚠️ 不推荐：ALTER DYNAMIC TABLE ... REFRESH 语法不标准，建议使用上面的 REFRESH 命令
+-- ALTER DYNAMIC TABLE schema.table_name REFRESH;
 ```
 
 ### 开启增量刷新的前提

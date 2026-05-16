@@ -50,7 +50,7 @@ def test_current_timestamp_is_supported(cur):
 
 
 def test_array_size_is_supported(cur):
-    """ARRAY_SIZE() must be supported (not just SIZE())."""
+    """ARRAY_SIZE() is supported in ClickZetta (equivalent to SIZE(); both work)."""
     cur.execute(f'SELECT ARRAY_SIZE(tags) FROM {T} LIMIT 1')
     assert cur.fetchone() is not None
 
@@ -79,6 +79,13 @@ def test_intersect(cur):
 def test_except(cur):
     """EXCEPT must be supported."""
     run_sql(cur, f'SELECT id FROM {T} EXCEPT SELECT id FROM {T} WHERE id = 1')
+
+
+def test_minus_is_supported(cur):
+    """MINUS is supported as an alias for EXCEPT."""
+    cur.execute(f'SELECT id FROM {T} MINUS SELECT id FROM {T} WHERE id = 1')
+    rows = cur.fetchall()
+    assert len(rows) == 2, f"MINUS should return 2 rows (id=2,3), got {rows}"
 
 
 def test_dateadd_keyword_unit(cur):
@@ -147,3 +154,112 @@ def test_lateral_view_explode(cur):
         LATERAL VIEW EXPLODE(t.tags) s AS tag
         LIMIT 5
     """)
+
+
+# ---------------------------------------------------------------------------
+# P1 cases: timestamp traps, CREATE OR REPLACE TABLE, WITH RECURSIVE,
+# CREATE TEMPORARY TABLE
+# ---------------------------------------------------------------------------
+
+TS_SCHEMA = 'skill_test_ss2'
+TS_TABLE = f'{TS_SCHEMA}.ts_test_syntax'
+
+
+@pytest.fixture(scope='module')
+def setup_ts_table(cur):
+    """Create an isolated schema and TIMESTAMP table for P1 tests."""
+    run_sql(cur, f'CREATE SCHEMA IF NOT EXISTS {TS_SCHEMA}')
+    run_sql(cur, f'DROP TABLE IF EXISTS {TS_TABLE}')
+    run_sql(cur, f'CREATE TABLE {TS_TABLE} (id INT, ts TIMESTAMP)')
+    yield
+    run_sql(cur, f'DROP TABLE IF EXISTS {TS_TABLE}')
+
+
+def test_timestamp_string_insert_fails(cur, setup_ts_table):
+    """Inserting a plain string into a TIMESTAMP column must fail.
+
+    ClickZetta does not allow implicit cast from STRING to TIMESTAMP.
+    Use CAST('...' AS TIMESTAMP) or the TIMESTAMP '...' literal instead.
+    """
+    run_sql(
+        cur,
+        f"INSERT INTO {TS_TABLE} VALUES (1, '2026-05-01 10:00:00')",
+        expect_error=True,
+    )
+
+
+def test_timestamp_cast_insert(cur, setup_ts_table):
+    """CAST('...' AS TIMESTAMP) must succeed when writing to a TIMESTAMP column."""
+    run_sql(
+        cur,
+        f"INSERT INTO {TS_TABLE} VALUES (2, CAST('2026-05-01 10:00:00' AS TIMESTAMP))",
+    )
+
+
+def test_timestamp_literal_insert(cur, setup_ts_table):
+    """TIMESTAMP '...' literal syntax must succeed when writing to a TIMESTAMP column."""
+    run_sql(
+        cur,
+        f"INSERT INTO {TS_TABLE} VALUES (3, TIMESTAMP '2026-05-01 10:00:00')",
+    )
+
+
+def test_transaction_syntax_fails(cur):
+    """BEGIN; COMMIT; transaction syntax is not supported."""
+    run_sql(cur, "BEGIN; SELECT 1; COMMIT;", expect_error=True)
+
+
+def test_charindex_fails_instr_works(cur):
+    """CHARINDEX is not supported; INSTR is the replacement (note reversed arg order)."""
+    run_sql(cur, "SELECT CHARINDEX('a', 'abc')", expect_error=True)
+    cur.execute("SELECT INSTR('abc', 'a')")
+    assert cur.fetchone() is not None
+
+
+def test_lateral_flatten_fails(cur):
+    """Snowflake LATERAL FLATTEN(input => arr) syntax is not supported."""
+    run_sql(cur, f"""
+        SELECT f.value FROM {T} t,
+        LATERAL FLATTEN(input => t.tags) f
+        LIMIT 1
+    """, expect_error=True)
+
+
+def test_bigint_identity(cur):
+    """BIGINT IDENTITY auto-increment column must work."""
+    run_sql(cur, f'CREATE TABLE IF NOT EXISTS {SCHEMA}.identity_test (id BIGINT IDENTITY, val STRING)')
+    run_sql(cur, f"INSERT INTO {SCHEMA}.identity_test (val) VALUES ('a'), ('b')")
+    cur.execute(f'SELECT id, val FROM {SCHEMA}.identity_test ORDER BY id')
+    rows = cur.fetchall()
+    assert len(rows) >= 2
+    ids = [r[0] for r in rows]
+    assert ids == sorted(ids), "IDENTITY ids should be sequential"
+    run_sql(cur, f'DROP TABLE IF EXISTS {SCHEMA}.identity_test')
+
+
+def test_create_or_replace_table_succeeds(cur):
+    """CREATE OR REPLACE TABLE is supported in ClickZetta (not a migration trap).
+
+    Verified 2026-05-16: the statement executes without error.
+    """
+    run_sql(cur, f'DROP TABLE IF EXISTS {TS_SCHEMA}.replace_test')
+    run_sql(cur, f'CREATE OR REPLACE TABLE {TS_SCHEMA}.replace_test (id INT, val STRING)')
+    run_sql(cur, f'DROP TABLE IF EXISTS {TS_SCHEMA}.replace_test')
+
+
+def test_with_recursive_fails(cur):
+    """WITH RECURSIVE is not supported — syntax error at the CTE name."""
+    run_sql(
+        cur,
+        'WITH RECURSIVE cte AS (SELECT 1 AS n UNION ALL SELECT n+1 FROM cte WHERE n < 5) SELECT * FROM cte',
+        expect_error=True,
+    )
+
+
+def test_create_temporary_table_fails(cur):
+    """CREATE TEMPORARY TABLE is not supported — raises 'not supported feature'."""
+    run_sql(
+        cur,
+        f'CREATE TEMPORARY TABLE {TS_SCHEMA}.tmp_test (id INT)',
+        expect_error=True,
+    )

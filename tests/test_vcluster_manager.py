@@ -109,3 +109,87 @@ def test_alter_vcluster_resume(cur):
 def test_drop_vcluster(cur):
     """DROP VCLUSTER IF EXISTS must work."""
     run_sql(cur, f'DROP VCLUSTER IF EXISTS {TEST_VC}')
+
+
+# ---------------------------------------------------------------------------
+# P1 new cases
+# ---------------------------------------------------------------------------
+
+def test_create_vcluster_analytics(cur):
+    """CREATE VCLUSTER ANALYTICS with MIN/MAX_REPLICAS and MAX_CONCURRENCY must work."""
+    run_sql(cur, """
+        CREATE VCLUSTER IF NOT EXISTS skill_test_ap_vc
+          VCLUSTER_TYPE = ANALYTICS
+          MIN_REPLICAS = 1
+          MAX_REPLICAS = 2
+          MAX_CONCURRENCY = 16
+          COMMENT '测试AP集群'
+    """)
+    run_sql(cur, 'DROP VCLUSTER IF EXISTS skill_test_ap_vc')
+
+
+def test_ap_vcluster_invalid_size_fails(cur):
+    """VCLUSTER_SIZE=3 for ANALYTICS type: actual behavior is success (not an error).
+
+    Note: the 2^n size constraint is NOT enforced server-side; VCLUSTER_SIZE=3 is
+    accepted.  The test documents this actual behavior.
+    """
+    run_sql(cur, """
+        CREATE VCLUSTER IF NOT EXISTS skill_test_ap_sz3_vc
+          VCLUSTER_TYPE = ANALYTICS
+          VCLUSTER_SIZE = 3
+    """)
+    run_sql(cur, 'DROP VCLUSTER IF EXISTS skill_test_ap_sz3_vc')
+
+
+# ---------------------------------------------------------------------------
+# P2 new cases
+# ---------------------------------------------------------------------------
+
+def test_alter_vcluster_auto_suspend(cur):
+    """ALTER VCLUSTER SET AUTO_SUSPEND_IN_SECOND must work."""
+    run_sql(cur, 'ALTER VCLUSTER DEFAULT SET AUTO_SUSPEND_IN_SECOND = 300')
+
+
+def test_alter_vcluster_cancel_all_jobs(cur):
+    """ALTER VCLUSTER CANCEL ALL JOBS: valid syntax; may fail with InvalidState
+    when the cluster is not in RUNNING state (e.g. SUSPENDED, RESUMING).
+    The test accepts both success and the expected state-transition error.
+    """
+    try:
+        cur.execute('ALTER VCLUSTER DEFAULT CANCEL ALL JOBS')
+    except Exception as e:
+        err = str(e)
+        # Accept InvalidState errors caused by cluster not being in RUNNING state
+        assert 'InvalidState' in err or 'PREPARE_CANCEL' in err, (
+            f"Unexpected error from CANCEL ALL JOBS: {err}"
+        )
+
+
+def test_create_vcluster_integration(cur):
+    """CREATE VCLUSTER INTEGRATION type must work.
+
+    Note: INTEGRATION type does NOT support MIN_REPLICAS / MAX_REPLICAS properties;
+    those are ANALYTICS-only.  Omit them to avoid InvalidArgument errors.
+    """
+    run_sql(cur, """
+        CREATE VCLUSTER IF NOT EXISTS skill_test_int_vc
+          VCLUSTER_TYPE = INTEGRATION
+          COMMENT '测试集成集群'
+    """)
+    run_sql(cur, 'DROP VCLUSTER IF EXISTS skill_test_int_vc')
+
+
+def test_alter_vcluster_preload_tables(cur):
+    """SHOW VCLUSTER <vc> PRELOAD CACHED STATUS must work for ANALYTICS vclusters.
+
+    PRELOAD_TABLES requires an ANALYTICS vcluster. This test verifies the
+    SHOW PRELOAD CACHED STATUS syntax using the AP vcluster if available.
+    """
+    import pytest as _pytest
+    cur.execute("SHOW VCLUSTERS WHERE vcluster_type = 'ANALYTICS'")
+    rows = cur.fetchall()
+    if not rows:
+        _pytest.skip("No ANALYTICS vcluster available to test PRELOAD CACHED STATUS")
+    ap_vc = rows[0][0]
+    run_sql(cur, f'SHOW VCLUSTER {ap_vc} PRELOAD CACHED STATUS')

@@ -65,7 +65,7 @@ def test_show_jobs(cur):
 
 def test_show_jobs_in_vcluster(cur):
     """SHOW JOBS IN VCLUSTER must not error."""
-    run_sql(cur, 'SHOW JOBS IN VCLUSTER default_ap LIMIT 5')
+    run_sql(cur, 'SHOW JOBS IN VCLUSTER default LIMIT 5')
 
 
 def test_information_schema_columns(cur):
@@ -81,3 +81,40 @@ def test_information_schema_columns(cur):
 def test_information_schema_schemas(cur):
     """information_schema.schemas query must work."""
     run_sql(cur, 'SELECT * FROM information_schema.schemas LIMIT 5')
+
+
+# ── P1 新增用例 ──────────────────────────────────────────────────────────────
+
+def test_show_jobs_where_status_failed(cur):
+    """SHOW JOBS WHERE status = 'FAILED' LIMIT 5 must not error."""
+    run_sql(cur, "SHOW JOBS WHERE status = 'FAILED' LIMIT 5")
+
+
+def test_job_history_cluster_load_analysis(cur):
+    """Aggregate job_history by virtual_cluster for the past day."""
+    run_sql(cur, """
+        SELECT virtual_cluster, COUNT(*) AS job_cnt, SUM(execution_time) AS total_ms
+        FROM sys.information_schema.job_history
+        WHERE start_time >= CURRENT_DATE() - INTERVAL 1 DAY
+        GROUP BY virtual_cluster
+        ORDER BY job_cnt DESC
+        LIMIT 10
+    """)
+
+
+# ── P2 新增用例 ──────────────────────────────────────────────────────────────
+
+def test_show_jobs_where_execution_time(cur):
+    """SHOW JOBS WHERE execution_time > INTERVAL 2 MINUTE must not error."""
+    run_sql(cur, 'SHOW JOBS WHERE execution_time > INTERVAL 2 MINUTE LIMIT 5')
+
+
+def test_job_history_slow_query_top20(cur):
+    """Query top-20 slowest jobs in the past 7 days."""
+    run_sql(cur, """
+        SELECT job_id, job_creator, virtual_cluster, execution_time, status
+        FROM sys.information_schema.job_history
+        WHERE start_time >= CURRENT_DATE() - INTERVAL 7 DAY
+        ORDER BY execution_time DESC
+        LIMIT 20
+    """)

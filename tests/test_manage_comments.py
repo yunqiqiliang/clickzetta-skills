@@ -30,7 +30,7 @@ def setup(cur):
     run_sql(cur, f"INSERT INTO {SRC} VALUES (1, 'a')")
     run_sql(cur, f"""
         CREATE DYNAMIC TABLE {DT}
-          PROPERTIES ('target_lag' = '1 hour', 'warehouse' = 'default_ap')
+          REFRESH INTERVAL 1 HOUR VCLUSTER DEFAULT
         AS SELECT id, val FROM {SRC}
     """)
     yield
