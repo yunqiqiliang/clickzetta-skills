@@ -31,7 +31,7 @@ def setup(cur):
     run_sql(cur, f'DROP VIEW IF EXISTS {V}')
     run_sql(cur, f'DROP TABLE IF EXISTS {T}')
     run_sql(cur, f'CREATE TABLE {T} (id INT, name STRING, dt DATE)')
-    run_sql(cur, f"INSERT INTO {T} VALUES (1, 'a', '2024-01-01')")
+    run_sql(cur, f"INSERT INTO {T} VALUES (1, 'a', DATE '2024-01-01')")
     run_sql(cur, f'CREATE VIEW {V} AS SELECT id, name FROM {T}')
     yield
     try:
