@@ -110,7 +110,10 @@ def test_insert_into_partitioned_table(cur):
     """INSERT INTO partitioned table must work."""
     run_sql(cur, f"""
         INSERT INTO {T_ODS} (order_id, user_id, amount, status, created_at, _op, _ts)
-        VALUES (1, 101, 100.0, 'completed', '2024-01-01 10:00:00', 'I', '2024-01-01 10:00:00')
+        VALUES (1, 101, 100.0, 'completed',
+                CAST('2024-01-01 10:00:00' AS TIMESTAMP),
+                'I',
+                CAST('2024-01-01 10:00:00' AS TIMESTAMP))
     """)
 
 

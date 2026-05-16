@@ -108,6 +108,8 @@ def test_alter_vcluster_resume(cur):
 
 def test_drop_vcluster(cur):
     """DROP VCLUSTER IF EXISTS must work."""
+    # Suspend first to ensure cluster is in a stable state before dropping
+    run_sql(cur, f'ALTER VCLUSTER IF EXISTS {TEST_VC} SUSPEND')
     run_sql(cur, f'DROP VCLUSTER IF EXISTS {TEST_VC}')
 
 

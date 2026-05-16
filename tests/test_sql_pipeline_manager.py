@@ -87,7 +87,7 @@ def test_show_tables_where_is_dynamic(cur):
 
 def test_show_dynamic_table_refresh_history(cur):
     """SHOW DYNAMIC TABLE REFRESH HISTORY must work."""
-    run_sql(cur, f'SHOW DYNAMIC TABLE REFRESH HISTORY {DT} LIMIT 5')
+    run_sql(cur, f'SHOW DYNAMIC TABLE REFRESH HISTORY FOR {DT} LIMIT 5')
 
 
 def test_alter_dynamic_table_suspend_resume(cur):
