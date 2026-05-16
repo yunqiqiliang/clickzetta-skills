@@ -99,6 +99,26 @@ question({ questions: [{ question: "接入方式？", options: [
 
 > 实时 CDC 单表 vs 多表：用户说"整库"或"多张表"→ `cdc-sync-pipeline`；"一张表"→ `realtime-sync-pipeline`；不确定时追问。
 
+**⚠️ 路由确定后，必须先向用户确认方案，再加载 skill 执行。禁止在用户确认前开始任何开发工作。**
+
+### 方案确认步骤（必须执行，不得跳过）
+
+根据向导收集到的信息，向用户呈现方案摘要，并用交互式工具（如 `question`）请求确认：
+
+```
+question({
+  questions: [{
+    question: "确认以下方案后开始构建：\n数据源：<数据源名称>\n同步方式：<离线/实时/SQL Pipe>\n目标：<schema>\n调度：<Cron 或持续运行>\n是否开始？",
+    options: [
+      { label: "确认，开始构建", description: "加载对应 skill，开始创建任务" },
+      { label: "需要调整", description: "重新收集信息" }
+    ]
+  }]
+})
+```
+
+用户选择"确认"后，再加载对应 skill；选择"需要调整"则重新进入向导第一步。
+
 ---
 
 ## Studio 任务类型说明
