@@ -12,14 +12,6 @@
       ]
     },
     {
-      "name": "clickzetta-ai-vector-search",
-      "description": "在 ClickZetta Lakehouse 中实现向量存储、向量索引（HNSW）和向量检索，",
-      "files": [
-        "SKILL.md",
-        "references/vector-search.md"
-      ]
-    },
-    {
       "name": "clickzetta-app-python-sdk",
       "description": "在 Python 应用程序中集成 ClickZetta Lakehouse 的官方 SDK 用法。",
       "files": [
