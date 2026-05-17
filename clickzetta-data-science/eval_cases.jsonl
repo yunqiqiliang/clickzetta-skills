@@ -1,0 +1,12 @@
+{"case_id":"001","type":"should_call","user_input":"怎么用 Jupyter Notebook 连接 Lakehouse","expected_skill":"clickzetta-data-science","expected_output_contains":["Jupyter"]}
+{"case_id":"002","type":"should_call","user_input":"数据科学项目目录结构怎么组织","expected_skill":"clickzetta-data-science","expected_output_contains":["项目结构"]}
+{"case_id":"003","type":"should_call","user_input":"怎么做 EDA 探索性数据分析","expected_skill":"clickzetta-data-science","expected_output_contains":["EDA"]}
+{"case_id":"004","type":"should_call","user_input":"TABLESAMPLE 怎么做数据采样","expected_skill":"clickzetta-data-science","expected_output_contains":["TABLESAMPLE"]}
+{"case_id":"005","type":"should_call","user_input":"怎么用 ZettaPark 做特征工程","expected_skill":"clickzetta-data-science","expected_output_contains":["特征工程"]}
+{"case_id":"006","type":"should_call","user_input":"BITMAP 用户画像怎么做人群圈选","expected_skill":"clickzetta-data-science","expected_output_contains":["BITMAP"]}
+{"case_id":"007","type":"should_call","user_input":"%%sql magic command 怎么在 notebook 里用","expected_skill":"clickzetta-data-science","expected_output_contains":["%%sql"]}
+{"case_id":"008","type":"should_not_call","user_input":"TensorFlow 怎么训练模型","forbidden_skill":"clickzetta-data-science"}
+{"case_id":"009","type":"should_not_call","user_input":"帮我写一个 ETL 管道","forbidden_skill":"clickzetta-data-science"}
+{"case_id":"010","type":"should_not_call","user_input":"怎么创建 VCluster","forbidden_skill":"clickzetta-data-science"}
+{"case_id":"011","type":"should_not_call","user_input":"怎么做数据分享","forbidden_skill":"clickzetta-data-science"}
+{"case_id":"012","type":"should_not_call","user_input":"scikit-learn 怎么安装","forbidden_skill":"clickzetta-data-science"}

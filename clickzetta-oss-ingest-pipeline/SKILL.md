@@ -13,6 +13,45 @@ description: |
 
 # 对象存储数据管道搭建工作流
 
+## 向导：收集必要信息
+
+开始搭建对象存储管道前，优先使用交互式问答工具（如 `question`）收集以下信息并弹出选项菜单；若无此类工具，则用文字一次性列出所有问题：
+
+```
+question({
+  questions: [
+    {
+      question: "云平台？",
+      options: [
+        { label: "阿里云 OSS", description: "支持 LIST_PURGE 和 EVENT_NOTIFICATION 两种模式" },
+        { label: "AWS S3", description: "支持 LIST_PURGE 和 EVENT_NOTIFICATION 两种模式" },
+        { label: "腾讯云 COS", description: "仅支持 LIST_PURGE 模式" }
+      ]
+    },
+    {
+      question: "导入模式？",
+      options: [
+        { label: "持续导入（PIPE）", description: "新文件自动触发导入，近实时" },
+        { label: "批量一次性导入", description: "手动或定时执行 COPY INTO" }
+      ]
+    },
+    {
+      question: "文件格式？",
+      options: [
+        { label: "CSV", description: "逗号分隔文本" },
+        { label: "JSON / JSONL", description: "JSON 或换行分隔 JSON" },
+        { label: "Parquet", description: "列式存储格式" },
+        { label: "ORC", description: "列式存储格式" }
+      ]
+    }
+  ]
+})
+```
+
+**如果用户已经提供了足够信息，直接进入工作流，不再弹出菜单。**
+
+---
+
 ## 适用场景
 
 - 从对象存储（阿里云 OSS / AWS S3 / 腾讯云 COS）持续自动导入数据到 Lakehouse（PIPE 模式）

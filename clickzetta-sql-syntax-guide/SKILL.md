@@ -1,0 +1,249 @@
+---
+name: clickzetta-sql-syntax-guide
+description: |
+  ClickZetta Lakehouse SQL 语法完整参考，以及从 Snowflake、Databricks、Spark SQL 迁移的
+  全面兼容性指南。覆盖 DDL/DML/DQL 完整语法、隐式类型转换规则、迁移陷阱速查。
+  帮助从 Snowflake 或 Databricks 迁移的用户快速找到正确语法，避免常见错误。
+  当用户说"Snowflake 迁移"、"Databricks 迁移"、"Spark SQL 迁移"、"语法差异"、
+  "ClickZetta 怎么写"、"TARGET_LAG"、"QUALIFY"、"VARIANT"、"METADATA$ACTION"、
+  "CREATE OR REPLACE"、"LISTAGG"、"IFF"、"DATEADD"、"FLATTEN"、"PIVOT"、
+  "SQL 语法参考"、"数据类型"、"DATEDIFF"、"CHARINDEX"、"ZEROIFNULL"、
+  "OBJECT_CONSTRUCT"、"ARRAY_SIZE"、"APPLY CHANGES INTO"、"ZORDER"、
+  "WHEN NOT MATCHED BY SOURCE"、"WITH RECURSIVE"、"BEGIN TRANSACTION"、
+  "隐式转换"、"implicit cast"、"日期写入"、"BOOLEAN 写入"、"UNION"、"INTERSECT"、
+  "EXCEPT"、"集合运算"、"STRUCT AS"、"named_struct"、"JSON"、"半结构化"、
+  "大宽表"、"VARIANT"、"JSON 字段"、"灵活 Schema"、"客户案例"时触发。
+  Keywords: SQL syntax, DDL, DML, DQL, migration, Snowflake, Databricks, Spark SQL, compatibility
+---
+
+# ClickZetta Lakehouse SQL 语法指南
+
+## 参考文档索引
+
+| 文档 | 内容 |
+|---|---|
+| [Snowflake 迁移指南](references/migration-snowflake.md) | 对象映射、类型转换、语法差异、函数对照（完整） |
+| [Databricks 迁移指南](references/migration-databricks.md) | Delta Lake 差异、APPLY CHANGES、ZORDER 替代方案 |
+| [DDL 参考](references/ddl-reference.md) | Schema/Table/View/Index/Time Travel 完整语法 |
+| [DML 参考](references/dml-reference.md) | INSERT/UPDATE/DELETE/MERGE/COPY INTO + 类型转换规则 |
+| [DQL 参考](references/dql-reference.md) | SELECT/JOIN/窗口函数/CTE/JSON/ARRAY/LATERAL VIEW |
+| [函数参考](references/functions-reference.md) | 数值/字符串/日期/条件/聚合/向量函数完整列表 |
+| [vs Snowflake](references/vs-snowflake.md) | 差异汇总（含隐式转换规则表） |
+| [vs Spark SQL](references/vs-spark.md) | 数据类型映射 + 语法差异汇总 |
+
+---
+
+## ⚠️ 最常见迁移陷阱（速查）
+
+| 场景 | Snowflake / Spark | ClickZetta 正确写法 |
+|---|---|---|
+| 替换普通表 | `CREATE OR REPLACE TABLE t` | `CREATE OR REPLACE TABLE t` ✅ ClickZetta 支持；`CREATE OR REPLACE TABLE IF NOT EXISTS t` ❌ OR REPLACE 与 IF NOT EXISTS 不能同时使用 |
+| OR REPLACE + IF NOT EXISTS | `CREATE OR REPLACE TABLE IF NOT EXISTS t` | ❌ 两者不能同时使用，会报错 |
+| 动态表刷新 | `TARGET_LAG = '1 hour'` (SF) | `PROPERTIES ('target_lag' = '1 hour', 'warehouse' = 'vc')` |
+| Stream 元数据 | `METADATA$ACTION` | `__change_type` |
+| 对象存储导入 | `COPY INTO t FROM @stage` | `COPY INTO t FROM VOLUME v USING CSV` |
+| 窗口过滤 | `QUALIFY ROW_NUMBER() = 1` | `QUALIFY ROW_NUMBER() = 1` ✅ ClickZetta 也支持！ |
+| 数组展开 | `LATERAL FLATTEN(input => arr)` (SF) | `LATERAL VIEW EXPLODE(arr)` |
+| 半结构化访问 | `data:key` (SF) | `data['key']` |
+| 列表聚合 | `LISTAGG(col, ',')` (SF) | `GROUP_CONCAT(col SEPARATOR ',')` |
+| 条件函数 | `IFF(cond, a, b)` (SF) | `IF(cond, a, b)` |
+| 日期加减 | `DATEADD(day, 7, dt)` (SF) | `DATEADD(day, 7, dt)` ✅ 也支持；或用 `DATE_ADD(dt, 7)` |
+| DATEDIFF 顺序 | `DATEDIFF(day, start, end)` (SF) | `DATEDIFF(day, start, end)` ✅ 三参数形式也支持；或 `DATEDIFF(end, start)` 两参数形式（返回天数） |
+| 查找子串位置 | `CHARINDEX(sub, s)` (SF) | `INSTR(s, sub)` ← 参数顺序相反！ |
+| 不区分大小写匹配 | `ILIKE` (SF) | `ILIKE` ✅ ClickZetta 也支持！ |
+| 差集运算 | `MINUS` (Oracle/DB2) | `MINUS` ✅ ClickZetta 也支持！ |
+| 递归 CTE | `WITH RECURSIVE` (SF/Databricks) | ❌ 不支持，需用 Python/ZettaPark 替代 |
+| **⚠️ 时间戳字符串写入** | `INSERT INTO t VALUES (1, '2026-05-01 10:00:00')` | ❌ **报错**：必须显式转换 `CAST('2026-05-01 10:00:00' AS TIMESTAMP)` 或 `TIMESTAMP '2026-05-01 10:00:00'` |
+| 集合运算 | `UNION` / `UNION ALL` / `INTERSECT` / `EXCEPT` | ✅ 全部支持 |
+| 事务 | `BEGIN; COMMIT; ROLLBACK;` | ❌ 不支持，用 MERGE 实现原子操作 |
+| MERGE 不匹配删除 | `WHEN NOT MATCHED BY SOURCE THEN DELETE` | ❌ 不支持，需两步：MERGE + DELETE |
+| Delta ZORDER | `OPTIMIZE t ZORDER BY (col)` | `OPTIMIZE t`（只做小文件合并，无 ZORDER） |
+| STRUCT 命名字段 | `STRUCT(1 AS id, 'Alice' AS name)` | `named_struct('id', 1, 'name', 'Alice')` ✅ |
+| SEQUENCE 对象 | `CREATE SEQUENCE seq` | ❌ 不支持，用 `IDENTITY(1)` 列替代 |
+| IDENTITY 列类型 | `id INT IDENTITY` | `id BIGINT IDENTITY`（IDENTITY 只支持 BIGINT，INT/SMALLINT 会报错） |
+| 当前时间函数 | `NOW()` | `NOW()` ✅ ClickZetta 也支持！也可用 `CURRENT_TIMESTAMP()` |
+| 布尔类型名称 | `BOOL` | `BOOLEAN`（ClickZetta 不支持 BOOL 简写） |
+| 字符串类型 | `VARCHAR(n)` | 推荐用 `STRING`（无长度限制，最大 16MB）；`VARCHAR(n)` 也支持但不推荐 |
+| 数值类型 | `NUMBER(p,s)` (SF) | `DECIMAL(p,s)` |
+| 半结构化类型 | `VARIANT` (SF) | `JSON` |
+| 行数限制 | `SELECT TOP 10` (SF) | `SELECT ... LIMIT 10` |
+| NULL转0 | `ZEROIFNULL(x)` (SF) | `COALESCE(x, 0)` |
+| 0转NULL | `NULLIFZERO(x)` (SF) | `NULLIF(x, 0)` |
+| 对象聚合 | `OBJECT_AGG(k, v)` (SF) | `MAP_AGG(k, v)` |
+| 数组大小 | `ARRAY_SIZE(arr)` (SF) | `SIZE(arr)` 或 `ARRAY_SIZE(arr)` ✅ 两者均支持 |
+| PIVOT | 原生 PIVOT 语法 (SF) | `CASE WHEN` 手动实现 |
+| 临时表 | `CREATE TEMPORARY TABLE` (SF) | 不支持，用 CTE 替代 |
+| 日期字符串写入 | `INSERT ... VALUES (..., '2024-01-15', ...)` | `CAST('2024-01-15' AS DATE)` 或 `DATE '2024-01-15'` 或 `TO_DATE(...)` |
+| 时间字符串写入 | `INSERT ... VALUES (..., '2024-01-15 12:00:00', ...)` | `CAST(... AS TIMESTAMP)` 或 `TIMESTAMP '...'` 或 `TO_TIMESTAMP(...)` |
+| BOOLEAN 写入 | `INSERT ... VALUES (..., 'true', ...)` 或 `..., 1, ...` | `TRUE` / `FALSE` 或 `CAST(1 AS BOOLEAN)` |
+| JSON 写入 | `INSERT ... VALUES (..., '{"k":1}', ...)` | `PARSE_JSON('{"k":1}')` 或 `CAST(... AS JSON)` |
+| 字符串写入数字列 | `INSERT ... VALUES (..., '123', ...)` | `CAST('123' AS INT)` |
+| UPDATE 同样限制 | `UPDATE t SET dt = '2024-01-01'` | `UPDATE t SET dt = CAST('2024-01-01' AS DATE)` |
+| WHERE 中可以 | 不适用 | `WHERE dt = '2024-01-01'` ✅ WHERE 中字符串可隐式比较 |
+| 索引语法关键字 | `USING BLOOM_FILTER` | `BLOOMFILTER`（无 USING）；向量/倒排建表内联时用 `USING VECTOR` / `USING INVERTED` |
+| DROP INDEX | `DROP INDEX idx ON table` | `DROP INDEX idx`（无 ON table） |
+| TRUNCATE IF EXISTS | `TRUNCATE TABLE IF EXISTS t` | ❌ 不支持 `IF EXISTS`，直接用 `TRUNCATE TABLE t`（表不存在会报错） |
+| DESC TABLE 扩展 | `DESC TABLE t EXTENDED` / `DESC TABLE t HISTORY` | ❌ 不支持 EXTENDED/HISTORY 参数，用 `DESC TABLE t` 或 `SHOW CREATE TABLE t` |
+| TABLESAMPLE | `SELECT * FROM t TABLESAMPLE (50 PERCENT)` | ❌ 不支持 PERCENT 语法，用 `ORDER BY RAND() LIMIT n` 替代 |
+| MERGE 多 MATCHED 顺序 | DELETE 可在 UPDATE 前 | UPDATE 必须在 DELETE 之前 |
+| 同义词 | `CREATE SYNONYM s FOR t` (Oracle) | `CREATE SYNONYM s FOR TABLE t` ✅ 支持 TABLE/VOLUME/FUNCTION 三种对象 |
+
+---
+
+## 数据类型速查
+
+```sql
+-- 数值
+TINYINT / SMALLINT / INT / BIGINT
+FLOAT / DOUBLE
+DECIMAL(p, s)          -- 精确数值（Snowflake 用 NUMBER）
+
+-- 字符串
+STRING                 -- 推荐，无长度限制
+VARCHAR(n)             -- 最大 65533 字符
+CHAR(n)                -- 定长，1-255
+
+-- 时间
+DATE                   -- YYYY-MM-DD
+TIMESTAMP              -- 带本地时区（≈ Snowflake TIMESTAMP_LTZ）
+TIMESTAMP_NTZ          -- 无时区（同 Snowflake TIMESTAMP_NTZ）
+
+-- 布尔 / 二进制
+BOOLEAN / BINARY
+
+-- 半结构化
+JSON                   -- 替代 Snowflake VARIANT
+ARRAY<T>               -- 需指定元素类型，如 ARRAY<INT>
+MAP<K, V>              -- 如 MAP<STRING, INT>
+STRUCT<f1:T1, f2:T2>   -- 结构体
+
+-- AI 专用
+VECTOR(FLOAT, 1024)    -- 向量类型（ClickZetta 特有）
+```
+
+---
+
+## ClickZetta 特有对象（Snowflake/Spark 无对应）
+
+```sql
+-- 计算集群
+CREATE VCLUSTER my_vc VCLUSTER_TYPE = ANALYTICS VCLUSTER_SIZE = 4;
+USE VCLUSTER my_vc;
+
+-- 动态表（增量计算）
+CREATE DYNAMIC TABLE sales_daily
+    REFRESH INTERVAL 5 MINUTE VCLUSTER default_ap
+AS SELECT DATE(created_at) AS dt, SUM(amount) AS total FROM orders GROUP BY 1;
+
+-- Table Stream（CDC）
+CREATE TABLE STREAM orders_stream ON TABLE orders
+    WITH PROPERTIES ('TABLE_STREAM_MODE' = 'STANDARD');
+-- 元数据字段：__change_type（INSERT/UPDATE_BEFORE/UPDATE_AFTER/DELETE）
+
+-- Pipe（持续导入）
+CREATE PIPE oss_pipe
+    AS COPY INTO orders FROM VOLUME my_volume USING CSV OPTIONS('header'='true');
+
+-- Volume（对象存储）
+CREATE EXTERNAL VOLUME my_vol
+    LOCATION 'oss://bucket/path'
+    USING CONNECTION my_oss_conn;
+
+-- Share（跨实例数据共享）
+CREATE SHARE my_share;
+GRANT SELECT, READ METADATA ON TABLE public.orders TO SHARE my_share;
+
+-- Synonym（同义词，为对象创建别名）
+CREATE SYNONYM my_orders FOR TABLE other_schema.orders;
+CREATE SYNONYM my_vol FOR VOLUME other_schema.data_volume;
+CREATE SYNONYM my_func FOR FUNCTION other_schema.udf_name;
+DROP SYNONYM my_orders FOR TABLE;
+SHOW SYNONYMS;
+
+-- Time Travel
+SELECT * FROM orders TIMESTAMP AS OF '2024-01-01 00:00:00';
+RESTORE TABLE orders TO TIMESTAMP AS OF '2024-01-01 00:00:00';
+UNDROP TABLE orders;
+
+-- 向量检索
+CREATE TABLE docs (id INT, vec VECTOR(FLOAT, 1024),
+    INDEX vec_idx (vec) USING VECTOR PROPERTIES ("distance.function"="cosine_distance"));
+SELECT id, cosine_distance(vec, CAST('[0.1,0.2,...]' AS VECTOR(1024))) AS dist
+FROM docs ORDER BY dist LIMIT 10;
+```
+
+---
+
+## ❌ 明确不支持的功能
+
+以下功能在 Snowflake/Databricks/Spark 中存在，但 ClickZetta **不支持**。使用时会报错，需要用替代方案。
+
+### 字符串函数
+
+| 不支持的函数 | 替代方案 |
+|---|---|
+| `INITCAP(s)` | `CONCAT(UPPER(SUBSTR(s, 1, 1)), LOWER(SUBSTR(s, 2)))` |
+| `SOUNDEX(s)` | 无替代方案 |
+| `CHARINDEX(sub, s)` | `INSTR(s, sub)`（注意参数顺序相反） |
+
+### JSON 函数
+
+| 不支持的函数 | 替代方案 |
+|---|---|
+| `JSON_ARRAY_LENGTH(json)` | `SIZE(CAST(json_str AS ARRAY<STRING>))` |
+| `JSON_OBJECT_KEYS(json)` | 无直接替代，需手动解析 |
+
+### 集合/数组/MAP 函数
+
+| 不支持的函数 | 替代方案 |
+|---|---|
+| `MAP_FROM_ZIP(keys, values)` | `MAP_FROM_ARRAYS(keys, values)` |
+| `TO_ARRAY(expr)` | `ARRAY(expr)` 或 `CAST(expr AS ARRAY<T>)` |
+| `ARRAY_SIZE(arr)` (Snowflake) | `SIZE(arr)` 或 `ARRAY_SIZE(arr)` ✅ 两者均支持 |
+
+### 正则函数
+
+| 不支持的函数 | 替代方案 |
+|---|---|
+| `REGEXP_SUBSTR(s, pattern)` | `REGEXP_EXTRACT(s, '(pattern)')` |
+
+### 表函数/生成器
+
+| 不支持的函数 | 替代方案 |
+|---|---|
+| `GENERATE(start, end)` | 无直接替代，用 CTE + UNION ALL 或应用层生成 |
+| `RANGE(n)` | 无直接替代 |
+| `TABLESAMPLE (n PERCENT)` | `ORDER BY RAND() LIMIT n` |
+
+### 地理空间/网络
+
+| 不支持的函数 | 替代方案 |
+|---|---|
+| `ST_GeomFromWKT(wkt)` | 不支持地理空间函数 |
+| `TO_IPV4(ip_string)` | 不支持 IP 地址函数 |
+
+### 近似计算
+
+| 不支持的函数 | 替代方案 |
+|---|---|
+| `HLL_APPROX(col)` | `APPROX_COUNT_DISTINCT(col)` |
+
+### 位运算
+
+| 不支持的函数 | 替代方案 |
+|---|---|
+| `BITAND(a, b)` | `a & b`（位运算符） |
+| `BITOR(a, b)` | `a \| b` |
+| `BITXOR(a, b)` | `a ^ b` |
+
+### DDL/DML 限制
+
+| 不支持的语法 | 替代方案 |
+|---|---|
+| `TRUNCATE TABLE IF EXISTS t` | 先检查表是否存在，再 `TRUNCATE TABLE t` |
+| `DESC TABLE t EXTENDED` | `DESC TABLE t` 或 `SHOW CREATE TABLE t` |
+| `DESC TABLE t HISTORY` | `SHOW TABLES HISTORY WHERE table_name = 't'` |
+| `CREATE TEMPORARY TABLE` | 用 CTE 替代，或创建普通表后手动删除 |
+| `CREATE OR REPLACE TABLE` | `CREATE OR REPLACE TABLE t (...)` ✅ 直接支持 |
+| `BEGIN; COMMIT; ROLLBACK;` | 不支持事务，用 MERGE 实现原子操作 |
+| `WITH RECURSIVE` | 不支持递归 CTE，用 Python/ZettaPark 替代 |

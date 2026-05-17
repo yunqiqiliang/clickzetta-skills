@@ -16,6 +16,37 @@ description: |
 
 # Kafka 数据接入管道工作流
 
+## 向导：收集必要信息
+
+开始搭建 Kafka 管道前，优先使用交互式问答工具（如 `question`）收集以下信息并弹出选项菜单；若无此类工具，则用文字一次性列出所有问题：
+
+```
+question({
+  questions: [
+    {
+      question: "Kafka 消息格式？",
+      options: [
+        { label: "JSON（简单结构）", description: "顶层字段直接映射" },
+        { label: "JSON（嵌套结构）", description: "需要 JSONPath 解析嵌套字段" },
+        { label: "CSV", description: "逗号分隔文本" },
+        { label: "Avro / 其他", description: "需要额外配置" }
+      ]
+    },
+    {
+      question: "接入路径？",
+      options: [
+        { label: "READ_KAFKA Pipe（推荐）", description: "通用场景，支持复杂 SQL 转换" },
+        { label: "Kafka 外部表 + Table Stream", description: "需要保留原始消息或多个下游消费同一 Topic" }
+      ]
+    }
+  ]
+})
+```
+
+**如果用户已经提供了足够信息，直接进入工作流，不再弹出菜单。**
+
+---
+
 ## 适用场景
 
 - 将 Kafka Topic 数据持续导入 ClickZetta Lakehouse 表

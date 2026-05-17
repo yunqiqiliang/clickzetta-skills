@@ -1,0 +1,5 @@
+{"case_id":"001","type":"should_call","user_input":"怎么在 ClickZetta 里直接查询 Hive 的数据？","expected_skill":"clickzetta-external-catalog","expected_output_contains":["External Catalog","CREATE CATALOG CONNECTION"]}
+{"case_id":"002","type":"should_call","user_input":"怎么创建 External Catalog 连接 Iceberg REST Catalog？","expected_skill":"clickzetta-external-catalog","expected_output_contains":["CREATE EXTERNAL CATALOG","iceberg"]}
+{"case_id":"003","type":"should_call","user_input":"联邦查询外部表的三层命名空间怎么写？","expected_skill":"clickzetta-external-catalog","expected_output_contains":["catalog.schema.table"]}
+{"case_id":"004","type":"should_call","user_input":"怎么不迁移数据直接查询 Databricks 的表？","expected_skill":"clickzetta-external-catalog","expected_output_contains":["Databricks","External Catalog"]}
+{"case_id":"005","type":"should_call","user_input":"创建 External Catalog 需要什么权限？","expected_skill":"clickzetta-external-catalog","expected_output_contains":["instance_admin"]}

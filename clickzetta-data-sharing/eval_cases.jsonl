@@ -1,0 +1,3 @@
+{"case_id":"001","type":"should_call","user_input":"怎么把表数据分享给另一个实例？不复制数据的那种","expected_skill":"clickzetta-data-sharing","expected_output_contains":["CREATE SHARE","GRANT"]}
+{"case_id":"002","type":"should_call","user_input":"作为消费方，怎么接收别人分享的数据？","expected_skill":"clickzetta-data-sharing","expected_output_contains":["SHOW SHARES","CREATE SCHEMA FROM SHARE"]}
+{"case_id":"003","type":"should_call","user_input":"数据分享的提供方完整流程是什么？","expected_skill":"clickzetta-data-sharing","expected_output_contains":["SHARE","GRANT","INSTANCE"]}

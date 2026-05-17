@@ -1,0 +1,1 @@
+{"case_id":"001","type":"should_call","user_input":"分析过去 7 天的表血缘关系，生成可视化页面","expected_skill":"clickzetta-table-lineage"}

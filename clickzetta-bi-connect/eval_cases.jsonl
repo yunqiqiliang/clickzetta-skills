@@ -1,0 +1,5 @@
+{"case_id":"001","type":"should_call","user_input":"怎么把 Superset 连接到 ClickZetta？","expected_skill":"clickzetta-bi-connect","expected_output_contains":["SQLAlchemy","clickzetta://"]}
+{"case_id":"002","type":"should_call","user_input":"Tableau 怎么连接 ClickZetta Lakehouse？","expected_skill":"clickzetta-bi-connect","expected_output_contains":["JDBC",".taco"]}
+{"case_id":"003","type":"should_call","user_input":"DBeaver 连接 ClickZetta 的 JDBC URL 怎么写？","expected_skill":"clickzetta-bi-connect","expected_output_contains":["jdbc:clickzetta://","ClickZettaDriver"]}
+{"case_id":"004","type":"should_call","user_input":"Metabase 怎么连接 ClickZetta？需要装什么驱动？","expected_skill":"clickzetta-bi-connect","expected_output_contains":["Metabase",".jar"]}
+{"case_id":"005","type":"should_call","user_input":"帆软 FineBI 怎么连接 ClickZetta？","expected_skill":"clickzetta-bi-connect","expected_output_contains":["JDBC","MySQL 协议"]}

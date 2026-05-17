@@ -12,375 +12,216 @@ description: |
 
 # 离线同步（批量同步）Pipeline 工作流
 
-## 适用场景
+## 向导：收集必要信息
 
-- 将外部数据库（MySQL / PostgreSQL / SQL Server 等）的数据定期同步到 Lakehouse
-- 单表离线同步：简单的源表 → 目标表周期性同步
-- 多表离线同步：整库迁移、多表批量同步、分库分表合并
-- 数据时效性要求不高，按天/小时等周期批量更新
-- 需要通过 Studio 调度系统进行周期性自动执行
-- 关键词：离线同步、批量同步、整库迁移、多表同步、定期同步、batch sync
+开始创建同步任务前，优先使用交互式问答工具（如 `question`）收集以下信息并弹出选项菜单；若无此类工具，则用文字一次性列出所有问题：
+
+```
+question({
+  questions: [
+    {
+      question: "数据源类型和名称是什么？",
+      options: [
+        { label: "MySQL", description: "如 aliyun_mysql、rds_mysql" },
+        { label: "PostgreSQL", description: "如 pg_prod、aurora_pg" },
+        { label: "SQL Server", description: "如 sqlserver_prod" },
+        { label: "OSS/S3/COS 对象存储", description: "如 oss_bucket、s3_data" }
+      ]
+    },
+    {
+      question: "同步范围是什么？",
+      options: [
+        { label: "单表同步", description: "指定一张源表同步到目标表" },
+        { label: "多表镜像", description: "整库或指定多张表批量同步" },
+        { label: "分库分表合并", description: "多张源表合并到一张目标表" }
+      ]
+    },
+    {
+      question: "写入模式？",
+      options: [
+        { label: "全量覆盖（OVERWRITE）", description: "每次全量覆盖目标表，推荐" },
+        { label: "增量追加（APPEND）", description: "追加新数据，不删除历史" }
+      ]
+    }
+  ]
+})
+```
+
+收集到信息后，还需确认：目标 schema（如 `ods`）、调度时间（如每天 02:00）。这两项可以在用户回答后直接询问，或从上下文推断。
+
+**如果用户已经提供了足够信息，直接进入工作流，不再弹出菜单。**
+
+---
 
 ## 前置依赖
 
 - ClickZetta Lakehouse Studio 账户，具备创建同步任务、目标表的权限
 - 源端数据源已在 Studio 中配置（具备 SELECT 权限）
 - 目标端 Lakehouse 数据源可用（具备 CREATE、INSERT 权限）
-- **执行环境（满足其一即可，优先使用 cz-cli）**：
-  - **cz-cli 路径**：已安装 cz-cli（`pip install cz-cli`），并完成 `cz-cli configure` 配置；cz-cli 内置 Studio MCP 工具，可完全替代 MCP 路径
-  - **MCP 路径**：clickzetta-studio-mcp 工具可用（`create_task`、`save_integration_task`、`save_task_configuration`、`publish_task`、`list_data_sources` 等）
-
-## 环境探测（执行前必读）
-
-在开始任何操作前，先判断当前执行环境：
-
-**第一步：检测 cz-cli 是否可用**
-```bash
-cz-cli --version
-```
-- 若命令存在 → **走 cz-cli 路径**（见本文档末尾"cz-cli 替代路径"章节）
-- 若命令不存在 → 继续检测 MCP
-
-**第二步：检测 MCP 是否可用（仅在 cz-cli 不可用时）**
-
-尝试调用 `list_data_sources` 工具。
-- 若工具存在于 tool list → **走 MCP 路径**（本文档默认路径）
-- 若工具不存在 → 停止执行，提示用户：
-  > "当前环境既无 cz-cli 也无 MCP 工具，请安装其中之一后重试。
-  > cz-cli 安装：`pip install cz-cli`，然后运行 `cz-cli configure`
-  > MCP 安装：参考 clickzetta-studio-mcp 配置文档"
-
-## 模式选择指引
-
-| 维度 | 单表离线同步 | 多表离线同步 |
-|------|------------|------------|
-| 任务类型 ID | `10`（离线同步） | `291`（多表离线同步） |
-| 同步粒度 | 单张源表 → 单张目标表 | 整库 / 多表 → 多张目标表 |
-| 适用场景 | 简单同步、精细控制单表 | 整库迁移、批量同步、分库分表合并 |
-| 字段映射 | 手动拖拽调整 | 自动识别 + 批量配置 |
-| Schema Evolution | 不支持 | 支持（新增字段自动适配） |
-| 自动建表 | 需手动创建目标表或快速创建 | 目标表不存在时自动创建 |
-| 写入模式 | 由数据源决定 | overwrite / upsert 可选 |
-
-## 多表离线同步支持的数据源
-
-**来源端**：MySQL、PostgreSQL、SQL Server、Aurora MySQL、Aurora PostgreSQL、PolarDB MySQL、PolarDB PostgreSQL
-
-**目标端**：Lakehouse
-
-## 工作流
-
-### 模式 A：单表离线同步
-
-#### 步骤 1：查找可用数据源
-
-```
-使用 list_data_sources 查看已配置的数据源列表。
-如需按类型过滤，指定 ds_type 参数（5=MySQL, 7=PostgreSQL, 8=SQL Server）。
-记录源端 datasource_name 和目标端 datasource_name。
-```
-
-#### 步骤 2：创建离线同步任务
-
-```
-使用 create_task 创建任务：
-- task_type: 10（离线同步）
-- task_name: 自定义任务名称
-- data_folder_id: 目标文件夹 ID（可通过 list_folders 获取）
-```
-
-#### 步骤 3：配置同步内容
-
-```
-使用 save_integration_task 配置同步：
-- task_id: 步骤 2 返回的任务 ID
-- source_datasource_name: 源端数据源名称
-- source_schema: 源端数据库/Schema
-- source_table: 源端表名
-- source_ds_type: 源端类型（5=MySQL, 7=PostgreSQL, 8=SQL Server 等）
-- sink_datasource_name: 目标 Lakehouse 数据源名称
-- sink_schema: 目标 Schema（默认 public）
-- sink_table: 目标表名（可选，默认与源表同名）
-- sink_ds_type: 1（Lakehouse）
-```
-
-> **说明**：系统会自动获取源表和目标表的元数据，生成字段映射。如目标表不存在，会自动创建。
-
-#### 步骤 4：配置调度并部署
-
-```
-使用 save_task_configuration 配置调度：
-- task_id: 任务 ID
-- cron_express: Cron 表达式（如 '0 0 2 * * ? *' 表示每天凌晨 2 点）
-- schedule_start_time: 调度开始时间（如 '02:00'）
-
-注意：离线同步任务（task_type=10）需要 Sync VCluster。
-工具会自动检查并分配可用的 Sync VCluster。如无可用 Sync VCluster，需先创建。
-```
-
-#### 步骤 5：提交任务
-
-```
-使用 publish_task 提交任务到调度系统：
-- task_id: 任务 ID
-- task_version: 当前版本号（通过 get_task_detail 获取）
-```
-
-#### 步骤 6：验证与监控
-
-```
-使用 get_task_detail 查看任务详情和状态。
-使用 list_task_run 查看任务执行记录。
-如执行失败，使用 list_executions + get_execution_log 查看日志排查问题。
-```
+- 已安装 cz-cli 并完成 profile 配置（`cz-cli profile status` 验证连接）
 
 ---
 
-### 模式 B：多表离线同步
+## 适用场景
 
-#### 三种同步方式
+- 将外部数据库（MySQL / PostgreSQL / SQL Server 等）的数据定期同步到 Lakehouse
+- 单表离线同步：简单的源表 → 目标表周期性同步
+- 多表离线同步：整库迁移、多表批量同步、分库分表合并
+- 数据时效性要求不高，按天/小时等周期批量更新
 
-| 方式 | 说明 | 适用场景 |
-|------|------|---------|
-| 整库镜像 | 同步源端整个数据库的所有表 | 整库迁移 |
-| 多表镜像 | 选择多张表分别同步，保持表结构独立 | 按需选择部分表 |
-| 多表合并 | 多个源表合并到一张或多张目标表 | 分库分表合并 |
+---
 
-#### 步骤 1：创建多表离线同步任务
+## 模式选择
 
+| 维度 | 单表离线同步 | 多表离线同步 |
+|------|------------|------------|
+| 任务类型 ID | `1`（DI/INTEGRATION） | `291`（MULTI_DI） |
+| 同步粒度 | 单张源表 → 单张目标表 | 整库 / 多表 → 多张目标表 |
+| 适用场景 | 简单同步、精细控制单表 | 整库迁移、批量同步、分库分表合并 |
+| Schema Evolution | 不支持 | 支持（新增字段自动适配） |
+| 自动建表 | 需手动创建或快速创建 | 目标表不存在时自动创建 |
+| 写入模式 | 由数据源决定 | overwrite / upsert 可选 |
+
+> **重要**：这两种任务类型均为 UI_ONLY 类型，脚本内容必须在 Studio Web UI 中配置。
+> cz-cli 负责任务创建、调度配置、发布和运维；数据源选择、字段映射等内容配置在 Studio UI 完成。
+
+---
+
+## 工作流
+
+> **重要**：离线同步任务的**内容配置**（来源表选择、字段映射、同步规则等）必须在 Studio Web UI 中完成。
+> cz-cli 负责任务创建、调度配置、发布和运维；数据源选择、字段映射等内容配置在 Studio UI 完成。
+
+### 步骤 1：用 cz-cli 创建任务
+
+```bash
+# 单表离线同步（task_type=1，即 DI/INTEGRATION）
+cz-cli task create "sync_orders_daily" --type DI --folder <folder_name>
+
+# 多表离线同步（task_type=291，即 MULTI_DI）
+cz-cli task create "sync_ecommerce_db" --type MULTI_DI --folder <folder_name>
 ```
-使用 create_task 创建任务：
-- task_type: 291（多表离线同步）
-- task_name: 自定义任务名称
-- data_folder_id: 目标文件夹 ID
-```
 
-#### 步骤 2：在 Studio UI 中配置同步
+命令返回 `task_id` 和 `studio_url`，在 `studio_url` 中完成数据源配置。
 
-> **重要**：多表离线同步的详细配置（来源数据选择、目标设置、映射关系、同步规则等）
-> 目前需要在 Studio Web UI 中完成。create_task 返回的 studio_url 可直接打开配置页面。
+### 步骤 2：在 Studio UI 中配置同步内容
 
-配置要点：
+打开步骤 1 返回的 `studio_url`，在 Studio 中完成：
 
 **来源数据配置**
-- 选择源端数据源类型和数据源连接
-- 根据同步方式选择：整库 / 勾选多表 / 配置合并规则
+- 选择源端数据源类型和连接（支持的数据源类型以 Studio UI 中显示为准，可通过 `cz-cli datasource list` 查看已配置的数据源）
+- 单表：指定 schema 和表名
+- 多表：选择整库 / 勾选多表 / 配置合并规则
 
 **目标设置**
 - 选择目标 Lakehouse 数据源和 workspace
-- 配置命名空间规则：镜像来源 / 指定选择 / 自定义（支持 `{SOURCE_DATABASE}` 变量）
-- 配置目标表命名规则：镜像来源 / 自定义（支持 `{SOURCE_DATABASE}`、`{SOURCE_SCHEMA}`、`{SOURCE_TABLE}` 变量）
-- 可选：配置分区（分区字段 + 分区值表达式）
+- 配置目标 schema 和表名
+- 多表模式可配置命名规则（支持 `{SOURCE_DATABASE}`、`{SOURCE_TABLE}` 变量）
 
-**同步规则**
-- Schema Evolution：源端删除字段 → 写入 Null；源端新增字段 → 自动适配；源端删除表 → 忽略
-- 分组策略：智能分组（自动）或 静态分组（指定单组表数量，默认 4）
-- 并发控制：单分组源端最大连接数（默认 4）、并发执行分组数（默认 2）
+**同步规则（多表模式）**
+- Schema Evolution：源端新增字段自动适配；删除字段写入 Null
 - 写入模式：非主键表 → overwrite；主键表 → overwrite 或 upsert
 
-#### 步骤 3：调试运行
+### 步骤 3：在 Studio UI 中调试运行
 
-在 Studio UI 中点击「运行」按钮进行调试，验证数据源连接和配置是否正确。
-在「运行历史」中查看运行详情。
+点击「运行」按钮进行调试，验证数据源连接和配置是否正确。
 
-#### 步骤 4：配置调度
+### 步骤 4：用 cz-cli 配置调度和发布
 
-```
-使用 save_task_configuration 配置调度：
-- task_id: 任务 ID
-- cron_express: Cron 表达式
-- schedule_start_time: 调度开始时间
+```bash
+# 配置调度（具体参数见 --help）
+cz-cli task save-cron <task_name> --help
 
-同样需要 Sync VCluster（task_type=291 属于离线同步类型）。
+# 发布任务
+cz-cli task deploy <task_name> -y
 ```
 
-#### 步骤 5：提交任务
+> 离线同步任务（task_type=1 和 291）必须使用 Sync VCluster，不能使用通用型或分析型 VCluster。
 
-```
-使用 publish_task 提交任务：
-- task_id: 任务 ID
-- task_version: 当前版本号
-```
+### 步骤 5：验证与监控
 
-#### 步骤 6：任务运维
-
-```
-多表离线同步任务在「任务运维」→「周期任务」中管理。
-
-查看任务详情：get_task_detail
-查看执行记录：list_task_run
-查看执行日志：list_executions + get_execution_log
-
-Studio UI 中可查看：
-- 任务详情 Tab：上下游 DAG、配置信息
-- 任务实例 Tab：实例列表、每张表的读取/写入行数和同步速率
-- 同步对象 Tab：所有源表和目标表的映射关系
-- 操作日志 Tab：运维操作审计
+```bash
+cz-cli runs list --task <task_name>      # 查看运行记录
+cz-cli runs detail <run_id>              # 查看运行详情
+cz-cli attempts log <run_id>             # 查看执行日志
+cz-cli runs refill <task_name> --help    # 补数据（--help 查看参数）
 ```
 
 ---
 
 ## 任务运维操作
 
-### 常用操作
+| 操作 | cz-cli 命令 | 说明 |
+|------|------------|------|
+| 下线 | `cz-cli task undeploy <task> -y` | 停止任务并从调度系统移除（不可逆） |
+| 补数据 | `cz-cli runs refill <task> --from D --to D -y` | 对历史周期进行数据补录 |
+| 查看依赖 | `cz-cli runs deps <task>` | 查看已发布的上下游依赖 |
+| 查看运行 | `cz-cli runs list --task <task>` | 查看运行实例列表 |
 
-| 操作 | 说明 |
-|------|------|
-| 暂停/恢复 | 暂停或恢复周期调度 |
-| 下线 | 停止任务并从调度系统移除，回退到未提交状态 |
-| 下线（含下游） | 将当前任务及下游任务一并下线（有下游依赖时不允许单独下线） |
-| 补数据 | 对历史周期进行数据补录 |
-| 编辑 | 跳转到开发界面修改配置 |
-
-### 实例操作（多表离线同步）
-
-| 操作 | 说明 |
-|------|------|
-| 重跑（全部对象） | 重新同步所有表 |
-| 重跑（仅失败对象） | 只重跑同步失败的表 |
-| 置成功/置失败 | 手动设置实例最终状态 |
-| 取消运行 | 强制终止正在运行的实例 |
-| 单表重新同步 | 在同步对象 Tab 中对单张表重新同步 |
-| 单表强制停止 | 终止单张表的同步 |
+多表离线同步任务在 Studio「任务运维」→「周期任务」中管理，可查看：
+- 任务实例 Tab：每张表的读取/写入行数和同步速率
+- 同步对象 Tab：所有源表和目标表的映射关系
 
 ---
 
-## 示例
+## 交付验收 Checklist
 
-### 示例 1：MySQL 单表每日同步
+同步任务发布运行后，**必须逐项验证**：
 
-用户说："把 MySQL 的 orders 表每天凌晨 2 点同步到 Lakehouse"
+```sql
+-- 1. 行数比对：目标表行数与源端一致
+SELECT COUNT(*) FROM <ods_schema>.<table>;
+-- 与源端 MySQL/PG 执行 SELECT COUNT(*) FROM <table> 对比
 
-操作：
-1. `list_data_sources` 找到 MySQL 数据源名称（如 `mysql_prod`）和 Lakehouse 数据源名称
-2. `create_task(task_type=10, task_name="sync_orders_daily")`
-3. `save_integration_task(source_datasource_name="mysql_prod", source_table="orders", sink_schema="public", sink_table="orders")`
-4. `save_task_configuration(cron_express="0 0 2 * * ? *", schedule_start_time="02:00")`
-5. `publish_task(task_id=..., task_version=...)`
+-- 2. 关键字段非空率
+SELECT
+  COUNT(*) AS total,
+  COUNT(key_field) AS non_null,
+  ROUND(COUNT(key_field) * 100.0 / COUNT(*), 2) AS non_null_pct
+FROM <ods_schema>.<table>;
+```
 
-### 示例 2：MySQL 整库迁移到 Lakehouse
+**验收标准：**
+- [ ] 目标表行数与源端一致
+- [ ] 关键字段非空率符合预期
+- [ ] 同步任务最近运行状态为 SUCCESS
+- [ ] 字段类型映射正确（重点检查 BIT/ENUM/TEXT 等异构类型）
+- [ ] 调度 Cron 配置正确，下次执行时间符合预期
 
-用户说："把 MySQL 的 ecommerce 数据库整库同步到 Lakehouse"
-
-操作：
-1. `create_task(task_type=291, task_name="sync_ecommerce_db")` → 获取 studio_url
-2. 在 Studio UI 中：选择整库镜像 → 选择 ecommerce 数据库 → 配置目标 workspace → 写入模式选 upsert（主键表）
-3. 点击「运行」调试验证
-4. `save_task_configuration(cron_express="0 0 1 * * ? *")` 配置每日凌晨 1 点调度
-5. `publish_task(...)` 提交
+---
 
 ## 故障排除
 
 | 问题 | 排查方向 |
 |------|---------|
-| 任务创建失败 | 检查是否有可用的 Sync VCluster（`LH_show_object_list` 查看 VCLUSTERS） |
+| 任务创建失败 | 确认账号有创建任务权限；检查文件夹 ID 是否存在 |
 | 源端连接失败 | 检查数据源配置中的连接信息、网络可达性、账号权限 |
 | 字段映射失败 | 检查源表和目标表的字段类型兼容性 |
 | 同步速度慢 | 调整并发数（最大 10）和同步速率；检查源端数据库负载 |
-| Schema Evolution 失败 | 不支持修改主键字段；字段类型仅支持同类型扩展（int8→int16→int32→int64）；不支持跨类型转换 |
+| Schema Evolution 失败 | 不支持修改主键字段；字段类型仅支持同类型扩展（int8→int16→int32→int64） |
 | 多表同步部分表失败 | 在实例详情的「同步对象」Tab 查看各表状态；可对失败表单独重跑 |
 | upsert 模式数据不一致 | 确认目标表有正确的主键定义；检查源端数据是否有主键冲突 |
+| VCluster 类型错误 | 离线同步必须使用 Sync VCluster，通过 `SHOW VCLUSTERS` 确认类型 |
+
+---
 
 ## 注意事项
 
-### 权限要求
-
-- 源端：数据源配置的账号需具备 SELECT 权限（读取元数据和表数据）
+**权限要求**
+- 源端：数据源配置的账号需具备 SELECT 权限
 - 目标端：任务负责人需具备 CREATE 和 INSERT 权限
 
-### 性能考虑
-
+**性能考虑**
 - 合理配置并发度，避免对源端数据库造成过大压力
 - 首次执行需初始化所有同步对象，可能耗时较长
-- 单个多表同步任务的表数量控制在合理范围，过多表影响执行效率
 - 选择源端数据库压力较小的时间窗口执行调度
 
-### 数据一致性
-
-- overwrite 模式：每次执行完全刷新目标表数据
-- upsert 模式：基于主键进行增量更新
-- 两次同步间隔期间的数据变化会在下次同步时体现
-
-### Schema Evolution 限制（多表离线同步）
-
+**Schema Evolution 限制（多表离线同步）**
 - 不支持修改主键字段（Lakehouse 主键表限制）
 - 字段类型修改仅支持同类型扩展（int8 → int16 → int32 → int64）
 - 不支持跨类型转换（如 int → double）
-- 建议在源端 Schema 相对稳定时启用
 
-### Sync VCluster 要求
+**支持的数据源**
+- 来源端：关系型数据库（MySQL、PostgreSQL、SQL Server 等）及其云变体（Aurora、PolarDB 等），具体支持列表以 Studio UI 中显示为准，可通过 `cz-cli datasource list` 查看已配置的数据源
+- 目标端：Lakehouse
 
-- 离线同步任务（task_type=10 和 291）必须使用 Sync VCluster
-- 创建/调度任务前需确认有可用的 Sync VCluster
-- 可通过 `LH_show_object_list`（object_type='VCLUSTERS'）查看，筛选 vcluster_type 包含 SYNC 的集群
-
----
-
-## cz-cli 替代路径
-
-> 仅在 cz-cli 可用且 MCP 不可用时使用本节。步骤编号与上方 MCP 路径对应。
-> cz-cli 内置完整的 Studio MCP 工具，通过 `cz-cli agent run` 可完成所有 Studio 任务操作。
-
-### 模式 A：单表离线同步（cz-cli 版）
-
-```bash
-# 步骤 1-5 合并：让 agent 完成完整的单表离线同步任务创建
-cz-cli agent run "创建离线同步任务，将 MySQL 数据源 <source_ds_name> 中 <schema>.<table> 表同步到 Lakehouse public schema，任务名 sync_<table>，每天凌晨 2 点执行，任务放在默认文件夹下，创建完成后发布" \
-  --format a2a --dangerously-skip-permissions
-```
-
-对于需要精细控制的场景，可拆分步骤：
-
-```bash
-# 步骤 1：查找数据源
-cz-cli agent run "列出所有已配置的数据源，包括 MySQL 类型（ds_type=5）的" \
-  --format a2a --dangerously-skip-permissions
-
-# 步骤 2：创建任务
-cz-cli agent run "创建离线同步任务（task_type=10），任务名 sync_<table>，放在默认文件夹下" \
-  --format a2a --dangerously-skip-permissions
-
-# 步骤 3：配置同步内容
-cz-cli agent run "配置刚创建的离线同步任务：源端数据源 <source_ds_name>，schema <db>，表 <table>，目标 Lakehouse public.<table>" \
-  --format a2a --dangerously-skip-permissions
-
-# 步骤 4：配置调度并发布
-cz-cli agent run "给任务 sync_<table> 配置每天凌晨 2 点执行的调度（cron: 0 0 2 * * ? *），然后发布任务" \
-  --format a2a --dangerously-skip-permissions
-```
-
----
-
-### 模式 B：多表离线同步（cz-cli 版）
-
-> 多表离线同步（task_type=291）的详细配置需要在 Studio UI 中完成。cz-cli agent 可完成任务创建和调度配置，详细映射配置需通过 studio_url 在 UI 中操作。
-
-```bash
-# 步骤 1：创建多表离线同步任务
-cz-cli agent run "创建多表离线同步任务（task_type=291），任务名 sync_<database>_db，放在默认文件夹下，返回 studio_url" \
-  --format a2a --dangerously-skip-permissions
-
-# 步骤 4（UI 配置完成后）：配置调度
-cz-cli agent run "给任务 sync_<database>_db 配置每天凌晨 1 点执行的调度（cron: 0 0 1 * * ? *）" \
-  --format a2a --dangerously-skip-permissions
-
-# 步骤 5：发布任务
-cz-cli agent run "发布任务 sync_<database>_db" \
-  --format a2a --dangerously-skip-permissions
-```
-
-> **注意**：多表离线同步的来源数据选择、目标设置、字段映射等详细配置需要在 Studio UI 中完成（通过 studio_url 打开）。
-
----
-
-### 任务运维（cz-cli 版）
-
-```bash
-# 查看任务状态
-cz-cli agent run "查看离线同步任务 sync_<table> 的详情和最近执行记录" \
-  --format a2a --dangerously-skip-permissions
-
-# 查看执行日志（失败时）
-cz-cli agent run "查看任务 sync_<table> 最近一次失败的执行日志，找出失败原因" \
-  --format a2a --dangerously-skip-permissions
-```

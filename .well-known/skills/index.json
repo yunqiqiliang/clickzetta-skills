@@ -12,8 +12,33 @@
       ]
     },
     {
+      "name": "clickzetta-app-python-sdk",
+      "description": "在 Python 应用程序中集成 ClickZetta Lakehouse 的官方 SDK 用法。",
+      "files": [
+        "SKILL.md",
+        "references/bulkload.md",
+        "references/connector.md",
+        "references/realtime.md"
+      ]
+    },
+    {
       "name": "clickzetta-batch-sync-pipeline",
       "description": "创建和管理 ClickZetta Lakehouse 离线同步（批量同步）任务，支持单表离线同步和多表离线同步两种模式。",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "clickzetta-bi-connect",
+      "description": "将 BI 工具和数据库客户端连接到 ClickZetta Lakehouse。覆盖 Apache Superset、",
+      "files": [
+        "SKILL.md",
+        "references/bi-tools.md"
+      ]
+    },
+    {
+      "name": "clickzetta-cdc-sync-pipeline",
+      "description": "创建和管理 ClickZetta Lakehouse 多表实时同步任务（CDC），将 MySQL / PostgreSQL 数据库整库或多表实时同步到 Lakehouse。",
       "files": [
         "SKILL.md"
       ]
@@ -31,6 +56,27 @@
       "files": [
         "SKILL.md",
         "references/lifecycle-reference.md"
+      ]
+    },
+    {
+      "name": "clickzetta-data-science",
+      "description": "数据科学家使用 ClickZetta Lakehouse 的端到端工作流指南。按工作阶段组织：",
+      "files": [
+        "SKILL.md",
+        "references/bitmap-profile.md",
+        "references/data-patterns.md",
+        "references/setup.md",
+        "references/stats-functions.md",
+        "references/write-and-infer.md",
+        "references/zettapark-api.md"
+      ]
+    },
+    {
+      "name": "clickzetta-data-sharing",
+      "description": "管理 ClickZetta Lakehouse 跨账户/跨实例数据分享（Share）。无需复制数据，",
+      "files": [
+        "SKILL.md",
+        "references/share-ddl.md"
       ]
     },
     {
@@ -53,6 +99,14 @@
       "description": "ClickZetta Dynamic Table（动态表）使用指南，覆盖动态表的创建、修改、增量计算配置和性能优化。",
       "files": [
         "SKILL.md"
+      ]
+    },
+    {
+      "name": "clickzetta-external-catalog",
+      "description": "配置和使用 ClickZetta Lakehouse External Catalog，实现对 Hive、Iceberg、Databricks、",
+      "files": [
+        "SKILL.md",
+        "references/external-catalog-ddl.md"
       ]
     },
     {
@@ -79,6 +133,15 @@
         "references/index-management.md",
         "references/inverted-index.md",
         "references/vector-index.md"
+      ]
+    },
+    {
+      "name": "clickzetta-java-sdk",
+      "description": "使用 ClickZetta Java SDK 将数据批量或实时写入 Lakehouse 表。",
+      "files": [
+        "SKILL.md",
+        "references/bulkload.md",
+        "references/realtime.md"
       ]
     },
     {
@@ -110,7 +173,7 @@
     },
     {
       "name": "clickzetta-metadata",
-      "description": "查询 ClickZetta Lakehouse 元数据，覆盖两种查询方式：",
+      "description": "查询 ClickZetta Lakehouse 元数据，覆盖两种方式：",
       "files": [
         "SKILL.md",
         "references/instance-views-reference.md",
@@ -146,6 +209,13 @@
       ]
     },
     {
+      "name": "clickzetta-pipeline-review",
+      "description": "对 ClickZetta Lakehouse 数据管道进行全面 Review 与诊断。从任意入口（任务名/schema/表名/",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
       "name": "clickzetta-query-optimizer",
       "description": "诊断和优化 ClickZetta Lakehouse SQL 查询性能。覆盖执行计划分析、慢查询排查、",
       "files": [
@@ -158,6 +228,30 @@
       ]
     },
     {
+      "name": "clickzetta-realtime-sync-pipeline",
+      "description": "创建和管理 ClickZetta Lakehouse 实时同步任务（单表），将外部数据源的数据实时同步到 Lakehouse。",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "clickzetta-semantic-view",
+      "description": "创建和查询 ClickZetta Lakehouse 语义视图（Semantic View）。语义视图是架构级逻辑",
+      "files": [
+        "SKILL.md",
+        "references/semantic-view-reference.md"
+      ]
+    },
+    {
+      "name": "clickzetta-spark-flink-connector",
+      "description": "使用 Spark Connector 或 Flink Write Connector 将数据写入 ClickZetta Lakehouse。",
+      "files": [
+        "SKILL.md",
+        "references/flink.md",
+        "references/spark.md"
+      ]
+    },
+    {
       "name": "clickzetta-sql-pipeline-manager",
       "description": "",
       "files": [
@@ -166,6 +260,35 @@
         "references/materialized-view.md",
         "references/pipe.md",
         "references/table-stream.md"
+      ]
+    },
+    {
+      "name": "clickzetta-sql-syntax-guide",
+      "description": "ClickZetta Lakehouse SQL 语法完整参考，以及从 Snowflake、Databricks、Spark SQL 迁移的",
+      "files": [
+        "SKILL.md",
+        "references/ddl-reference.md",
+        "references/dml-reference.md",
+        "references/dql-reference.md",
+        "references/functions-reference.md",
+        "references/migration-databricks.md",
+        "references/migration-snowflake.md",
+        "references/vs-snowflake.md",
+        "references/vs-spark.md"
+      ]
+    },
+    {
+      "name": "clickzetta-studio-task-manager",
+      "description": "管理 ClickZetta Lakehouse Studio 任务，覆盖任务类型说明（离线同步/多表离线同步/实时同步/",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "clickzetta-table-lineage",
+      "description": "表血缘可视化工具。从 ClickZetta information_schema.job_history 获取表依赖关系和成本数据，",
+      "files": [
+        "SKILL.md"
       ]
     },
     {
@@ -193,10 +316,11 @@
       ]
     },
     {
-      "name": "cz-table-lineage",
-      "description": "表血缘可视化工具。从 ClickZetta information_schema.job_history 获取表依赖关系和成本数据，",
+      "name": "clickzetta-zettapark",
+      "description": "使用 ZettaPark Python 库操作 ClickZetta Lakehouse 数据。ZettaPark 提供类 pandas 的",
       "files": [
-        "SKILL.md"
+        "SKILL.md",
+        "references/zettapark-api.md"
       ]
     }
   ]

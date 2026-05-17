@@ -36,6 +36,20 @@ description: >
 
 ---
 
+## 向导：明确操作意图
+
+收到请求后，先判断用户意图，选择对应工作流：
+
+> 你想做什么？
+>
+> **A. 设计并创建新的数据管道**（从数据源到各层 DT 的完整 SQL）→ 进入 Pipeline Wizard
+> **B. 管理已有管道对象**（修改 DT 刷新间隔、暂停/恢复、查看刷新历史）→ 直接执行对应操作
+> **C. 排查管道问题**（DT 刷新失败、Pipe 停止摄入、Stream 积压）→ 进入故障排查流程
+
+**如果用户已经明确说了要做什么（如"帮我创建一个 Kafka 到 DWD 的管道"、"暂停这个动态表"），直接执行，不再询问。**
+
+---
+
 ## Pipeline Wizard（管道设计向导）
 
 当用户想设计或构建一个完整的数据管道时，这是最高优先级的模式。触发词包括：
@@ -70,14 +84,33 @@ CREATE SCHEMA IF NOT EXISTS ecommerce_gold;
 
 **如果用户已经提供了足够信息（数据来源、字段、层次需求、项目前缀），直接生成完整 SQL，不要再问。**
 
-如果信息不完整，一次性问清楚以下 5 点（合并成一个问题，不要逐一追问）：
+如果信息不完整，优先使用交互式问答工具（如 `question`）收集以下信息并弹出选项菜单；若无此类工具，则用文字一次性列出所有问题：
 
-> 为了生成完整的 pipeline SQL，需要确认几个信息：
-> 1. **项目/业务前缀**：Schema 名称的前缀是什么（如 `ecommerce`、`risk`、`ads`）？多个项目共用 Workspace 时必须加前缀避免冲突。
-> 2. **数据来源**：Kafka（broker/topic）/ 对象存储（Volume 路径/格式）/ 已有表（是否有 UPDATE/DELETE）？
-> 3. **字段结构**：目标表的字段名和类型？
-> 4. **层次需求**：需要几层？每层做什么处理（清洗/聚合/维度建模）？
-> 5. **刷新频率**：实时（秒级）/ 近实时（分钟级）/ 低频（小时/天）？
+```
+question({
+  questions: [
+    {
+      question: "数据来源？",
+      options: [
+        { label: "Kafka", description: "提供 broker 地址和 topic 名称" },
+        { label: "对象存储（OSS/S3/COS）", description: "提供 Volume 路径和文件格式" },
+        { label: "已有 Lakehouse 表（仅 INSERT）", description: "Dynamic Table 直接读源表" },
+        { label: "已有 Lakehouse 表（含 UPDATE/DELETE）", description: "需要 Table Stream + Dynamic Table" }
+      ]
+    },
+    {
+      question: "刷新频率？",
+      options: [
+        { label: "实时（秒级）", description: "REFRESH INTERVAL 10~60 SECOND" },
+        { label: "近实时（分钟级）", description: "REFRESH INTERVAL 1~10 MINUTE" },
+        { label: "低频（小时/天）", description: "REFRESH INTERVAL 1 HOUR 或 1 DAY" }
+      ]
+    }
+  ]
+})
+```
+
+还需确认：项目/业务前缀（Schema 命名用）、层次需求（几层、每层做什么）、目标表字段结构。这些可在用户回答后追问，或从上下文推断。
 
 ### 生成完整 SQL
 
@@ -89,9 +122,36 @@ CREATE SCHEMA IF NOT EXISTS ecommerce_gold;
 3. 数据入口（Pipe 或 Table Stream，根据来源选择）
 4. 中间层动态表（清洗/过滤，REFRESH interval N MINUTE VCLUSTER name）
 5. 服务层动态表（聚合/维度，REFRESH interval N MINUTE VCLUSTER name）
-6. 验证命令（SHOW + REFRESH HISTORY）
-7. 运维操作（SUSPEND/RESUME）
+6. 各动态表创建后立即执行 REFRESH DYNAMIC TABLE（重置刷新基准）
+7. 验证命令（SHOW + REFRESH HISTORY）
+8. 运维操作（SUSPEND/RESUME）
 ```
+
+**SQL 生成后，将各段代码保存为 Studio 任务（代码资产化）：**
+
+数据管道开发场景下，所有 SQL 都应保存为 Studio 任务，作为可管理的代码资产：
+
+```bash
+# 建表 DDL → 保存为 DRAFT 任务（不配 Cron）
+cz-cli task save-content <ddl_task_name> --content "<ddl_sql>"
+
+# ETL/转换 SQL → 保存为调度任务（配 Cron + 依赖）
+cz-cli task save-content <etl_task_name> --content "<etl_sql>"
+cz-cli task save-cron <etl_task_name> --cron '0 30 2 * * ? *'
+cz-cli task deploy <etl_task_name>
+```
+
+> Dynamic Table DDL 也应保存为 DRAFT 任务（`03_ddl_dws_ads`），方便后续查阅和多环境迁移。
+
+**⚠️ DDL 任务 vs 数据流转任务的调度规则（硬性约束，不得违反）：**
+
+| 任务类型 | 判断标准 | 调度配置 | Studio 状态 |
+|---|---|---|---|
+| DDL 任务 | 包含 `CREATE / DROP / ALTER TABLE/SCHEMA` | **禁止配置 Cron，禁止配置依赖** | DRAFT |
+| 数据流转任务 | 数据同步、ETL 转换、数据质量检查 | 配置 Cron + 上下游依赖 | PUBLISHED |
+| Dynamic Table | DWS/ADS 聚合层 | **不建 Studio 任务**，系统自动刷新 | — |
+
+> AI 生成 SQL 管道时，如果涉及 Studio 任务编排，必须遵守以上规则。不得为 DDL 语句生成 Cron 调度配置。
 
 **来源 → 入口对象的选择规则：**
 - Kafka → `CREATE PIPE ... AS COPY INTO ... FROM (SELECT ... FROM read_kafka('broker', 'topic', '', 'group', '', '', '', '', 'raw', 'raw', 0, MAP(...)))`
@@ -365,6 +425,52 @@ CREATE TABLE dwd.orders_manual (
 | `DROP TABLE` 删除物化视图报错 | 对象类型不匹配 | 用 `DROP MATERIALIZED VIEW`（不是 `DROP TABLE`） |
 | 动态表 DML 报错 `not allowed` | 动态表不支持 DML | 在源表修正数据，或使用普通表 + 调度任务 |
 | `SET cz.sql.dt.allow.dml` 报错 | 不支持 session statement | 动态表不支持 DML 操作，改用其他方案 |
+
+---
+
+## 交付验收 Checklist
+
+管道创建完成后，**必须逐项验证**，不得跳过：
+
+```sql
+-- 1. 行数比对：各层行数与预期一致
+SELECT COUNT(*) FROM ods.<table>;   -- ODS 行数 ≈ 源端
+SELECT COUNT(*) FROM dwd.<table>;   -- DWD 行数 ≤ ODS（清洗后）
+SELECT COUNT(*) FROM dws.<table>;   -- DWS 行数符合聚合逻辑
+
+-- 2. Dynamic Table 刷新状态
+SHOW DYNAMIC TABLE REFRESH HISTORY <schema>.<table> LIMIT 5;
+-- 确认最近一次 status = SUCCESS，refresh_mode = INCREMENTAL 或 FULL
+
+-- 3. 关键字段非空率
+SELECT
+  COUNT(*) AS total,
+  COUNT(key_field) AS non_null,
+  ROUND(COUNT(key_field) * 100.0 / COUNT(*), 2) AS non_null_pct
+FROM <schema>.<table>;
+-- 核心业务字段非空率应 > 99%
+
+-- 4. 主键唯一性（DWD 层事实表）
+SELECT key_col, COUNT(*) AS cnt
+FROM dwd.<table>
+GROUP BY key_col
+HAVING cnt > 1
+LIMIT 10;
+-- 结果为空 = 无重复，符合预期
+
+-- 5. Pipe 摄入状态（如有）
+SHOW PIPES;
+-- status = RUNNING，last_ingested_timestamp 持续更新
+```
+
+**验收标准：**
+- [ ] 各层行数与预期一致
+- [ ] Dynamic Table 最近刷新状态为 SUCCESS
+- [ ] 关键字段非空率 > 99%
+- [ ] DWD 层主键无重复
+- [ ] Pipe 状态 RUNNING（如有）
+- [ ] 所有 DDL 任务为 DRAFT 状态（如涉及 Studio 任务）
+- [ ] DWS/ADS 层无冗余 Studio 调度任务
 
 ---
 
