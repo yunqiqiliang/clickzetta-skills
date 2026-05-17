@@ -12,14 +12,6 @@
       ]
     },
     {
-      "name": "clickzetta-ai-vector-search",
-      "description": "在 ClickZetta Lakehouse 中实现向量存储、向量索引（HNSW）和向量检索，",
-      "files": [
-        "SKILL.md",
-        "references/vector-search.md"
-      ]
-    },
-    {
       "name": "clickzetta-batch-sync-pipeline",
       "description": "创建和管理 ClickZetta Lakehouse 离线同步（批量同步）任务，支持单表离线同步和多表离线同步两种模式。",
       "files": [
@@ -27,8 +19,8 @@
       ]
     },
     {
-      "name": "clickzetta-cdc-sync-pipeline",
-      "description": "创建和管理 ClickZetta Lakehouse 多表实时同步任务（CDC），将 MySQL / PostgreSQL 数据库整库或多表实时同步到 Lakehouse。",
+      "name": "clickzetta-data-ingest-pipeline",
+      "description": "ClickZetta Lakehouse 数据导入总览与路由。根据用户的数据源类型、实时性要求、数据量等条件，",
       "files": [
         "SKILL.md"
       ]
@@ -163,13 +155,6 @@
         "references/optimize.md",
         "references/result-cache.md",
         "references/show-jobs.md"
-      ]
-    },
-    {
-      "name": "clickzetta-realtime-sync-pipeline",
-      "description": "创建和管理 ClickZetta Lakehouse 实时同步任务（单表），将外部数据源的数据实时同步到 Lakehouse。",
-      "files": [
-        "SKILL.md"
       ]
     },
     {
