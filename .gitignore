@@ -15,3 +15,6 @@ __pycache__/
 
 # Local reports (not for repo)
 docs/reports/test-improvement-plan.md
+
+# Local archive (removed from repo, kept locally only)
+_archive_*/
