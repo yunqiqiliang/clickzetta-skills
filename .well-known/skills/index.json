@@ -20,6 +20,16 @@
       ]
     },
     {
+      "name": "clickzetta-app-python-sdk",
+      "description": "在 Python 应用程序中集成 ClickZetta Lakehouse 的官方 SDK 用法。",
+      "files": [
+        "SKILL.md",
+        "references/bulkload.md",
+        "references/connector.md",
+        "references/realtime.md"
+      ]
+    },
+    {
       "name": "clickzetta-batch-sync-pipeline",
       "description": "创建和管理 ClickZetta Lakehouse 离线同步（批量同步）任务，支持单表离线同步和多表离线同步两种模式。",
       "files": [
@@ -42,14 +52,6 @@
       ]
     },
     {
-      "name": "clickzetta-concepts",
-      "description": "介绍 ClickZetta Lakehouse 的核心概念、对象模型和独特设计，帮助用户建立正确认知。",
-      "files": [
-        "SKILL.md",
-        "references/object-model.md"
-      ]
-    },
-    {
       "name": "clickzetta-data-ingest-pipeline",
       "description": "ClickZetta Lakehouse 数据导入总览与路由。根据用户的数据源类型、实时性要求、数据量等条件，",
       "files": [
@@ -57,18 +59,24 @@
       ]
     },
     {
-      "name": "clickzetta-data-lifecycle",
-      "description": "管理 ClickZetta Lakehouse 表的数据生命周期（TTL）和 Time Travel 数据保留周期。",
+      "name": "clickzetta-data-retention",
+      "description": "管理 ClickZetta Lakehouse 数据生命周期（TTL 自动回收）和数据恢复（Time Travel / UNDROP / RESTORE）。",
       "files": [
         "SKILL.md",
         "references/lifecycle-reference.md"
       ]
     },
     {
-      "name": "clickzetta-data-recovery",
-      "description": "ClickZetta Lakehouse 数据恢复与历史查询助手。覆盖 Time Travel 查询、UNDROP 恢复误删表、",
+      "name": "clickzetta-data-science",
+      "description": "数据科学家使用 ClickZetta Lakehouse 的端到端工作流指南。按工作阶段组织：",
       "files": [
-        "SKILL.md"
+        "SKILL.md",
+        "references/bitmap-profile.md",
+        "references/data-patterns.md",
+        "references/setup.md",
+        "references/stats-functions.md",
+        "references/write-and-infer.md",
+        "references/zettapark-api.md"
       ]
     },
     {
@@ -81,7 +89,7 @@
     },
     {
       "name": "clickzetta-dba-guide",
-      "description": "ClickZetta Lakehouse DBA 日常运维操作手册。集中覆盖 DBA 最常用的 8 类操作：",
+      "description": "ClickZetta Lakehouse DBA 日常运维操作手册。集中覆盖 DBA 最常用的 6 类操作：",
       "files": [
         "SKILL.md"
       ]
@@ -96,24 +104,14 @@
     },
     {
       "name": "clickzetta-dynamic-table",
-      "description": "ClickZetta Dynamic Table（动态表）使用指南，覆盖创建、修改、增量计算配置和性能优化。包含静态分区 DT vs 动态分区 DT 声明策略、SQL 支持矩阵、增量配置参考、刷新历史查询、ALTER 操作指南，以及维度表 JOIN、性能优化、非分区表风险等最佳实践。",
+      "description": "ClickZetta Dynamic Table（动态表）使用指南，覆盖动态表的创建、修改、增量计算配置和性能优化。",
       "files": [
-        "SKILL.md",
-        "dt-creator/SKILL.md",
-        "dt-creator/references/dt-declaration-strategy.md",
-        "dt-creator/references/sql-limitations.md",
-        "dt-creator/references/incremental-config-reference.md",
-        "dt-creator/references/refresh-history-guide.md",
-        "dynamic-table-alter/SKILL.md",
-        "best-practices/dimension-table-join-guide.md",
-        "best-practices/performance-optimization.md",
-        "best-practices/non-partitioned-merge-into-warning.md",
-        "best-practices/medallion-and-stream-patterns.md"
+        "SKILL.md"
       ]
     },
     {
       "name": "clickzetta-external-catalog",
-      "description": "配置和使用 ClickZetta Lakehouse External Catalog，实现对 Hive、Iceberg、Databricks 等",
+      "description": "配置和使用 ClickZetta Lakehouse External Catalog，实现对 Hive、Iceberg、Databricks、",
       "files": [
         "SKILL.md",
         "references/external-catalog-ddl.md"
@@ -146,13 +144,12 @@
       ]
     },
     {
-      "name": "clickzetta-information-schema",
-      "description": "查询 ClickZetta Lakehouse INFORMATION_SCHEMA 元数据视图，获取表结构、字段信息、",
+      "name": "clickzetta-java-sdk",
+      "description": "使用 ClickZetta Java SDK 将数据批量或实时写入 Lakehouse 表。",
       "files": [
         "SKILL.md",
-        "references/instance-views-reference.md",
-        "references/metering-views-reference.md",
-        "references/views-reference.md"
+        "references/bulkload.md",
+        "references/realtime.md"
       ]
     },
     {
@@ -165,7 +162,7 @@
     },
     {
       "name": "clickzetta-lakehouse-connect",
-      "description": "Guide for connecting to ClickZetta Lakehouse. Covers Python SDK (clickzetta.connect), ZettaPark Session (DataFrame API), SQLAlchemy (ORM/BI tools), and JDBC (Java). Use this skill whenever the user mentions ClickZetta, 云器, Lakehouse connections, clickzetta-connector-python, ZettaPark, clickzetta-sqlalchemy, or needs to connect to a ClickZetta instance. Also trigger for Chinese queries like \"如何连接\", \"连接数据库\", \"数据库连接配置\", \"连接报错\", \"ZettaPark 怎么用\", \"JDBC 连接\". Also trigger when user asks to execute SQL queries, show schemas, list tables, or perform any database operations against ClickZetta.",
+      "description": "Guide for connecting to ClickZetta Lakehouse via SDK/JDBC. Covers Python SDK (clickzetta.connect), ZettaPark Session (DataFrame API), SQLAlchemy (ORM/BI tools), and JDBC (Java). Use this skill when user needs to configure a connection from external tools or code. Trigger for: \"Python SDK 连接\", \"JDBC 连接\", \"SQLAlchemy 配置\", \"ZettaPark 怎么用\", \"连接报错\", \"clickzetta-connector-python\", \"clickzetta-sqlalchemy\".",
       "files": [
         "SKILL.md",
         "references/config-file.md",
@@ -177,17 +174,20 @@
     },
     {
       "name": "clickzetta-manage-comments",
-      "description": ">",
+      "description": "",
       "files": [
         "SKILL.md"
       ]
     },
     {
-      "name": "clickzetta-metadata-query",
-      "description": "通过 SHOW / DESC 命令族和 load_history() 函数查询 ClickZetta Lakehouse 对象元数据。",
+      "name": "clickzetta-metadata",
+      "description": "查询 ClickZetta Lakehouse 元数据，覆盖两种查询方式：",
       "files": [
         "SKILL.md",
-        "references/show-desc-reference.md"
+        "references/instance-views-reference.md",
+        "references/metering-views-reference.md",
+        "references/show-desc-reference.md",
+        "references/views-reference.md"
       ]
     },
     {
@@ -207,8 +207,18 @@
       ]
     },
     {
+      "name": "clickzetta-overview",
+      "description": "ClickZetta Lakehouse 产品全貌：核心概念、对象模型、架构设计、Studio 功能介绍。",
+      "files": [
+        "SKILL.md",
+        "references/brands-and-endpoints.md",
+        "references/object-model.md",
+        "references/studio-modules.md"
+      ]
+    },
+    {
       "name": "clickzetta-pipeline-review",
-      "description": "对 ClickZetta Lakehouse 数据管道进行全面 Review 与诊断。从任意入口出发，自主发现管道涉及的全部对象（Studio 任务、Lakehouse 表、管道对象、运行记录），识别调度依赖缺失、DDL 幂等、分层跳层、DT 反模式等问题，给出优先级排序的修复建议并执行。",
+      "description": "对 ClickZetta Lakehouse 数据管道进行全面 Review 与诊断。从任意入口（任务名/schema/表名/",
       "files": [
         "SKILL.md"
       ]
@@ -241,8 +251,17 @@
       ]
     },
     {
+      "name": "clickzetta-spark-flink-connector",
+      "description": "使用 Spark Connector 或 Flink Write Connector 将数据写入 ClickZetta Lakehouse。",
+      "files": [
+        "SKILL.md",
+        "references/flink.md",
+        "references/spark.md"
+      ]
+    },
+    {
       "name": "clickzetta-sql-pipeline-manager",
-      "description": ">",
+      "description": "",
       "files": [
         "SKILL.md",
         "references/dynamic-table.md",
@@ -267,29 +286,17 @@
       ]
     },
     {
-      "name": "clickzetta-studio-overview",
-      "description": "ClickZetta Lakehouse Studio 功能全貌概览。Studio 是内置于 Lakehouse 的一站式",
-      "files": [
-        "SKILL.md",
-        "references/studio-modules.md"
-      ]
-    },
-    {
       "name": "clickzetta-studio-task-manager",
-      "description": "管理 ClickZetta Lakehouse Studio 任务，覆盖任务目录组织、任务类型区分（建管分离）、cz-cli task 命令族、调度配置、依赖管理和常见问题排查。",
+      "description": "管理 ClickZetta Lakehouse Studio 任务，覆盖任务类型说明（离线同步/多表离线同步/实时同步/",
       "files": [
         "SKILL.md"
       ]
     },
     {
       "name": "clickzetta-table-lineage",
-      "description": "表血缘可视化工具。从 ClickZetta information_schema.job_history 获取表依赖关系和成本数据，导出 CSV 后嵌入 HTML 模板生成交互式血缘图。",
+      "description": "表血缘可视化工具。从 ClickZetta information_schema.job_history 获取表依赖关系和成本数据，",
       "files": [
-        "SKILL.md",
-        "references/normalize_func.sql",
-        "references/table_cost.sql",
-        "references/table_relation.sql",
-        "references/table_lineage_standalone.html"
+        "SKILL.md"
       ]
     },
     {
