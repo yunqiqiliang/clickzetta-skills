@@ -98,129 +98,254 @@ def _has_model_eval_data(data: dict[str, Any]) -> bool:
     )
 
 
+def _render_executive_summary(data: dict[str, Any]) -> list[str]:
+    static_errors = [x for x in data["static"] if x["severity"] == "error"]
+    static_warnings = [x for x in data["static"] if x["severity"] == "warning"]
+    trigger = data["trigger_summary"]
+    ab = data["ab_summary"]
+    agent = data["agent_summary"]
+
+    # 整体健康判断
+    has_agent = bool(data.get("agent"))
+    trigger_recall = agent.get("trigger_recall") if has_agent else trigger.get("trigger_recall")
+    uplift = agent.get("average_uplift") if has_agent else ab.get("average_uplift")
+
+    if static_errors:
+        health = "❌ 存在阻塞性静态错误，需优先修复后再信任 eval 结果。"
+    elif trigger_recall is not None and trigger_recall < 0.7:
+        health = "⚠️ 触发准确率偏低，建议检查 skill description 和 eval case。"
+    elif trigger_recall is not None and trigger_recall >= 0.9 and (uplift is None or uplift >= 0):
+        health = "✅ 整体健康，无阻塞问题，触发准确率良好。"
+    else:
+        health = "⚠️ 部分指标需关注，详见下方各节。"
+
+    lines = ["## 总结", "", health, ""]
+
+    # 静态校验
+    no_neg = sum(1 for x in static_warnings if x.get("code") == "no-negative-cases")
+    idx_mismatch = sum(1 for x in static_warnings if x.get("code") == "index-description-mismatch")
+    missing_eval = sum(1 for x in static_warnings if x.get("code") == "missing-eval-cases")
+    lines.append(f"**静态校验**：{len(static_errors)} 个 error，{len(static_warnings)} 个 warning。")
+    if not static_errors:
+        lines.append("无阻塞问题。")
+    else:
+        lines.append(f"存在 {len(static_errors)} 个阻塞性错误，需优先修复。")
+    if static_warnings:
+        detail_parts = []
+        if no_neg:
+            detail_parts.append(f"`no-negative-cases` {no_neg} 个（缺少负例）")
+        if idx_mismatch:
+            detail_parts.append(f"`index-description-mismatch` {idx_mismatch} 个（index 元数据未同步）")
+        if missing_eval:
+            detail_parts.append(f"`missing-eval-cases` {missing_eval} 个（缺少 eval_cases.jsonl）")
+        other = len(static_warnings) - no_neg - idx_mismatch - missing_eval
+        if other > 0:
+            detail_parts.append(f"其他 {other} 个")
+        if detail_parts:
+            lines.append("Warning 分布：" + "，".join(detail_parts) + "。")
+    lines.append("")
+
+    # 触发准确率
+    if has_agent and agent.get("trigger_case_count", 0) > 0:
+        recall = agent.get("trigger_recall")
+        neg = agent.get("negative_pass_rate")
+        failed = agent.get("failed_trigger_cases") or []
+        lines.append(
+            f"**触发准确率**（Agent eval）：{_pct(recall)}（{agent.get('trigger_case_count', 0)} 个 trigger case，"
+            f"{len(failed)} 个失败）。负例通过率：{_pct(neg)}。"
+        )
+        if failed:
+            for row in failed[:3]:
+                reason = row.get("failure_reason") or row.get("evidence") or ""
+                lines.append(f"  - `{row.get('skill')}#{row.get('case_id')}`：{reason[:120]}")
+    elif trigger.get("case_count", 0) > 0:
+        lines.append(
+            f"**触发准确率**（脚本 eval）：{_pct(trigger.get('trigger_recall'))}，"
+            f"负例通过率：{_pct(trigger.get('negative_pass_rate'))}。"
+        )
+    else:
+        lines.append("**触发准确率**：脚本驱动 trigger eval 未运行，Agent eval 也无 trigger 数据。")
+    lines.append("")
+
+    # A/B 增益
+    if has_agent and agent.get("ab_case_count", 0) > 0:
+        clf = agent.get("classification_counts") or {}
+        high = clf.get("high_value", 0)
+        neutral = clf.get("neutral", 0)
+        regression = clf.get("regression", 0)
+        both_fail = clf.get("both_fail", 0)
+        lines.append(
+            f"**A/B 增益**（Agent eval）：with-skill 通过率 {_pct(agent.get('with_skill_pass_rate'))}，"
+            f"baseline {_pct(agent.get('baseline_pass_rate'))}，平均 uplift **{_pct(agent.get('average_uplift'))}**。"
+        )
+        lines.append(
+            f"分类：high_value {high}，neutral {neutral}，regression {regression}，both_fail {both_fail}。"
+        )
+        if regression > 0:
+            lines.append(f"  ⚠️ {regression} 个 regression case（使用 skill 后反而变差），建议检查对应 skill 内容。")
+    elif ab.get("case_count", 0) > 0:
+        lines.append(
+            f"**A/B 增益**（脚本 eval）：with-skill {_pct(ab.get('with_skill_pass_rate'))}，"
+            f"baseline {_pct(ab.get('baseline_pass_rate'))}，uplift {_pct(ab.get('average_uplift'))}。"
+        )
+    else:
+        lines.append("**A/B 增益**：A/B eval 未运行，无对比数据。")
+    lines.append("")
+
+    # Overlap
+    desc_overlap = data["overlap"]["description_overlap"]
+    if desc_overlap:
+        top = desc_overlap[0]
+        lines.append(
+            f"**Overlap 分析**：发现 {len(desc_overlap)} 对 description 重叠，"
+            f"最高为 `{top['left']}` ↔ `{top['right']}`（score={top['score']}）。"
+            "高重叠不一定是问题，但建议检查边界或补充负例。"
+        )
+    else:
+        lines.append("**Overlap 分析**：未发现显著 description 重叠。")
+    lines.append("")
+
+    return lines
+
+
 def render_markdown(data: dict[str, Any]) -> str:
     static_errors = [x for x in data["static"] if x["severity"] == "error"]
     static_warnings = [x for x in data["static"] if x["severity"] == "warning"]
     trigger = data["trigger_summary"]
     ab = data["ab_summary"]
     agent = data["agent_summary"]
+    has_agent = bool(data.get("agent"))
     model_eval_note = (
-        "Model eval raw files are present."
+        "本次报告包含 Agent 编排 eval 原始结果（`raw/agent_eval_results.jsonl`）。"
         if _has_model_eval_data(data)
-        else "Model evals did not run for this report. The report still includes static validation and overlap analysis."
+        else "本次报告未包含模型 eval 原始结果，仅展示静态校验和 overlap 分析。如需运行 Agent eval，请参考 `tests/agent_eval/RUNBOOK.md`。"
     )
     lines = [
-        "# ClickZetta Skills Eval Summary",
+        "# ClickZetta Skills Eval 报告",
         "",
-        "## How to Read This Report",
+    ]
+    # 全局总结放在最前面
+    lines.extend(_render_executive_summary(data))
+    lines.extend([
+        "## 报告结构说明",
         "",
-        "This report has five logical layers:",
+        "本报告包含五个评测层：",
         "",
-        "- **Static validation** checks whether skills are well-formed release artifacts: `SKILL.md`, frontmatter, `.well-known/skills/index.json`, and `eval_cases.jsonl`.",
-        "- **Trigger eval** checks whether the agent selects the right skill for `should_call` cases and avoids the forbidden skill for `should_not_call` cases.",
-        "- **A/B uplift eval** compares `with_skill` against `baseline` to estimate whether a skill actually improves answer quality.",
-        "- **Agent-orchestrated eval** lets Claude/Codex run eval cases with parallel workers and writes `raw/agent_eval_results.jsonl`.",
-        "- **Overlap analysis** scans descriptions and eval prompts for likely skill-boundary confusion or duplicated scope.",
+        "- **静态校验**：检查 `SKILL.md`、frontmatter、`.well-known/skills/index.json`、`eval_cases.jsonl` 是否符合发布规范。",
+        "- **触发 eval**（脚本驱动）：通过脚本向 agent 喂 prompt，检测 skill 触发准确率。",
+        "- **A/B uplift eval**（脚本驱动）：对比 with_skill 和 baseline 的回答质量。",
+        "- **Agent 编排 eval**：由 Claude/Codex 子 agent 并发执行 trigger、with_skill、baseline 三类任务，结果写入 `raw/agent_eval_results.jsonl`。**本次 eval 使用此层。**",
+        "- **Overlap 分析**：扫描 description 和 eval prompt 的相似度，发现 skill 边界重叠。",
         "",
         model_eval_note,
         "",
-        "## Overview",
+        "## 数据概览",
         "",
-        f"- Static validation: {len(static_errors)} error(s), {len(static_warnings)} warning(s)",
-        f"  - Meaning: {_interpret_static(len(static_errors), len(static_warnings))}",
-        f"- Trigger cases: {trigger.get('case_count', 0)}",
-        f"- Trigger recall: {_pct(trigger.get('trigger_recall'))}",
-        f"  - Meaning: percentage of `should_call` cases where the expected skill was triggered. {_interpret_rate(trigger.get('trigger_recall'))}",
-        f"- Negative pass rate: {_pct(trigger.get('negative_pass_rate'))}",
-        f"  - Meaning: percentage of `should_not_call` cases where the forbidden skill was avoided. {_interpret_rate(trigger.get('negative_pass_rate'))}",
-        f"- A/B cases: {ab.get('case_count', 0)}",
-        f"- With-skill pass rate: {_pct(ab.get('with_skill_pass_rate')) if ab.get('case_count') else 'n/a'}",
-        f"- Baseline pass rate: {_pct(ab.get('baseline_pass_rate')) if ab.get('case_count') else 'n/a'}",
-        f"- Average uplift: {_pct(ab.get('average_uplift')) if ab.get('case_count') else 'n/a'}",
-        "  - Meaning: with-skill pass rate minus baseline pass rate. Positive means the skill helped on average.",
-        f"- Agent rows: {agent.get('row_count', 0)}",
-        f"- Agent trigger recall: {_pct(agent.get('trigger_recall'))}",
-        f"  - Meaning: trigger pass rate from `raw/agent_eval_results.jsonl`. {_interpret_rate(agent.get('trigger_recall'))}",
-        f"- Agent A/B cases: {agent.get('ab_case_count', 0)}",
-        f"- Agent average uplift: {_pct(agent.get('average_uplift')) if agent.get('ab_case_count') else 'n/a'}",
-        "  - Meaning: agent-orchestrated with-skill pass rate minus baseline pass rate.",
+        f"- 静态校验：{len(static_errors)} 个 error，{len(static_warnings)} 个 warning",
+        f"- 脚本 trigger cases：{trigger.get('case_count', 0)}",
+        f"- 脚本 trigger recall：{_pct(trigger.get('trigger_recall'))}",
+        f"- 脚本 A/B cases：{ab.get('case_count', 0)}",
+        f"- 脚本 A/B uplift：{_pct(ab.get('average_uplift')) if ab.get('case_count') else 'n/a'}",
+        f"- Agent eval 行数：{agent.get('row_count', 0)}",
+        f"- Agent trigger recall：{_pct(agent.get('trigger_recall'))}",
+        f"- Agent A/B cases：{agent.get('ab_case_count', 0)}",
+        f"- Agent 平均 uplift：{_pct(agent.get('average_uplift')) if agent.get('ab_case_count') else 'n/a'}",
         "",
-        "## Field Glossary",
+        "## 字段说明",
         "",
-        "- `severity`: `error` blocks static validation; `warning` indicates quality debt or incomplete coverage.",
-        "- `code`: machine-readable issue category, useful for grouping and automation.",
-        "- `skill`: skill folder affected by the row.",
-        "- `score`: overlap similarity score between 0 and 1. Higher means two descriptions or prompts share more terms and may need boundary review.",
-        "- `shared_terms`: terms that appear in both compared texts and contributed to the overlap score.",
-        "- `triggered_skills`: skills detected in the agent/tool trace for a trigger eval case.",
-        "- `selected_skills`: skills selected by an agent-orchestrated worker.",
-        "- `worker_id`: identifier for the Claude/Codex subagent or worker that produced the row.",
-        "- `uplift`: with-skill result minus baseline result for an A/B case.",
+        "- `severity`：`error` 阻塞静态校验；`warning` 表示质量债或覆盖不足。",
+        "- `code`：问题类别，便于分组和自动化处理。",
+        "- `skill`：受影响的 skill 目录名。",
+        "- `score`：overlap 相似度，0 到 1，越高表示两个文本共享词越多。",
+        "- `shared_terms`：两个描述或 eval prompt 共同出现的词。",
+        "- `triggered_skills`：从 agent/tool trace 中检测到的实际触发 skill。",
+        "- `selected_skills`：Agent 编排 eval 中子 agent 选择的 skill。",
+        "- `worker_id`：产生该行结果的子 agent 标识。",
+        "- `uplift`：with-skill 结果减去 baseline 结果（A/B 对比）。",
         "",
-        "## Static Issues",
+        "## 静态校验问题",
         "",
-        "Static issues explain whether the repository can be treated as a coherent skill release. Errors should be fixed first. Warnings usually indicate missing eval coverage, stale index metadata, or possible quality debt.",
+        "静态校验检查仓库是否可作为完整的 skill 发布制品。error 需优先修复；warning 通常表示缺少负例、index 元数据未同步或 description 偏长。",
         "",
-    ]
+    ])
     if not data["static"]:
-        lines.append("No static issues found.")
+        lines.append("未发现静态问题。")
     else:
         for issue in data["static"][:200]:
             lines.append(f"- **{issue['severity']}** `{issue['code']}` `{issue.get('skill') or '-'}`: {issue['message']} ({issue['path']})")
-    lines.extend(["", "## Trigger Failures", ""])
-    lines.append("Trigger failures are cases where the expected skill was not selected, or a forbidden skill was selected. If this section is empty and trigger cases are zero, model-backed trigger eval did not run.")
+    lines.extend(["", "## 触发失败（脚本 eval）", ""])
+    lines.append("本节展示脚本驱动 trigger eval 中触发失败的 case（期望触发但未触发，或不该触发却触发）。")
     lines.append("")
     failed_trigger = trigger.get("failed_cases", [])
     if not failed_trigger:
-        lines.append("No trigger failures recorded.")
+        if trigger.get("case_count", 0) == 0:
+            if has_agent:
+                lines.append("脚本驱动 trigger eval 未运行（trigger cases = 0）。")
+                lines.append("→ Agent eval 的触发失败请查看下方 **Agent 编排 eval → Agent 触发失败** 节。")
+            else:
+                lines.append("脚本驱动 trigger eval 未运行，且无 Agent eval 数据。")
+        else:
+            lines.append("无触发失败记录。")
     else:
         for row in failed_trigger[:100]:
             lines.append(f"- `{row['skill']}#{row['case_id']}` {row['type']}: triggered={row.get('triggered_skills')} input={row['user_input']}")
-    lines.extend(["", "## A/B Classifications", ""])
-    lines.append("A/B classifications explain whether using a skill improved model output compared with baseline.")
+    lines.extend(["", "## A/B 分类（脚本 eval）", ""])
+    lines.append("A/B 分类说明使用 skill 是否改善了模型回答质量：")
     lines.append("")
-    lines.append("- `high_value`: with-skill passed and baseline failed.")
-    lines.append("- `neutral`: both with-skill and baseline passed.")
-    lines.append("- `regression`: baseline passed but with-skill failed.")
-    lines.append("- `both_fail`: both modes failed.")
+    lines.append("- `high_value`：with-skill 通过，baseline 失败——skill 有明显帮助。")
+    lines.append("- `neutral`：两边都通过——skill 不是必须的，但也无害。")
+    lines.append("- `regression`：baseline 通过，with-skill 失败——使用 skill 反而变差，需检查。")
+    lines.append("- `both_fail`：两边都失败——skill 内容或 eval case 需要改进。")
     lines.append("")
-    for key, value in sorted((ab.get("classification_counts") or {}).items()):
-        lines.append(f"- `{key}`: {value}")
-    lines.extend(["", "## Skill Confusion Matrix", ""])
-    lines.append("The confusion matrix is built from trigger evals. Each row means: expected skill -> detected actual skill(s). Non-diagonal entries are the main signal for skill confusion.")
+    ab_clf = ab.get("classification_counts") or {}
+    if ab_clf:
+        for key, value in sorted(ab_clf.items()):
+            lines.append(f"- `{key}`: {value}")
+    else:
+        if has_agent:
+            lines.append("脚本驱动 A/B eval 未运行（A/B cases = 0）。")
+            lines.append("→ Agent eval 的 A/B 分类请查看下方 **Agent 编排 eval → Agent A/B 分类** 节。")
+        else:
+            lines.append("脚本驱动 A/B eval 未运行，且无 Agent eval 数据。")
+    lines.extend(["", "## Skill 混淆矩阵（脚本 eval）", ""])
+    lines.append("混淆矩阵来自脚本驱动 trigger eval。每行含义：期望触发的 skill → 实际检测到的 skill。非对角线条目是 skill 混淆的主要信号。")
     lines.append("")
     confusion = trigger.get("confusion_matrix") or {}
     if not confusion:
-        lines.append("No trigger confusion data recorded.")
+        if has_agent:
+            lines.append("脚本驱动 trigger eval 未运行，无混淆矩阵数据。")
+            lines.append("→ Agent eval 的混淆矩阵请查看下方 **Agent 编排 eval → Agent 混淆矩阵** 节。")
+        else:
+            lines.append("脚本驱动 trigger eval 未运行，无混淆矩阵数据。")
     else:
         for expected, actuals in sorted(confusion.items()):
             rendered = ", ".join(f"{actual}: {count}" for actual, count in sorted(actuals.items()))
             lines.append(f"- `{expected}` -> {rendered}")
-    lines.extend(["", "## Agent-Orchestrated Eval", ""])
-    lines.append("Agent-orchestrated eval is produced when Claude/Codex follows `tests/agent_eval/RUNBOOK.md` and writes `raw/agent_eval_results.jsonl`. It is useful when you want the agent itself to dispatch parallel workers instead of a Python script repeatedly invoking an external CLI.")
+    lines.extend(["", "## Agent 编排 eval", ""])
+    lines.append("本层由 Claude/Codex 按 `tests/agent_eval/RUNBOOK.md` 并发调度子 agent，结果写入 `raw/agent_eval_results.jsonl`。**当前 eval 主要使用此层。**")
     lines.append("")
     if not data.get("agent"):
-        lines.append("No agent-orchestrated eval rows recorded.")
+        lines.append("未记录 Agent 编排 eval 数据。")
     else:
-        lines.append(f"- Rows: {agent.get('row_count', 0)}")
-        lines.append(f"- Trigger cases: {agent.get('trigger_case_count', 0)}")
-        lines.append(f"- Trigger recall: {_pct(agent.get('trigger_recall'))}")
-        lines.append(f"- Negative pass rate: {_pct(agent.get('negative_pass_rate'))}")
-        lines.append(f"- A/B pairs: {agent.get('ab_case_count', 0)}")
-        lines.append(f"- With-skill pass rate: {_pct(agent.get('with_skill_pass_rate'))}")
-        lines.append(f"- Baseline pass rate: {_pct(agent.get('baseline_pass_rate'))}")
-        lines.append(f"- Average uplift: {_pct(agent.get('average_uplift'))}")
+        lines.append(f"- 总行数：{agent.get('row_count', 0)}")
+        lines.append(f"- Trigger cases：{agent.get('trigger_case_count', 0)}")
+        lines.append(f"- Trigger recall：{_pct(agent.get('trigger_recall'))}")
+        lines.append(f"- 负例通过率：{_pct(agent.get('negative_pass_rate'))}")
+        lines.append(f"- A/B pairs：{agent.get('ab_case_count', 0)}")
+        lines.append(f"- With-skill 通过率：{_pct(agent.get('with_skill_pass_rate'))}")
+        lines.append(f"- Baseline 通过率：{_pct(agent.get('baseline_pass_rate'))}")
+        lines.append(f"- 平均 uplift：{_pct(agent.get('average_uplift'))}")
         lines.append("")
-        lines.append("### Agent A/B classifications")
+        lines.append("### Agent A/B 分类")
         lines.append("")
         for key, value in sorted((agent.get("classification_counts") or {}).items()):
             lines.append(f"- `{key}`: {value}")
         lines.append("")
-        lines.append("### Agent confusion matrix")
+        lines.append("### Agent 混淆矩阵")
         lines.append("")
         agent_confusion = agent.get("confusion_matrix") or {}
         if not agent_confusion:
-            lines.append("No agent confusion data recorded.")
+            lines.append("无 Agent 混淆矩阵数据。")
         else:
             for expected, actuals in sorted(agent_confusion.items()):
                 rendered = ", ".join(f"{actual}: {count}" for actual, count in sorted(actuals.items()))
@@ -228,34 +353,34 @@ def render_markdown(data: dict[str, Any]) -> str:
         failed_agent = agent.get("failed_trigger_cases") or []
         if failed_agent:
             lines.append("")
-            lines.append("### Agent trigger failures")
+            lines.append("### Agent 触发失败")
             lines.append("")
             for row in failed_agent[:50]:
                 lines.append(
                     f"- `{row.get('skill')}#{row.get('case_id')}` {row.get('case_type')}: "
                     f"selected={row.get('selected_skills')} reason={row.get('failure_reason') or row.get('evidence') or ''}"
                 )
-    lines.extend(["", "## Potential Overlap", ""])
-    lines.append("Overlap analysis is heuristic. A high score is not automatically wrong; it is a review signal that two skills may share trigger language, examples, or functional scope.")
+    lines.extend(["", "## Overlap 分析", ""])
+    lines.append("Overlap 分析是启发式的，高分不代表一定有问题，但是检查 skill 边界、补充负例的参考信号。")
     lines.append("")
     desc_overlap = data["overlap"]["description_overlap"][:30]
     case_overlap = data["overlap"]["case_overlap"][:30]
-    lines.append("### Description overlap")
+    lines.append("### Description 重叠")
     lines.append("")
-    lines.append("Description overlap compares skill frontmatter descriptions. `score` is token Jaccard similarity: shared terms divided by all unique terms across the two descriptions.")
+    lines.append("比较各 skill 的 frontmatter description。`score` 是 token Jaccard 相似度：共同词数 / 两个描述合并后的唯一词数。")
     lines.append("")
     if not desc_overlap:
-        lines.append("No high description overlap found.")
+        lines.append("未发现高 description 重叠。")
     else:
         for row in desc_overlap:
             lines.append(f"- `{row['left']}` ↔ `{row['right']}` score={row['score']} shared={', '.join(row['shared_terms'][:8])}")
     lines.append("")
-    lines.append("### Eval case overlap")
+    lines.append("### Eval case 重叠")
     lines.append("")
-    lines.append("Eval case overlap compares user prompts across different skills. High score means two skills are tested with similar user requests and may need clearer ownership or negative cases.")
+    lines.append("比较不同 skill 的 user_input。高分表示两个 skill 的测试样例很像，可能需要检查功能边界或补充负例。")
     lines.append("")
     if not case_overlap:
-        lines.append("No high cross-skill eval case overlap found.")
+        lines.append("未发现高跨 skill eval case 重叠。")
     else:
         for row in case_overlap:
             lines.append(
@@ -329,25 +454,53 @@ def render_html(data: dict[str, Any]) -> str:
         [row["skill"], row["case_id"], row["classification"], row["uplift"], row.get("with_evidence", ""), row.get("baseline_evidence", "")]
         for row in (agent.get("ab_pairs") or [])[:100]
     ]
+    # 生成 HTML 总结段落
+    has_agent_html = bool(data.get("agent"))
     card_html = "".join(
         f"<section class='card {_status_class(v)}'><div>{html.escape(k)}</div><strong>{html.escape(str(v))}</strong></section>"
         for k, v in cards
     )
     model_eval_note = (
-        "本次报告包含模型触发、A/B Eval 或 Agent 编排 Eval 原始结果。"
+        "本次报告包含 Agent 编排 eval 原始结果（`raw/agent_eval_results.jsonl`）。"
         if _has_model_eval_data(data)
-        else "本次报告没有模型触发/A-B/Agent Eval 原始结果；当前 HTML 主要解释静态校验和 overlap 分析。可配置 SKILL_EVAL_AGENT_COMMAND，或让 Claude/Codex 按 tests/agent_eval/RUNBOOK.md 生成 agent_eval_results.jsonl。"
+        else "本次报告未包含模型 eval 原始结果，仅展示静态校验和 overlap 分析。如需运行 Agent eval，请参考 `tests/agent_eval/RUNBOOK.md`。"
     )
     static_explanation = _interpret_static(len(static_errors), len(static_warnings))
     trigger_recall_meaning = _interpret_rate(trigger.get("trigger_recall"))
     negative_meaning = _interpret_rate(trigger.get("negative_pass_rate"))
     average_uplift = ab.get("average_uplift") if ab.get("case_count") else None
+    summary_lines = _render_executive_summary(data)
+    summary_html = "".join(
+        f"<p>{html.escape(line)}</p>" if line and not line.startswith("#") and not line.startswith("**") else
+        (f"<h3>{html.escape(line.lstrip('#').strip())}</h3>" if line.startswith("#") else
+         f"<p><strong>{html.escape(line.strip('*'))}</strong></p>" if line.startswith("**") else "")
+        for line in summary_lines if line.strip()
+    )
+    # 三处空 section 的重定向提示
+    trigger_empty_msg = (
+        "<div class='empty'>脚本驱动 trigger eval 未运行（trigger cases = 0）。"
+        "→ Agent eval 的触发失败请查看下方 <a href='#agent-eval'>Agent 编排 eval → Agent 触发失败</a>。</div>"
+        if not trigger_rows and trigger.get("case_count", 0) == 0 and has_agent_html
+        else "<div class='empty'>无触发失败记录。</div>"
+    )
+    ab_empty_msg = (
+        "<div class='empty'>脚本驱动 A/B eval 未运行（A/B cases = 0）。"
+        "→ Agent eval 的 A/B 分类请查看下方 <a href='#agent-eval'>Agent 编排 eval → Agent A/B 分类</a>。</div>"
+        if not (ab.get("classification_counts") or {}) and has_agent_html
+        else "<div class='empty'>无 A/B 分类数据。</div>"
+    )
+    confusion_empty_msg = (
+        "<div class='empty'>脚本驱动 trigger eval 未运行，无混淆矩阵数据。"
+        "→ Agent eval 的混淆矩阵请查看下方 <a href='#agent-eval'>Agent 编排 eval → Agent 混淆矩阵</a>。</div>"
+        if not (trigger.get("confusion_matrix") or {}) and has_agent_html
+        else "<div class='empty'>无混淆矩阵数据。</div>"
+    )
     return f"""<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ClickZetta Skills Eval Summary</title>
+<title>ClickZetta Skills Eval 报告</title>
 <style>
 body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif; margin: 0; color: #1f2937; background: #f8fafc; line-height: 1.55; }}
 main {{ max-width: 1240px; margin: 0 auto; padding: 28px 22px 56px; }}
@@ -366,6 +519,8 @@ code {{ background: #eef2f7; padding: 2px 5px; border-radius: 4px; }}
 .card.warn strong {{ color: #a15c00; }}
 .card.muted strong {{ color: #64748b; }}
 .explain {{ background: #f4f8ff; border: 1px solid #cfe0ff; border-radius: 8px; padding: 13px; margin: 10px 0; }}
+.summary {{ background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin: 16px 0; }}
+.summary h3 {{ color: #166534; margin: 12px 0 4px; }}
 .dictionary {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }}
 .term {{ background: #fbfcfe; border: 1px solid #dbe3ef; border-radius: 8px; padding: 11px; }}
 .term strong {{ display: block; margin-bottom: 4px; }}
@@ -373,23 +528,29 @@ table {{ width: 100%; border-collapse: collapse; background: white; margin: 8px 
 th, td {{ border: 1px solid #dbe3ef; padding: 8px; text-align: left; vertical-align: top; }}
 th {{ background: #eef2f7; }}
 .empty {{ color: #64748b; background: #fbfcfe; border: 1px dashed #cbd5e1; padding: 12px; border-radius: 8px; }}
+.empty a {{ color: #2563eb; }}
 ul {{ margin-top: 8px; }}
 </style>
 </head>
 <body>
 <main>
-<h1>ClickZetta Skills Eval Summary</h1>
-<p class="lead">这份报告用于评估 ClickZetta Skill 仓库的结构质量、触发质量、A/B 增益和 Skill 边界重叠。它既是测试结果，也是阅读指南。</p>
+<h1>ClickZetta Skills Eval 报告</h1>
+<p class="lead">评估 ClickZetta Skill 仓库的结构质量、触发准确率、A/B 增益和 Skill 边界重叠。</p>
 <div class="grid">{card_html}</div>
 
+<section class="panel summary">
+<h2>总结</h2>
+{summary_html}
+</section>
+
 <section class="panel">
-<h2>How to Read This Report</h2>
+<h2>报告结构说明</h2>
 <p>{html.escape(model_eval_note)}</p>
 <div class="dictionary">
-<div class="term"><strong>Static validation</strong>检查 <code>SKILL.md</code>、frontmatter、index 和 eval case 是否是可发布的 Skill 制品。当前解读：{html.escape(static_explanation)}</div>
-<div class="term"><strong>Trigger recall</strong><code>should_call</code> 中成功触发期望 Skill 的比例。当前解读：{html.escape(trigger_recall_meaning)}</div>
-<div class="term"><strong>Negative pass</strong><code>should_not_call</code> 中成功避免 forbidden Skill 的比例。当前解读：{html.escape(negative_meaning)}</div>
-<div class="term"><strong>Average uplift</strong>with-skill 通过率减去 baseline 通过率。当前值：{html.escape(_pct(average_uplift))}。</div>
+<div class="term"><strong>静态校验</strong>检查 <code>SKILL.md</code>、frontmatter、index 和 eval case 是否是可发布的 Skill 制品。当前解读：{html.escape(static_explanation)}</div>
+<div class="term"><strong>触发准确率（脚本）</strong><code>should_call</code> 中成功触发期望 Skill 的比例。当前解读：{html.escape(trigger_recall_meaning)}</div>
+<div class="term"><strong>负例通过率（脚本）</strong><code>should_not_call</code> 中成功避免 forbidden Skill 的比例。当前解读：{html.escape(negative_meaning)}</div>
+<div class="term"><strong>平均 uplift（脚本）</strong>with-skill 通过率减去 baseline 通过率。当前值：{html.escape(_pct(average_uplift))}。</div>
 <div class="term"><strong>Agent eval</strong>Claude/Codex 按 <code>tests/agent_eval/RUNBOOK.md</code> 并发运行 case 后写入 <code>raw/agent_eval_results.jsonl</code>。当前 Agent rows：{html.escape(str(agent.get("row_count", 0)))}。</div>
 <div class="term"><strong>Score</strong>Overlap 相似度，范围 0 到 1。越高表示两个文本共享词越多，越需要检查 Skill 边界。</div>
 <div class="term"><strong>Shared terms</strong>两个描述或两个 eval prompt 共同出现的词，是 score 的主要来源。</div>
@@ -397,68 +558,68 @@ ul {{ margin-top: 8px; }}
 </section>
 
 <section class="panel">
-<h2>Metric Definitions</h2>
+<h2>指标说明</h2>
 <ul>
-<li><strong>Static errors</strong>: 阻塞性结构问题，应优先修复。当前 pytest 只会因 error 失败。</li>
-<li><strong>Static warnings</strong>: 质量债或覆盖不足，例如缺少负例、index 元数据不同步、description 偏长。</li>
-<li><strong>Trigger cases</strong>: 参与模型触发测试的 case 数量。为 0 通常表示没有运行 model-backed eval。</li>
-<li><strong>A/B cases</strong>: 参与 with-skill vs baseline 对比的 case 数量。为 0 通常表示没有运行 model-backed eval。</li>
-<li><strong>Agent rows</strong>: 由 Claude/Codex 子 agent 直接生成的结构化评测行，来源是 <code>raw/agent_eval_results.jsonl</code>。</li>
-<li><strong>Description overlap</strong>: 比较 Skill frontmatter description，用于发现触发描述是否重叠。</li>
-<li><strong>Eval case overlap</strong>: 比较不同 Skill 的用户样例，用于发现测试样例和功能范围是否重叠。</li>
+<li><strong>Static errors</strong>：阻塞性结构问题，应优先修复。当前 pytest 只会因 error 失败。</li>
+<li><strong>Static warnings</strong>：质量债或覆盖不足，例如缺少负例、index 元数据不同步、description 偏长。</li>
+<li><strong>Trigger cases</strong>：参与脚本触发测试的 case 数量。为 0 表示脚本驱动 eval 未运行；Agent eval 数据见下方。</li>
+<li><strong>A/B cases</strong>：参与 with-skill vs baseline 对比的 case 数量。为 0 表示脚本驱动 eval 未运行；Agent eval 数据见下方。</li>
+<li><strong>Agent rows</strong>：由 Claude/Codex 子 agent 直接生成的结构化评测行，来源是 <code>raw/agent_eval_results.jsonl</code>。</li>
+<li><strong>Description overlap</strong>：比较 Skill frontmatter description，用于发现触发描述是否重叠。</li>
+<li><strong>Eval case overlap</strong>：比较不同 Skill 的用户样例，用于发现测试样例和功能范围是否重叠。</li>
 </ul>
 </section>
 
 <section class="panel">
-<h2>Static Issues</h2>
-{_explanation_box("What this table means", "每一行都是一个静态校验发现。Severity 为 error 表示阻塞问题；warning 表示不阻塞当前测试但建议治理。Code 是问题类别，Skill 是受影响的 skill，Message 是具体解释。")}
+<h2>静态校验问题</h2>
+{_explanation_box("说明", "每一行都是一个静态校验发现。Severity 为 error 表示阻塞问题；warning 表示不阻塞当前测试但建议治理。Code 是问题类别，Skill 是受影响的 skill，Message 是具体解释。")}
 {_table(["Severity", "Code", "Skill", "Message", "Path"], static_rows)}
 </section>
 
 <section class="panel">
-<h2>Trigger Failures</h2>
-{_explanation_box("What this table means", "该表只在运行 trigger eval 后有内容。它展示应该触发但没触发、或不该触发却触发的 case。Triggered 是从 agent/tool trace 中检测到的实际 Skill。")}
-{_table(["Skill", "Case", "Type", "Triggered", "Input"], trigger_rows) if trigger_rows else "<div class='empty'>No trigger failures recorded. If Trigger cases is 0, model-backed trigger eval did not run.</div>"}
+<h2>触发失败（脚本 eval）</h2>
+{_explanation_box("说明", "本节仅在运行脚本驱动 trigger eval 后有内容。展示应该触发但没触发、或不该触发却触发的 case。若 Trigger cases = 0，表示脚本 eval 未运行，请查看下方 Agent 编排 eval 节。")}
+{_table(["Skill", "Case", "Type", "Triggered", "Input"], trigger_rows) if trigger_rows else trigger_empty_msg}
 </section>
 
 <section class="panel">
-<h2>A/B Eval Meaning</h2>
-{_explanation_box("Classification guide", "high_value 表示 Skill 帮助明显；neutral 表示两边都能答对；regression 表示使用 Skill 反而变差；both_fail 表示 Skill 和 baseline 都没通过，需要看 case 或 Skill 内容。")}
-{_table(["Classification", "Count"], [[k, v] for k, v in sorted((ab.get("classification_counts") or {}).items())]) if (ab.get("classification_counts") or {}) else "<div class='empty'>No A/B classification data. Model-backed A/B eval did not run or produced no cases.</div>"}
+<h2>A/B 分类（脚本 eval）</h2>
+{_explanation_box("分类说明", "high_value：Skill 帮助明显；neutral：两边都能答对；regression：使用 Skill 反而变差；both_fail：Skill 和 baseline 都没通过。若 A/B cases = 0，表示脚本 eval 未运行，请查看下方 Agent 编排 eval 节。")}
+{_table(["Classification", "Count"], [[k, v] for k, v in sorted((ab.get("classification_counts") or {}).items())]) if (ab.get("classification_counts") or {}) else ab_empty_msg}
 </section>
 
 <section class="panel">
-<h2>Skill Confusion Matrix</h2>
-{_explanation_box("What this section means", "混淆矩阵来自 trigger eval。每一行表示 expected skill -> actual detected skill。对角线是正确触发；非对角线表示 Skill 之间可能混淆或互相抢触发。")}
-{"".join(f"<p><code>{html.escape(expected)}</code> -> {html.escape(', '.join(f'{actual}: {count}' for actual, count in sorted(actuals.items())))}</p>" for expected, actuals in sorted((trigger.get("confusion_matrix") or {}).items())) or "<div class='empty'>No confusion matrix data. Trigger eval did not run.</div>"}
+<h2>Skill 混淆矩阵（脚本 eval）</h2>
+{_explanation_box("说明", "混淆矩阵来自脚本驱动 trigger eval。每一行表示 expected skill → actual detected skill。对角线是正确触发；非对角线表示 Skill 之间可能混淆。若 Trigger cases = 0，表示脚本 eval 未运行，请查看下方 Agent 编排 eval 节。")}
+{"".join(f"<p><code>{html.escape(expected)}</code> -> {html.escape(', '.join(f'{actual}: {count}' for actual, count in sorted(actuals.items())))}</p>" for expected, actuals in sorted((trigger.get("confusion_matrix") or {}).items())) or confusion_empty_msg}
 </section>
 
-<section class="panel">
-<h2>Agent-Orchestrated Eval</h2>
-{_explanation_box("What this section means", "这一层来自 Claude/Codex 按 tests/agent_eval/RUNBOOK.md 并发调度子 agent 的结果。它不依赖测试脚本持续向 agent 喂 prompt，而是让 agent 自己执行 trigger、with_skill、baseline 三类任务并写入 raw/agent_eval_results.jsonl。")}
+<section class="panel" id="agent-eval">
+<h2>Agent 编排 eval</h2>
+{_explanation_box("说明", "本层由 Claude/Codex 按 tests/agent_eval/RUNBOOK.md 并发调度子 agent，让 agent 自己执行 trigger、with_skill、baseline 三类任务并写入 raw/agent_eval_results.jsonl。当前 eval 主要使用此层。")}
 <div class="dictionary">
-<div class="term"><strong>Rows</strong>{html.escape(str(agent.get("row_count", 0)))}</div>
+<div class="term"><strong>总行数</strong>{html.escape(str(agent.get("row_count", 0)))}</div>
 <div class="term"><strong>Trigger recall</strong>{html.escape(_pct(agent.get("trigger_recall")))}</div>
-<div class="term"><strong>Negative pass</strong>{html.escape(_pct(agent.get("negative_pass_rate")))}</div>
-<div class="term"><strong>Average uplift</strong>{html.escape(_pct(agent.get("average_uplift")) if agent.get("ab_case_count") else "n/a")}</div>
+<div class="term"><strong>负例通过率</strong>{html.escape(_pct(agent.get("negative_pass_rate")))}</div>
+<div class="term"><strong>平均 uplift</strong>{html.escape(_pct(agent.get("average_uplift")) if agent.get("ab_case_count") else "n/a")}</div>
 </div>
-<h3>Agent A/B Pairs</h3>
-{_table(["Skill", "Case", "Classification", "Uplift", "With evidence", "Baseline evidence"], agent_ab_rows) if agent_ab_rows else "<div class='empty'>No agent A/B pairs recorded.</div>"}
-<h3>Agent Trigger Failures</h3>
-{_table(["Skill", "Case", "Type", "Selected skills", "Reason"], agent_failed_rows) if agent_failed_rows else "<div class='empty'>No agent trigger failures recorded.</div>"}
-<h3>Agent Confusion Matrix</h3>
-{"".join(f"<p><code>{html.escape(expected)}</code> -> {html.escape(', '.join(f'{actual}: {count}' for actual, count in sorted(actuals.items())))}</p>" for expected, actuals in sorted((agent.get("confusion_matrix") or {}).items())) or "<div class='empty'>No agent confusion matrix data.</div>"}
+<h3>Agent A/B 分类</h3>
+{_table(["Skill", "Case", "Classification", "Uplift", "With evidence", "Baseline evidence"], agent_ab_rows) if agent_ab_rows else "<div class='empty'>无 Agent A/B 数据。</div>"}
+<h3>Agent 触发失败</h3>
+{_table(["Skill", "Case", "Type", "Selected skills", "Reason"], agent_failed_rows) if agent_failed_rows else "<div class='empty'>无 Agent 触发失败记录。</div>"}
+<h3>Agent 混淆矩阵</h3>
+{"".join(f"<p><code>{html.escape(expected)}</code> -> {html.escape(', '.join(f'{actual}: {count}' for actual, count in sorted(actuals.items())))}</p>" for expected, actuals in sorted((agent.get("confusion_matrix") or {}).items())) or "<div class='empty'>无 Agent 混淆矩阵数据。</div>"}
 </section>
 
 <section class="panel">
-<h2>Description Overlap</h2>
-{_explanation_box("How to read score and shared terms", "Score 是两个 Skill description 的 token Jaccard 相似度：共同词数量 / 合并后的唯一词数量。Shared terms 是共同词示例。高 score 不是错误，但表示 description 可能覆盖相近场景，需要检查边界或补充负例。")}
+<h2>Description 重叠</h2>
+{_explanation_box("说明", "Score 是两个 Skill description 的 token Jaccard 相似度：共同词数量 / 合并后的唯一词数量。高 score 不是错误，但表示 description 可能覆盖相近场景，需要检查边界或补充负例。")}
 {_table(["Left", "Right", "Score", "Shared terms"], desc_rows)}
 </section>
 
 <section class="panel">
-<h2>Eval Case Overlap</h2>
-{_explanation_box("How to read this table", "该表比较不同 Skill 的 user_input。高 score 表示两个 Skill 的测试样例很像，可能是合理关联，也可能是功能重复或 expected_skill 边界不清。Inputs 中斜杠左右分别是两个相似 case。")}
+<h2>Eval Case 重叠</h2>
+{_explanation_box("说明", "比较不同 Skill 的 user_input。高 score 表示两个 Skill 的测试样例很像，可能是合理关联，也可能是功能重复或 expected_skill 边界不清。Inputs 中斜杠左右分别是两个相似 case。")}
 {_table(["Left Skill", "Left Case", "Right Skill", "Right Case", "Score", "Inputs"], case_rows)}
 </section>
 </main>

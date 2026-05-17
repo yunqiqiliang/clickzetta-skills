@@ -149,8 +149,10 @@ def _validate_index(root: Path, skill_dirs: list[Path]) -> list[ValidationIssue]
             continue
         assert skill is not None
         index_desc = normalize_description(row.get("description"))
-        skill_desc = normalize_description(skill.frontmatter.get("description"))
-        if index_desc and skill_desc and index_desc != skill_desc:
+        # index.json stores only the first line of the description; compare against that
+        raw_skill_desc = skill.frontmatter.get("description") or ""
+        skill_desc_first_line = normalize_description(str(raw_skill_desc).strip().splitlines()[0] if raw_skill_desc else "")
+        if index_desc and skill_desc_first_line and index_desc != skill_desc_first_line:
             issues.append(
                 _issue(
                     "warning",
