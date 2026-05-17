@@ -1,36 +1,14 @@
 ---
 name: clickzetta-metadata
 description: |
-  查询 ClickZetta Lakehouse 元数据，覆盖两种查询方式：
-  1. SHOW/DESC 命令族（实时，无延迟）：快速查看当前对象状态，适合单个对象的即时查询
-  2. INFORMATION_SCHEMA 视图（约 15 分钟延迟，支持复杂 SQL 分析）：适合聚合统计、费用归因、跨对象分析
-
-  选择原则：
-  - 快速查看单个对象（表结构、字段、集群状态、权限）→ SHOW/DESC
-  - 复杂 SQL 分析、费用归因、跨空间统计、历史趋势 → information_schema
-
-  覆盖所有 SHOW 命令（TABLES/SCHEMAS/CATALOGS/COLUMNS/VOLUMES/CONNECTIONS/JOBS/VCLUSTERS/
-  PIPES/SHARES/USERS/ROLES/GRANTS/FUNCTIONS/TABLE STREAMS/PARTITIONS/SYNONYMS/INDEX/
-  DYNAMIC TABLE REFRESH HISTORY/TABLES HISTORY），所有 DESC 命令（TABLE/SCHEMA/HISTORY/
-  VCLUSTER/VOLUME/CONNECTION/FUNCTION/VIEW/DYNAMIC TABLE/SHARE/INDEX/TABLE STREAM），
-  SHOW CREATE TABLE，load_history()，FROM (SHOW ...) 子查询，上下文函数，
-  以及 INFORMATION_SCHEMA 空间级和实例级视图（TABLES/COLUMNS/JOB_HISTORY/USERS/ROLES/
-  VOLUMES/CONNECTIONS/MATERIALIZED_VIEW_REFRESH_HISTORY/STORAGE_METERING/INSTANCE_USAGE 等）。
-
-  当用户说"查看表列表"、"查看字段"、"查看字段信息"、"查看作业"、"查看作业历史"、
-  "查看 JOB 历史"、"SHOW TABLES"、"DESC TABLE"、"查看分区"、"查看历史版本"、
-  "查看删除的表"、"查看导入历史"、"load_history"、"SHOW JOBS"、"查看集群状态"、
-  "查看连接"、"查看权限"、"SHOW GRANTS"、"查看函数"、"查看 Volume"、
-  "查看 Volume 列表"、"查看 Share"、"查看 Catalog"、"查看慢查询"、
-  "查看 CRU 消耗"、"费用分析"、"成本分析"、"计算费用"、"存储费用"、
-  "用量统计"、"成本归因"、"哪个用户消耗最多"、"存储用量排行"、
-  "查看用户列表"、"查看角色"、"查看 Connection"、"查看物化视图刷新历史"、
-  "元数据查询"、"information_schema"、"查看所有表"、"查看 Schema 列表"、
-  "统计存储用量"、"SHOW/DESC 和 information_schema 哪个更快"时触发。
-
-  注意：本 skill 仅覆盖元数据的只读查询（SHOW/DESC/information_schema）。
-  权限变更（GRANT/REVOKE/创建用户/角色管理/数据脱敏）请使用 clickzetta-access-control skill。
-  Keywords: SHOW, DESC, DESCRIBE, metadata, load_history, information_schema, table info, column info, job history, system view, cost analysis, CRU
+  查询 ClickZetta Lakehouse 元数据，覆盖两种方式：
+  SHOW/DESC 命令族（实时，适合单个对象即时查询）和
+  INFORMATION_SCHEMA 视图（支持复杂 SQL 分析、费用归因、跨对象统计）。
+  当用户说"查看表列表"、"查看字段"、"查看作业历史"、"SHOW TABLES"、
+  "DESC TABLE"、"查看分区"、"查看权限"、"SHOW GRANTS"、"查看 Volume"、
+  "费用分析"、"成本归因"、"用量统计"、"元数据查询"、"information_schema"时触发。
+  注意：本 skill 仅覆盖只读元数据查询；权限变更请使用 clickzetta-access-control。
+  Keywords: SHOW, DESC, metadata, load_history, information_schema, job history, cost analysis, CRU
 ---
 
 # ClickZetta 元数据查询指南
@@ -69,6 +47,26 @@ cz-cli sql "SELECT * FROM load_history('my_schema.my_table') LIMIT 20" --sync -o
 | 跨空间查询 | `SYS.information_schema.*` | 需 INSTANCE ADMIN |
 
 **延迟说明**：SHOW/DESC 实时返回；information_schema 视图有约 15 分钟延迟。
+
+---
+
+## 支持的命令与视图全览
+
+**SHOW 命令**：TABLES / SCHEMAS / CATALOGS / COLUMNS / VOLUMES / CONNECTIONS / JOBS / VCLUSTERS /
+PIPES / SHARES / USERS / ROLES / GRANTS / FUNCTIONS / TABLE STREAMS / PARTITIONS / SYNONYMS / INDEX /
+DYNAMIC TABLE REFRESH HISTORY / TABLES HISTORY
+
+**DESC 命令**：TABLE / SCHEMA / HISTORY / VCLUSTER / VOLUME / CONNECTION / FUNCTION / VIEW /
+DYNAMIC TABLE / SHARE / INDEX / TABLE STREAM
+
+**其他**：SHOW CREATE TABLE、load_history()、FROM (SHOW ...) 子查询、上下文函数
+
+**INFORMATION_SCHEMA 视图**（空间级）：TABLES / COLUMNS / JOB_HISTORY / USERS / ROLES /
+VOLUMES / CONNECTIONS / MATERIALIZED_VIEW_REFRESH_HISTORY / AUTOMV_REFRESH_HISTORY / SORTKEY_CANDIDATES
+
+**INFORMATION_SCHEMA 视图**（实例级，需 INSTANCE ADMIN）：WORKSPACES / SCHEMAS / TABLES / COLUMNS /
+VIEWS / USERS / ROLES / JOB_HISTORY / VOLUMES / CONNECTIONS / OBJECT_PRIVILEGES /
+STORAGE_METERING / INSTANCE_USAGE
 
 ---
 
