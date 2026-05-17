@@ -181,7 +181,7 @@
     },
     {
       "name": "clickzetta-metadata",
-      "description": "查询 ClickZetta Lakehouse 元数据，覆盖两种查询方式：",
+      "description": "查询 ClickZetta Lakehouse 元数据，覆盖两种方式：",
       "files": [
         "SKILL.md",
         "references/instance-views-reference.md",
